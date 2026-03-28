@@ -28,7 +28,6 @@
 - **Transaction history** — complete audit log of every stock movement
 - **Multilingual** — English, German (DE), Arabic (AR) with live switching and RTL layout
 - **Offline & private** — all data stored locally in SQLite, no internet required
-- **iOS-inspired dark UI** — true black background, color-coded status badges, smooth layout
 
 ---
 

@@ -72,32 +72,15 @@ python main.py
 
 ## Building
 
-### 1. Generate the app icon
-
-```bash
-python generate_icon.py
-```
-
-### 2. Build the executable
+### . Build the executable
 
 ```bash
 # From the project root
-pyinstaller src/StockManagerPro.spec --noconfirm
+pyinstaller StockManagerPro.spec --noconfirm
 ```
 
 Output: `dist/StockManagerPro/StockManagerPro.exe`
 
-### 3. Package for release
-
-```bash
-build.bat
-```
-
-Zip `dist\StockManagerPro\` and attach it to a GitHub release.
-
-Output: `Output/StockManagerProSetup.exe`
-
----
 
 ## Project Structure
 
@@ -126,7 +109,6 @@ stock-manager/
 | UI Framework | [PyQt6](https://www.riverbankcomputing.com/software/pyqt/) |
 | Database | SQLite 3 (via Python stdlib) |
 | Packaging | [PyInstaller](https://pyinstaller.org/) |
-| Icon generation | [Pillow](https://python-pillow.org/) |
 
 ---
 

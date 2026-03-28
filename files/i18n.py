@@ -230,7 +230,7 @@ _TR: dict[str, dict[str, str]] = {
     "dlg_grp_stock":      {"EN": "Stock Settings",   "DE": "Bestandseinstellungen",    "AR": "إعدادات المخزون"},
     "dlg_lbl_brand":      {"EN": "Brand *",          "DE": "Marke *",                  "AR": "العلامة *"},
     "dlg_lbl_type":       {"EN": "Type *",           "DE": "Typ *",                    "AR": "النوع *"},
-    "dlg_lbl_color":      {"EN": "Color *",          "DE": "Farbe *",                  "AR": "اللون *"},
+    "dlg_lbl_color":      {"EN": "Color",             "DE": "Farbe",                    "AR": "اللون"},
     "dlg_lbl_barcode":    {"EN": "Barcode",          "DE": "Barcode",                  "AR": "الباركود"},
     "dlg_lbl_init_stock": {"EN": "Initial Stock",   "DE": "Anfangsbestand",            "AR": "المخزون الأولي"},
     "dlg_lbl_alert_when": {"EN": "Alert when ≤",    "DE": "Alarm wenn ≤",              "AR": "تنبيه عند ≤"},
@@ -277,6 +277,158 @@ _TR: dict[str, dict[str, str]] = {
     "btn_close": {"EN": "Close", "DE": "Schließen", "AR": "إغلاق"},
     # ── Known DB-stored note strings ──────────────────────────────────────────
     "note_product_created": {"EN": "Product created", "DE": "Produkt erstellt", "AR": "تم إنشاء المنتج"},
+
+    # ── Displays tab ──────────────────────────────────────────────────────────
+    "tab_displays": {
+        "EN": "  Displays  ",
+        "DE": "  Displays  ",
+        "AR": "  الشاشات  ",
+    },
+    "disp_caption": {
+        "EN": "Displays Inventory  —  double-click any cell to edit",
+        "DE": "Displays-Bestand  —  Doppelklick zum Bearbeiten",
+        "AR": "مخزون الشاشات  —  انقر مرتين على أي خلية للتعديل",
+    },
+    "disp_all_brands": {
+        "EN": "All Brands",
+        "DE": "Alle Marken",
+        "AR": "جميع العلامات",
+    },
+    "disp_add_model": {
+        "EN": "＋  Add Model",
+        "DE": "＋  Modell hinzufügen",
+        "AR": "＋  إضافة طراز",
+    },
+    "disp_legend_neg": {
+        "EN": "Best-Bung negative → need to order",
+        "DE": "Best-Bung negativ → bestellen",
+        "AR": "Best-Bung سالب ← يحتاج طلب",
+    },
+    "disp_legend_zero": {
+        "EN": "Best-Bung = 0 → at minimum",
+        "DE": "Best-Bung = 0 → am Minimum",
+        "AR": "Best-Bung = 0 ← عند الحد الأدنى",
+    },
+    "disp_legend_pos": {
+        "EN": "Best-Bung positive → surplus",
+        "DE": "Best-Bung positiv → Überschuss",
+        "AR": "Best-Bung موجب ← فائض",
+    },
+    "disp_col_model": {
+        "EN": "Model",
+        "DE": "Modell",
+        "AR": "الطراز",
+    },
+    "disp_col_stock": {
+        "EN": "Stock",
+        "DE": "Bestand",
+        "AR": "المخزون",
+    },
+    # ── Stock op dialog ───────────────────────────────────────────────────────
+    "disp_need_more": {
+        "EN": "Need {n} more to reach minimum",
+        "DE": "Brauche {n} mehr bis Minimum",
+        "AR": "يحتاج {n} وحدة للحد الأدنى",
+    },
+    "disp_surplus": {
+        "EN": "Surplus: {n} above minimum",
+        "DE": "Überschuss: {n} über Minimum",
+        "AR": "فائض: {n} فوق الحد الأدنى",
+    },
+    "disp_op_in":  {"EN": "＋  Stock IN",   "DE": "＋  Eingang",      "AR": "＋  إضافة"},
+    "disp_op_out": {"EN": "－  Stock OUT",  "DE": "－  Ausgang",      "AR": "－  سحب"},
+    "disp_op_set": {"EN": "＝  Set Exact",  "DE": "＝  Exakt setzen", "AR": "＝  ضبط دقيق"},
+    "disp_qty_lbl":   {"EN": "Quantity:",        "DE": "Menge:",            "AR": "الكمية:"},
+    "disp_exact_lbl": {"EN": "New exact stock:", "DE": "Neuer Bestand:",    "AR": "المخزون الجديد:"},
+    "disp_stock_err": {"EN": "Stock Error",      "DE": "Bestandsfehler",    "AR": "خطأ في المخزون"},
+    # ── Stamm-Zahl dialog ─────────────────────────────────────────────────────
+    "disp_dlg_stamm": {
+        "EN": "Set Stamm-Zahl",
+        "DE": "Stamm-Zahl festlegen",
+        "AR": "تحديد Stamm-Zahl",
+    },
+    "disp_stamm_hint": {
+        "EN": "Stamm-Zahl is the minimum stock level.\nBest-Bung = Stock − Stamm-Zahl\n(negative = need to order, positive = surplus).",
+        "DE": "Stamm-Zahl ist der Mindestbestand.\nBest-Bung = Bestand − Stamm-Zahl\n(negativ = bestellen, positiv = Überschuss).",
+        "AR": "Stamm-Zahl هو الحد الأدنى للمخزون.\nBest-Bung = المخزون − Stamm-Zahl\n(سالب = يحتاج طلب، موجب = فائض).",
+    },
+    # ── Inventur dialog ───────────────────────────────────────────────────────
+    "disp_dlg_inv": {
+        "EN": "Physical Count (Inventur)",
+        "DE": "Körperliche Zählung (Inventur)",
+        "AR": "الجرد الفعلي (Inventur)",
+    },
+    "disp_sys_stock": {
+        "EN": "System stock: {n}",
+        "DE": "Systembestand: {n}",
+        "AR": "مخزون النظام: {n}",
+    },
+    "disp_phys_count": {"EN": "Physical count:", "DE": "Physische Zählung:", "AR": "العدد الفعلي:"},
+    # ── Tooltips ──────────────────────────────────────────────────────────────
+    "disp_tip_stamm": {
+        "EN": "Double-click to set Stamm-Zahl (minimum stock level)",
+        "DE": "Doppelklick zum Festlegen des Mindestbestands",
+        "AR": "انقر مرتين لتحديد الحد الأدنى للمخزون",
+    },
+    "disp_tip_stock": {
+        "EN": "Double-click to add / remove stock",
+        "DE": "Doppelklick zum Hinzufügen / Entfernen",
+        "AR": "انقر مرتين لإضافة / سحب المخزون",
+    },
+    "disp_tip_inv": {
+        "EN": "Double-click to record physical count (Inventur)",
+        "DE": "Doppelklick zur Erfassung des Inventurs",
+        "AR": "انقر مرتين لتسجيل الجرد الفعلي",
+    },
+    "disp_tip_bb_neg":  {"EN": "Need {n} more to reach Stamm-Zahl", "DE": "{n} mehr bis Stamm-Zahl", "AR": "يحتاج {n} لبلوغ Stamm-Zahl"},
+    "disp_tip_bb_pos":  {"EN": "Surplus: {n} above Stamm-Zahl",     "DE": "Überschuss: {n}",         "AR": "فائض: {n} فوق Stamm-Zahl"},
+    "disp_tip_bb_zero": {"EN": "Exactly at Stamm-Zahl",             "DE": "Genau am Stamm-Zahl",     "AR": "عند Stamm-Zahl تماماً"},
+    # ── Add Model dialog ──────────────────────────────────────────────────────
+    "disp_dlg_add_model": {
+        "EN": "Add Phone Model",
+        "DE": "Modell hinzufügen",
+        "AR": "إضافة طراز هاتف",
+    },
+    "disp_lbl_brand": {
+        "EN": "Brand *",
+        "DE": "Marke *",
+        "AR": "العلامة *",
+    },
+    "disp_lbl_model_name": {
+        "EN": "Model Name *",
+        "DE": "Modellname *",
+        "AR": "اسم الطراز *",
+    },
+    "disp_ph_brand": {
+        "EN": "e.g. Apple, Samsung…",
+        "DE": "z.B. Apple, Samsung…",
+        "AR": "مثال: Apple, Samsung…",
+    },
+    "disp_ph_model": {
+        "EN": "e.g. iPhone 16 Pro, Galaxy S24 Ultra…",
+        "DE": "z.B. iPhone 16 Pro, Galaxy S24 Ultra…",
+        "AR": "مثال: iPhone 16 Pro, Galaxy S24 Ultra…",
+    },
+    "disp_save_model": {
+        "EN": "Add Model",
+        "DE": "Modell hinzufügen",
+        "AR": "إضافة الطراز",
+    },
+    "disp_model_empty": {
+        "EN": "Brand and Model Name cannot be empty.",
+        "DE": "Marke und Modellname dürfen nicht leer sein.",
+        "AR": "العلامة واسم الطراز لا يمكن أن يكونا فارغين.",
+    },
+    "disp_model_added": {
+        "EN": "Model '{name}' added.",
+        "DE": "Modell '{name}' hinzugefügt.",
+        "AR": "تمت إضافة الطراز '{name}'.",
+    },
+    "disp_filter_brand": {
+        "EN": "Brand:",
+        "DE": "Marke:",
+        "AR": "العلامة:",
+    },
 }
 
 

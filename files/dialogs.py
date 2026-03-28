@@ -189,8 +189,6 @@ class ColorPickerDialog(GradientDialog):
         self._nm.setText(color_t(n))   # ← translated color name
 
     def _confirm(self):
-        if not self._sel:
-            QMessageBox.warning(self, t("dlg_color_no_title"), t("dlg_color_no_body")); return
         self.accept()
 
     def get_color(self): return self._sel
@@ -280,8 +278,6 @@ class ProductDialog(GradientDialog):
                 QMessageBox.warning(self, t("dlg_required_title"),
                                     t("dlg_field_empty", field=field))
                 w.setFocus(); return
-        if not self.color_btn.color_name():
-            QMessageBox.warning(self, t("dlg_color_no_title"), t("dlg_color_no_body")); return
         self.accept()
 
     def get_data(self) -> dict:

@@ -23,6 +23,7 @@ import colors as clr
 from dialogs import ProductDialog, StockOpDialog, LowStockDialog
 from theme import THEME, GradientBackground, qc, _rgba
 from i18n import t, set_lang, LANG, color_t, note_t
+from displays_tab import DisplaysTab
 
 
 # ── sqlite3.Row helper ────────────────────────────────────────────────────────
@@ -613,6 +614,10 @@ class MainWindow(QMainWindow):
         self.txn_tbl = TransactionTable()
         tl.addWidget(self.txn_tbl)
         self.tabs.addTab(txn_pg, t("tab_transactions"))
+
+        self.displays_tab = DisplaysTab()
+        self.tabs.addTab(self.displays_tab, "Displays")
+
         sp.addWidget(self.tabs)
 
         # Right — detail
@@ -670,6 +675,8 @@ class MainWindow(QMainWindow):
         self.add_btn.setText(t("btn_new_product"))
         self.tabs.setTabText(0, t("tab_products"))
         self.tabs.setTabText(1, t("tab_transactions"))
+        self.tabs.setTabText(2, t("tab_displays"))
+        self.displays_tab.retranslate()
         self._txn_caption.setText(t("txn_history_caption"))
         self._txn_ref_btn.setText(t("btn_refresh"))
         self.prod_tbl.retranslate()

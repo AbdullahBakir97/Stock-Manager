@@ -1,0 +1,28 @@
+# ── Virtual environment ────────────────────────────────────────
+Lib/
+Include/
+Scripts/
+pyvenv.cfg
+__pycache__/
+*.py[cod]
+
+# ── PyInstaller artifacts ──────────────────────────────────────
+build/
+dist/
+*.spec.bak
+
+# ── Database (user data, never commit) ────────────────────────
+*.db
+*.db-shm
+*.db-wal
+
+# ── OS / editor noise ─────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
+
+# ── Installer output ──────────────────────────────────────────
+Output/
+*.exe

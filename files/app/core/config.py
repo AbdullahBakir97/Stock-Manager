@@ -12,13 +12,14 @@ class ShopConfig:
     currency_position: str = "prefix"   # "prefix" | "suffix"
     default_language:  str = "EN"
     theme:             str = "dark"     # "dark" | "light"
+    theme_type:        str = "gradient" # "gradient" | "professional"
     logo_path:         str = ""
     admin_pin:         str = ""         # empty = no PIN gate
     contact_info:      str = ""
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
-        "theme", "logo_path", "admin_pin", "contact_info",
+        "theme", "theme_type", "logo_path", "admin_pin", "contact_info",
     )
 
     _instance: Optional["ShopConfig"] = None

@@ -33,6 +33,8 @@ class AdminDialog(QDialog):
         self.resize(720, 540)
         THEME.apply(self)
         self._build_ui()
+        # Apply theme to all child widgets
+        THEME.apply_to_all()
 
     def _build_ui(self) -> None:
         lay = QVBoxLayout(self); lay.setContentsMargins(0, 0, 0, 0)

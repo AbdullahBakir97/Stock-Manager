@@ -33,7 +33,7 @@ from app.ui.tabs.matrix_tab import MatrixTab
 
 from app.core import colors as clr
 from app.ui.dialogs.product_dialogs import ProductDialog, StockOpDialog, LowStockDialog
-from app.core.theme import THEME, GradientBackground, qc, _rgba
+from app.core.theme import THEME, GradientBackground, qc, _rgba, DARK_THEME, LIGHT_THEME
 from app.core.i18n import t, set_lang, LANG, color_t, note_t
 
 # ── Module-level singletons ───────────────────────────────────────────────────
@@ -544,13 +544,26 @@ class MainWindow(QMainWindow):
         super().__init__()
         init_db()
         cfg = ShopConfig.get()
+        
+        # Initialize theme system
+        THEME.set_theme_type(cfg.theme_type)
+        if cfg.theme == "light":
+            THEME._dark = False
+            THEME._apply_current_theme()
+        
         _title = cfg.name if cfg.name else t("app_title")
         self.setWindowTitle(_title); self.resize(1440, 900)
         self._cp: InventoryItem | None = None
         self._ld: LowStockDialog | None = None
 
-        self._bg = GradientBackground()
-        self._bg.setObjectName("gradient_bg")
+        # Set background based on theme type
+        if THEME.theme_type == "gradient":
+            self._bg = GradientBackground()
+            self._bg.setObjectName("gradient_bg")
+        else:  # professional theme
+            self._bg = QWidget()
+            self._bg.setObjectName("professional_bg")
+        
         self.setCentralWidget(self._bg)
         THEME.apply(self._bg)
 
@@ -751,6 +764,38 @@ class MainWindow(QMainWindow):
     def _open_admin(self) -> None:
         open_admin(self)
         ShopConfig.invalidate()
+        
+        # Apply theme changes from config
+        cfg = ShopConfig.get()
+        old_theme_type = THEME.theme_type
+        THEME.set_theme_type(cfg.theme_type)
+        if cfg.theme == "light":
+            THEME._dark = False
+        else:
+            THEME._dark = True
+        THEME._apply_current_theme()
+        
+        # Update background if theme type changed
+        if old_theme_type != THEME.theme_type:
+            if THEME.theme_type == "gradient":
+                if not isinstance(self._bg, GradientBackground):
+                    self._bg.deleteLater()
+                    self._bg = GradientBackground()
+                    self._bg.setObjectName("gradient_bg")
+                    self.setCentralWidget(self._bg)
+                    self._build_ui()
+                    self._connect()
+            else:  # professional theme
+                if isinstance(self._bg, GradientBackground):
+                    self._bg.deleteLater()
+                    self._bg = QWidget()
+                    self._bg.setObjectName("professional_bg")
+                    self.setCentralWidget(self._bg)
+                    self._build_ui()
+                    self._connect()
+            
+            THEME.apply(self._bg)
+        
         ensure_matrix_entries()
         self._rebuild_matrix_tabs()
         self._retranslate()
@@ -860,7 +905,14 @@ class MainWindow(QMainWindow):
     def _toggle_mode(self):
         THEME.toggle()
         self.mode_btn.setText("\u2600" if THEME.is_dark else "\U0001F319")
-        self._bg.update()
+        
+        # Apply theme to all widgets and their children
+        THEME.apply_to_all()
+        
+        # Special handling for gradient theme background
+        if THEME.theme_type == "gradient" and isinstance(self._bg, GradientBackground):
+            self._bg.update()
+        
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         if self._cp: self.detail.set_product(self._cp)
         self.prod_tbl.viewport().update(); self.txn_tbl.viewport().update()

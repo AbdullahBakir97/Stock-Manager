@@ -68,6 +68,12 @@ class ShopSettingsPanel(QWidget):
         self._theme.addItem(t("shop_theme_light"), "light")
         form.addRow(t("shop_lbl_theme"), self._theme)
 
+        # Theme Type
+        self._theme_type = QComboBox()
+        self._theme_type.addItem("Gradient", "gradient")
+        self._theme_type.addItem("Professional", "professional")
+        form.addRow("Theme Style", self._theme_type)
+
         # Admin PIN
         self._pin = QLineEdit(); self._pin.setEchoMode(QLineEdit.EchoMode.Password)
         self._pin.setPlaceholderText("····")
@@ -103,6 +109,8 @@ class ShopSettingsPanel(QWidget):
         self._lang.setCurrentIndex(max(0, idx))
         idx = self._theme.findData(cfg.theme)
         self._theme.setCurrentIndex(max(0, idx))
+        idx = self._theme_type.findData(cfg.theme_type)
+        self._theme_type.setCurrentIndex(max(0, idx))
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
 
@@ -122,6 +130,7 @@ class ShopSettingsPanel(QWidget):
         cfg.currency_position = self._cur_pos.currentData()
         cfg.default_language  = self._lang.currentData()
         cfg.theme             = self._theme.currentData()
+        cfg.theme_type        = self._theme_type.currentData()
         cfg.admin_pin         = self._pin.text()
         cfg.contact_info      = self._contact.text().strip()
         cfg.save()

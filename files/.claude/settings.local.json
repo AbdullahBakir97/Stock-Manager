@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python:*)",
+      "Bash(find /c/Users/abdul/Projects/stock-manager/src/files -name i18n* -o -name theme*)",
+      "Bash(cp i18n.py app/core/i18n.py)",
+      "Bash(cp theme.py app/core/theme.py)",
+      "Bash(cp colors.py app/core/colors.py)",
+      "Bash(cp main_window.py app/ui/main_window.py)",
+      "Bash(cp dialogs.py app/ui/dialogs/product_dialogs.py)"
+    ]
+  }
+}

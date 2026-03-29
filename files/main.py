@@ -4,7 +4,7 @@ import os
 from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt
-from main_window import MainWindow
+from app.ui.main_window import MainWindow
 
 
 def _icon_path(name: str) -> str:

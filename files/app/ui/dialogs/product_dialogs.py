@@ -7,16 +7,22 @@ from PyQt6.QtWidgets import (
     QMessageBox, QToolButton, QGridLayout, QWidget,
     QTableWidget, QTableWidgetItem, QHeaderView,
 )
+from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
 from PyQt6.QtGui import (
     QColor, QPainter, QPixmap, QIcon, QFont,
     QLinearGradient, QBrush,
 )
 
-import colors as clr
-import database as db
-from theme import THEME, _rgba
-from i18n import t, color_t
+from app.core import colors as clr
+from app.repositories.product_repo import ProductRepository
+from app.services.alert_service import AlertService
+from app.core.theme import THEME, _rgba
+from app.core.i18n import t, color_t
+from app.core.config import ShopConfig
+
+_prod_repo = ProductRepository()
+_alert_svc = AlertService()
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -255,6 +261,9 @@ class ProductDialog(GradientDialog):
             sf.addRow(t("dlg_lbl_init_stock"), self.initial_stock)
         self.threshold_spin = QuantitySpin(1, 999_999, 5)
         sf.addRow(t("dlg_lbl_alert_when"), self.threshold_spin)
+        self.price_edit = _field(t("dlg_ph_sell_price"))
+        self.price_edit.setValidator(QDoubleValidator(0.0, 99999.99, 2, self))
+        sf.addRow(t("dlg_lbl_sell_price"), self.price_edit)
         root.addWidget(sg)
 
         bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
@@ -270,6 +279,8 @@ class ProductDialog(GradientDialog):
         self.color_btn.set_color(p.get("color", ""))
         self.barcode_edit.setText(p.get("barcode") or "")
         self.threshold_spin.setValue(p.get("low_stock_threshold", 5))
+        sp = p.get("sell_price")
+        self.price_edit.setText(f"{sp:.2f}" if sp else "")
 
     def _validate(self):
         for w, field in [(self.brand_edit, t("dlg_lbl_brand").rstrip(" *")),
@@ -281,12 +292,17 @@ class ProductDialog(GradientDialog):
         self.accept()
 
     def get_data(self) -> dict:
+        try:
+            price_val = float(self.price_edit.text().replace(",", ".")) if self.price_edit.text().strip() else None
+        except ValueError:
+            price_val = None
         d = {
             "brand":               self.brand_edit.text().strip(),
             "type_":               self.type_edit.text().strip(),
             "color":               self.color_btn.color_name(),
             "barcode":             self.barcode_edit.text().strip() or None,
             "low_stock_threshold": self.threshold_spin.value(),
+            "sell_price":          price_val if price_val else None,
         }
         if not self.product:
             d["stock"] = self.initial_stock.value()
@@ -467,15 +483,27 @@ class LowStockDialog(GradientDialog):
 
     def refresh(self):
         tk   = THEME.tokens
-        rows = db.get_low_stock_products()
-        self.table.setRowCount(len(rows)); self._ids: list[int] = []
-        for i, row in enumerate(rows):
-            p = _row(row); self._ids.append(p["id"])
-            fg = tk.red if p["stock"] == 0 else (
-                tk.orange if p["stock"] <= max(1, p["low_stock_threshold"] // 2) else tk.yellow
+        items = _alert_svc.get_low_stock_items()
+        self.table.setRowCount(len(items)); self._ids: list[int] = []
+        self._is_product: list[bool] = []
+        for i, item in enumerate(items):
+            self._ids.append(item.id)
+            self._is_product.append(item.is_product)
+            fg = tk.red if item.stock == 0 else (
+                tk.orange if item.stock <= max(1, item.min_stock // 2) else tk.yellow
             )
-            vals = [p["brand"], p["type"], color_t(p["color"]),
-                    p.get("barcode") or "—", str(p["stock"]), str(p["low_stock_threshold"])]
+            if item.is_product:
+                brand_or_name = item.brand
+                type_or_part  = item.name
+                color_val     = color_t(item.color)
+                barcode_val   = item.barcode or "—"
+            else:
+                brand_or_name = item.model_brand or item.model_name
+                type_or_part  = item.part_type_name
+                color_val     = item.part_type_color or "—"
+                barcode_val   = "—"
+            vals = [brand_or_name, type_or_part, color_val,
+                    barcode_val, str(item.stock), str(item.min_stock)]
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 it.setForeground(QColor(fg)); self.table.setItem(i, j, it)
@@ -483,4 +511,5 @@ class LowStockDialog(GradientDialog):
 
     def _dbl(self, idx):
         r = idx.row()
-        if 0 <= r < len(self._ids): self.product_selected.emit(self._ids[r]); self.close()
+        if 0 <= r < len(self._ids) and self._is_product[r]:
+            self.product_selected.emit(self._ids[r]); self.close()

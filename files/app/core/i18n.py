@@ -62,6 +62,11 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Ausverkauft",
         "AR": "نفد المخزون",
     },
+    "card_inventory_value": {
+        "EN": "Inventory Value",
+        "DE": "Lagerwert",
+        "AR": "قيمة المخزون",
+    },
     # ── Toolbar ────────────────────────────────────────────────────────────────
     "search_placeholder": {
         "EN": "  Search or scan barcode…",
@@ -80,9 +85,9 @@ _TR: dict[str, dict[str, str]] = {
     },
     # ── Tabs ──────────────────────────────────────────────────────────────────
     "tab_products": {
-        "EN": "  Products  ",
-        "DE": "  Produkte  ",
-        "AR": "  المنتجات  ",
+        "EN": "  Inventory  ",
+        "DE": "  Inventar  ",
+        "AR": "  المخزون  ",
     },
     "tab_transactions": {
         "EN": "  All Transactions  ",
@@ -108,8 +113,12 @@ _TR: dict[str, dict[str, str]] = {
     "col_stock":   {"EN": "Stock",    "DE": "Bestand",         "AR": "المخزون"},
     "col_alert":   {"EN": "Alert ≤",  "DE": "Alarm ≤",         "AR": "تنبيه ≤"},
     "col_status":  {"EN": "Status",   "DE": "Status",          "AR": "الحالة"},
+    "col_price":   {"EN": "Price",    "DE": "Preis",           "AR": "السعر"},
+    "col_item":    {"EN": "Item",     "DE": "Artikel",         "AR": "العنصر"},
+    "col_min":     {"EN": "Min",      "DE": "Min",             "AR": "الحد الأدنى"},
     # ── Transaction table columns ─────────────────────────────────────────────
-    "col_datetime":  {"EN": "Date & Time", "DE": "Datum & Zeit",   "AR": "التاريخ والوقت"},
+    "txn_col_item":  {"EN": "Item",        "DE": "Artikel",         "AR": "العنصر"},
+    "col_datetime":  {"EN": "Date & Time", "DE": "Datum & Zeit",    "AR": "التاريخ والوقت"},
     "col_operation": {"EN": "Operation",   "DE": "Vorgang",         "AR": "العملية"},
     "col_delta":     {"EN": "Δ Qty",       "DE": "Δ Menge",         "AR": "Δ الكمية"},
     "col_before":    {"EN": "Before",      "DE": "Vorher",          "AR": "قبل"},
@@ -234,6 +243,9 @@ _TR: dict[str, dict[str, str]] = {
     "dlg_lbl_barcode":    {"EN": "Barcode",          "DE": "Barcode",                  "AR": "الباركود"},
     "dlg_lbl_init_stock": {"EN": "Initial Stock",   "DE": "Anfangsbestand",            "AR": "المخزون الأولي"},
     "dlg_lbl_alert_when": {"EN": "Alert when ≤",    "DE": "Alarm wenn ≤",              "AR": "تنبيه عند ≤"},
+    "dlg_lbl_sell_price": {"EN": "Sell Price",       "DE": "Verkaufspreis",             "AR": "سعر البيع"},
+    "dlg_ph_sell_price":  {"EN": "0.00  (optional)", "DE": "0.00  (optional)",          "AR": "0.00  (اختياري)"},
+    "detail_sell_price":  {"EN": "Price: {val}",     "DE": "Preis: {val}",              "AR": "السعر: {val}"},
     "dlg_save_product":   {"EN": "Save Product",    "DE": "Produkt speichern",         "AR": "حفظ"},
     "dlg_ph_brand":       {"EN": "e.g. Nike, Apple…","DE": "z.B. Nike, Apple…",        "AR": "مثال: Nike, Apple…"},
     "dlg_ph_type":        {"EN": "e.g. Shoes, Phone…","DE": "z.B. Schuhe, Telefon…",  "AR": "مثال: أحذية, هاتف…"},
@@ -428,6 +440,417 @@ _TR: dict[str, dict[str, str]] = {
         "EN": "Brand:",
         "DE": "Marke:",
         "AR": "العلامة:",
+    },
+    # ── Admin dialog ─────────────────────────────────────────────────────────
+    "admin_title": {
+        "EN": "Admin Settings",
+        "DE": "Admin-Einstellungen",
+        "AR": "إعدادات الإدارة",
+    },
+    "admin_tab_shop": {
+        "EN": "Shop Settings",
+        "DE": "Shop-Einstellungen",
+        "AR": "إعدادات المتجر",
+    },
+    "admin_tab_categories": {
+        "EN": "Categories",
+        "DE": "Kategorien",
+        "AR": "الفئات",
+    },
+    "admin_tab_part_types": {
+        "EN": "Part Types",
+        "DE": "Teiletypen",
+        "AR": "أنواع القطع",
+    },
+    "admin_tab_models": {
+        "EN": "Models",
+        "DE": "Modelle",
+        "AR": "الطرازات",
+    },
+    # ── Shop settings panel ───────────────────────────────────────────────────
+    "shop_lbl_name": {
+        "EN": "Shop Name",
+        "DE": "Shop-Name",
+        "AR": "اسم المتجر",
+    },
+    "shop_lbl_logo": {
+        "EN": "Logo",
+        "DE": "Logo",
+        "AR": "الشعار",
+    },
+    "shop_lbl_browse": {
+        "EN": "Browse…",
+        "DE": "Durchsuchen…",
+        "AR": "استعراض…",
+    },
+    "shop_lbl_currency": {
+        "EN": "Currency Symbol",
+        "DE": "Währungssymbol",
+        "AR": "رمز العملة",
+    },
+    "shop_lbl_cur_pos": {
+        "EN": "Currency Position",
+        "DE": "Währungsposition",
+        "AR": "موضع العملة",
+    },
+    "shop_cur_prefix": {
+        "EN": "Prefix  (€100)",
+        "DE": "Präfix  (€100)",
+        "AR": "بادئة  (€100)",
+    },
+    "shop_cur_suffix": {
+        "EN": "Suffix  (100 €)",
+        "DE": "Suffix  (100 €)",
+        "AR": "لاحقة  (100 €)",
+    },
+    "shop_lbl_language": {
+        "EN": "Default Language",
+        "DE": "Standardsprache",
+        "AR": "اللغة الافتراضية",
+    },
+    "shop_lbl_theme": {
+        "EN": "Theme",
+        "DE": "Darstellung",
+        "AR": "المظهر",
+    },
+    "shop_theme_dark": {
+        "EN": "Dark",
+        "DE": "Dunkel",
+        "AR": "داكن",
+    },
+    "shop_theme_light": {
+        "EN": "Light",
+        "DE": "Hell",
+        "AR": "فاتح",
+    },
+    "shop_lbl_pin": {
+        "EN": "Admin PIN  (empty = disabled)",
+        "DE": "Admin-PIN  (leer = deaktiviert)",
+        "AR": "رمز المدير  (فارغ = معطل)",
+    },
+    "shop_lbl_contact": {
+        "EN": "Contact Info",
+        "DE": "Kontaktinformationen",
+        "AR": "معلومات التواصل",
+    },
+    "shop_btn_save": {
+        "EN": "Save Settings",
+        "DE": "Einstellungen speichern",
+        "AR": "حفظ الإعدادات",
+    },
+    "shop_saved": {
+        "EN": "Settings saved.",
+        "DE": "Einstellungen gespeichert.",
+        "AR": "تم حفظ الإعدادات.",
+    },
+    # ── Categories panel ──────────────────────────────────────────────────────
+    "cat_btn_add": {
+        "EN": "＋  Add Category",
+        "DE": "＋  Kategorie hinzufügen",
+        "AR": "＋  إضافة فئة",
+    },
+    "cat_btn_delete": {
+        "EN": "Delete",
+        "DE": "Löschen",
+        "AR": "حذف",
+    },
+    "cat_btn_move_up": {
+        "EN": "↑  Up",
+        "DE": "↑  Hoch",
+        "AR": "↑  أعلى",
+    },
+    "cat_btn_move_down": {
+        "EN": "↓  Down",
+        "DE": "↓  Runter",
+        "AR": "↓  أسفل",
+    },
+    "cat_lbl_name_en": {
+        "EN": "Name (EN)",
+        "DE": "Name (EN)",
+        "AR": "الاسم (EN)",
+    },
+    "cat_lbl_name_de": {
+        "EN": "Name (DE)",
+        "DE": "Name (DE)",
+        "AR": "الاسم (DE)",
+    },
+    "cat_lbl_name_ar": {
+        "EN": "Name (AR)",
+        "DE": "Name (AR)",
+        "AR": "الاسم (AR)",
+    },
+    "cat_lbl_icon": {
+        "EN": "Icon",
+        "DE": "Symbol",
+        "AR": "أيقونة",
+    },
+    "cat_lbl_active": {
+        "EN": "Active (shown as tab)",
+        "DE": "Aktiv (als Tab anzeigen)",
+        "AR": "نشط (عرض كتبويب)",
+    },
+    "cat_delete_blocked": {
+        "EN": "Cannot delete: category has stock entries with stock > 0.",
+        "DE": "Nicht löschbar: Kategorie hat Lagereinträge mit Bestand > 0.",
+        "AR": "لا يمكن الحذف: للفئة قيود مخزون بكمية > 0.",
+    },
+    "cat_delete_confirm": {
+        "EN": "Delete category '{name}' and all its part types? This cannot be undone.",
+        "DE": "Kategorie '{name}' und alle Teiletypen löschen? Nicht rückgängig zu machen.",
+        "AR": "حذف الفئة '{name}' وجميع أنواع قطعها؟ لا يمكن التراجع.",
+    },
+    "cat_btn_save": {
+        "EN": "Save Category",
+        "DE": "Kategorie speichern",
+        "AR": "حفظ الفئة",
+    },
+    "cat_no_selection": {
+        "EN": "Select a category to edit.",
+        "DE": "Wählen Sie eine Kategorie zum Bearbeiten.",
+        "AR": "اختر فئة للتعديل.",
+    },
+    # ── Part types panel ──────────────────────────────────────────────────────
+    "pt_lbl_category": {
+        "EN": "Category:",
+        "DE": "Kategorie:",
+        "AR": "الفئة:",
+    },
+    "pt_col_key": {
+        "EN": "Key",
+        "DE": "Schlüssel",
+        "AR": "المفتاح",
+    },
+    "pt_col_name": {
+        "EN": "Name",
+        "DE": "Name",
+        "AR": "الاسم",
+    },
+    "pt_col_color": {
+        "EN": "Color",
+        "DE": "Farbe",
+        "AR": "اللون",
+    },
+    "pt_btn_add": {
+        "EN": "＋  Add Part Type",
+        "DE": "＋  Teiletyp hinzufügen",
+        "AR": "＋  إضافة نوع",
+    },
+    "pt_btn_edit": {
+        "EN": "Edit",
+        "DE": "Bearbeiten",
+        "AR": "تعديل",
+    },
+    "pt_btn_delete": {
+        "EN": "Delete",
+        "DE": "Löschen",
+        "AR": "حذف",
+    },
+    "pt_lbl_key": {
+        "EN": "Key  (A-Z, 0-9, _ only)",
+        "DE": "Schlüssel  (A-Z, 0-9, _)",
+        "AR": "المفتاح  (A-Z, 0-9, _)",
+    },
+    "pt_lbl_name": {
+        "EN": "Display Name",
+        "DE": "Anzeigename",
+        "AR": "اسم العرض",
+    },
+    "pt_lbl_color": {
+        "EN": "Accent Color",
+        "DE": "Akzentfarbe",
+        "AR": "لون التمييز",
+    },
+    "pt_delete_blocked": {
+        "EN": "Cannot delete: part type has stock entries with stock > 0.",
+        "DE": "Nicht löschbar: Teiletyp hat Einträge mit Bestand > 0.",
+        "AR": "لا يمكن الحذف: لنوع القطعة قيود مخزون بكمية > 0.",
+    },
+    "pt_key_exists": {
+        "EN": "Key '{key}' already exists in this category.",
+        "DE": "Schlüssel '{key}' existiert bereits in dieser Kategorie.",
+        "AR": "المفتاح '{key}' موجود بالفعل في هذه الفئة.",
+    },
+    "pt_no_selection": {
+        "EN": "Select a part type to edit.",
+        "DE": "Wählen Sie einen Teiletyp zum Bearbeiten.",
+        "AR": "اختر نوع قطعة للتعديل.",
+    },
+    # ── Models panel ──────────────────────────────────────────────────────────
+    "mdl_btn_add": {
+        "EN": "＋  Add Model",
+        "DE": "＋  Modell hinzufügen",
+        "AR": "＋  إضافة طراز",
+    },
+    "mdl_btn_delete": {
+        "EN": "Delete Selected",
+        "DE": "Auswahl löschen",
+        "AR": "حذف المحدد",
+    },
+    "mdl_btn_rename": {
+        "EN": "Rename",
+        "DE": "Umbenennen",
+        "AR": "إعادة تسمية",
+    },
+    "mdl_delete_confirm": {
+        "EN": "Delete {n} model(s)? Stock history will also be deleted.",
+        "DE": "{n} Modell(e) löschen? Lagerhistorie wird ebenfalls gelöscht.",
+        "AR": "حذف {n} طراز؟ سيُحذف سجل المخزون أيضاً.",
+    },
+    "mdl_delete_blocked": {
+        "EN": "Cannot delete: some selected models have stock > 0.",
+        "DE": "Nicht löschbar: Einige Modelle haben Bestand > 0.",
+        "AR": "لا يمكن الحذف: بعض الطرازات لها مخزون > 0.",
+    },
+    "mdl_rename_title": {
+        "EN": "Rename Model",
+        "DE": "Modell umbenennen",
+        "AR": "إعادة تسمية الطراز",
+    },
+    "mdl_rename_lbl": {
+        "EN": "New name:",
+        "DE": "Neuer Name:",
+        "AR": "الاسم الجديد:",
+    },
+    "mdl_col_brand": {
+        "EN": "Brand",
+        "DE": "Marke",
+        "AR": "العلامة",
+    },
+    "mdl_col_model": {
+        "EN": "Model",
+        "DE": "Modell",
+        "AR": "الطراز",
+    },
+    # ── PIN gate ──────────────────────────────────────────────────────────────
+    "pin_title": {
+        "EN": "Admin Access",
+        "DE": "Admin-Zugang",
+        "AR": "وصول المدير",
+    },
+    "pin_prompt": {
+        "EN": "Enter Admin PIN:",
+        "DE": "Admin-PIN eingeben:",
+        "AR": "أدخل رمز المدير:",
+    },
+    "pin_wrong": {
+        "EN": "Incorrect PIN.",
+        "DE": "Falscher PIN.",
+        "AR": "الرمز غير صحيح.",
+    },
+    "tooltip_admin": {
+        "EN": "Admin Settings",
+        "DE": "Admin-Einstellungen",
+        "AR": "إعدادات الإدارة",
+    },
+    # ── Setup wizard ─────────────────────────────────────────────────────────
+    "wizard_welcome_title": {
+        "EN": "Welcome to Stock Manager Pro",
+        "DE": "Willkommen bei Stock Manager Pro",
+        "AR": "مرحباً بـ Stock Manager Pro",
+    },
+    "wizard_welcome_sub": {
+        "EN": "Let's configure your shop in 2 quick steps.",
+        "DE": "Richten Sie Ihren Shop in 2 Schritten ein.",
+        "AR": "لنقم بإعداد متجرك في خطوتين.",
+    },
+    "wizard_btn_start": {
+        "EN": "Get Started  →",
+        "DE": "Los geht's  →",
+        "AR": "ابدأ  →",
+    },
+    "wizard_shop_title": {
+        "EN": "Your Shop",
+        "DE": "Ihr Shop",
+        "AR": "متجرك",
+    },
+    "wizard_data_title": {
+        "EN": "Starting Data",
+        "DE": "Startdaten",
+        "AR": "البيانات الأولية",
+    },
+    "wizard_opt_fresh": {
+        "EN": "Start fresh — I'll add my own categories and models",
+        "DE": "Ohne Vordaten starten — eigene Kategorien hinzufügen",
+        "AR": "بدء جديد — سأضيف فئاتي وطرازاتي",
+    },
+    "wizard_opt_demo": {
+        "EN": "Load phone shop demo data  (Apple / Samsung models, 6 categories)",
+        "DE": "Handy-Shop Demo laden  (Apple / Samsung, 6 Kategorien)",
+        "AR": "تحميل بيانات تجريبية لمتجر هواتف  (Apple / Samsung، 6 فئات)",
+    },
+    "wizard_btn_finish": {
+        "EN": "Finish Setup",
+        "DE": "Einrichtung abschließen",
+        "AR": "إنهاء الإعداد",
+    },
+    "wizard_btn_back": {
+        "EN": "←  Back",
+        "DE": "←  Zurück",
+        "AR": "←  رجوع",
+    },
+    # ── Demo data loading ─────────────────────────────────────────────────────
+    "demo_load_title": {
+        "EN": "Load Demo Data",
+        "DE": "Demo-Daten laden",
+        "AR": "تحميل بيانات تجريبية",
+    },
+    "demo_load_body": {
+        "EN": "Add Galaxy@Phone demo data (42 Apple/Samsung models, 6 categories)?\nExisting data is preserved.",
+        "DE": "Galaxy@Phone Demo-Daten hinzufügen (42 Apple/Samsung-Modelle, 6 Kategorien)?\nBestehende Daten bleiben erhalten.",
+        "AR": "إضافة بيانات Galaxy@Phone التجريبية (42 طراز، 6 فئات)؟\nالبيانات الموجودة ستبقى.",
+    },
+    "demo_loaded": {
+        "EN": "Demo data loaded.",
+        "DE": "Demo-Daten geladen.",
+        "AR": "تم تحميل البيانات التجريبية.",
+    },
+    # ── Matrix column headers ─────────────────────────────────────────────────
+    "col_stamm_zahl": {
+        "EN": "Stamm-Zahl",
+        "DE": "Stamm-Zahl",
+        "AR": "الحد الأدنى",
+    },
+    "col_best_bung": {
+        "EN": "Best-Bung",
+        "DE": "Best-Bung",
+        "AR": "الفرق",
+    },
+    "col_inventur": {
+        "EN": "Inventur",
+        "DE": "Inventur",
+        "AR": "الجرد",
+    },
+    # ── ThresholdDialog form label ────────────────────────────────────────────
+    "lbl_stamm_zahl": {
+        "EN": "Stamm-Zahl:",
+        "DE": "Stamm-Zahl:",
+        "AR": "الحد الأدنى:",
+    },
+    # ── StockService error messages ───────────────────────────────────────────
+    "err_qty_positive": {
+        "EN": "Quantity must be positive",
+        "DE": "Menge muss positiv sein",
+        "AR": "يجب أن تكون الكمية موجبة",
+    },
+    "err_entry_not_found": {
+        "EN": "Stock entry not found",
+        "DE": "Lagereintrag nicht gefunden",
+        "AR": "القيد غير موجود",
+    },
+    "err_insufficient_stock": {
+        "EN": "Insufficient stock.  Available: {available}   Requested: {requested}",
+        "DE": "Unzureichender Bestand.  Verfügbar: {available}   Angefordert: {requested}",
+        "AR": "مخزون غير كافٍ.  المتاح: {available}   المطلوب: {requested}",
+    },
+    "err_product_not_found": {
+        "EN": "Product not found",
+        "DE": "Produkt nicht gefunden",
+        "AR": "المنتج غير موجود",
+    },
+    "err_stock_negative": {
+        "EN": "Stock cannot be negative",
+        "DE": "Bestand kann nicht negativ sein",
+        "AR": "لا يمكن أن يكون المخزون سالباً",
     },
 }
 

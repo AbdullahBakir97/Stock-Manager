@@ -15,8 +15,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QRect, QModelIndex, QRectF
 from PyQt6.QtGui import (
-    QColor, QKeySequence, QShortcut, QPainter, QPainterPath,
-    QFont, QPixmap, QIcon, QLinearGradient, QBrush,
+    QFont, QPainter, QColor, QKeySequence, QShortcut, QPainterPath,
+    QPixmap, QIcon, QLinearGradient, QBrush,
 )
 
 from app.core.database import init_db, get_connection, ensure_matrix_entries
@@ -32,6 +32,7 @@ from app.models.item import InventoryItem
 from app.ui.tabs.matrix_tab import MatrixTab
 
 from app.core import colors as clr
+from app.core.colors import PALETTE
 from app.ui.dialogs.product_dialogs import ProductDialog, StockOpDialog, LowStockDialog
 from app.core.theme import THEME, GradientBackground, qc, _rgba
 from app.core.i18n import t, set_lang, LANG, color_t, note_t
@@ -188,7 +189,7 @@ class BarcodeLineEdit(QLineEdit):
             self._buf.append(e.text()); self._t.start()
 
     def _flush(self):
-        if len(self._buf) >= 4:
+        if len(self._buf) >= 3:  # Reduced from 4 to allow shorter barcodes
             bc = "".join(self._buf).strip()
             if bc: self.barcode_scanned.emit(bc)
         self._buf.clear()
@@ -220,13 +221,127 @@ class SummaryCard(QFrame):
         self.lbl.setText(t(self._key).upper())
 
 
+# ── Table Delegates ───────────────────────────────────────────────────────
+from app.core.theme import THEME
+
+class AlternatingRowDelegate(QStyledItemDelegate):
+    """Delegate for alternating row colors like Excel."""
+    def paint(self, painter, option, index):
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw alternating row background
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, qc(THEME.tokens.blue, 0x40))
+        elif index.row() % 2 == 0:
+            painter.fillRect(option.rect, QColor(THEME.tokens.card))
+        else:
+            painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
+        
+        # Draw text or "—" for empty values
+        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+        if text:
+            painter.setPen(QColor(THEME.tokens.t1))
+            painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
+        else:
+            # Draw "—" in muted color for empty cells
+            painter.setPen(QColor(128, 128, 128))
+            painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
+        
+        painter.restore()
+
+class ColorDotDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        color_name = index.data(Qt.ItemDataRole.DisplayRole)
+        if not color_name or color_name == "—":
+            # Handle empty color with AlternatingRowDelegate logic
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            
+            # Draw alternating row background
+            if option.state & QStyle.StateFlag.State_Selected:
+                painter.fillRect(option.rect, qc(THEME.tokens.blue, 0x40))
+            elif index.row() % 2 == 0:
+                painter.fillRect(option.rect, QColor(THEME.tokens.card))
+            else:
+                painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
+            
+            # Draw "—" in muted color
+            painter.setPen(QColor(128, 128, 128))
+            painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
+            painter.restore()
+            return
+            
+        # Get hex color from palette
+        hex_color = PALETTE.get(color_name, color_name)
+        
+        # Draw alternating row background like other delegates
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # Draw background for alternating rows
+        tk = THEME.tokens
+        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, qc(tk.blue, 0x40))
+        elif index.row() % 2 == 0:
+            painter.fillRect(option.rect, QColor(tk.card))
+        else:
+            painter.fillRect(option.rect, QColor(alt))
+        
+        # Draw brown border circle
+        rect = option.rect
+        R = 9
+        cx = rect.center().x()
+        cy = rect.center().y()
+        
+        painter.setBrush(QColor(tk.border2))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(cx-R-1, cy-R-1, 2*R+2, 2*R+2)
+        
+        # Draw color circle with mapped hex color
+        painter.setBrush(QColor(hex_color))
+        painter.drawEllipse(cx-R, cy-R, 2*R, 2*R)
+        
+        painter.restore()
+
+class DifferenceDelegate(QStyledItemDelegate):
+    def paint(self, painter, option, index):
+        # Draw alternating row background like Excel
+        painter.save()
+        tk = THEME.tokens
+        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        
+        if option.state & QStyle.StateFlag.State_Selected:
+            painter.fillRect(option.rect, qc(tk.blue, 0x40))
+        elif index.row() % 2 == 0:
+            painter.fillRect(option.rect, QColor(tk.card))
+        else:
+            painter.fillRect(option.rect, QColor(alt))
+        
+        # Get original text and color from item
+        item = self.parent().item(index.row(), index.column())
+        if item:
+            text = item.text()
+            if text and text != "—":
+                painter.setPen(item.foreground().color())
+                font = QFont("Segoe UI", 10, QFont.Weight.Bold)
+                painter.setFont(font)
+                painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
+            else:
+                # Draw "—" in muted color
+                painter.setPen(QColor(128, 128, 128))
+                painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
+        painter.restore()
+
 # ── Product Table ──────────────────────────────────────────────────────────────
 
 class ProductTable(QTableWidget):
     row_selected = pyqtSignal(object)   # emits InventoryItem or None
-    _COL_KEYS = ["col_num", "col_item", "col_barcode", "col_price",
-                 "col_stock", "col_min", "col_status"]
-    _WIDTHS    = [42, 300, 130, 80, 72, 72, 96]
+    _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
+                 "col_stock", "col_min", "col_best_bung", "col_status"]
+    _WIDTHS    = [42, 280, 60, 100, 80, 60, 60, 100, 96]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -239,14 +354,30 @@ class ProductTable(QTableWidget):
         self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
         self.setSelectionMode(self.SelectionMode.SingleSelection)
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
-        self.setAlternatingRowColors(True); self.setSortingEnabled(True)
+        self.setAlternatingRowColors(False); self.setSortingEnabled(True)  # Custom delegates handle alternating
+        self.setShowGrid(True)  # Show grid lines like matrix
         self.verticalHeader().setVisible(False); self.setShowGrid(False)
-        self.setItemDelegateForColumn(6, StatusBadgeDelegate(self))
+        self.setItemDelegateForColumn(0, AlternatingRowDelegate(self))  # Num column
+        self.setItemDelegateForColumn(1, AlternatingRowDelegate(self))  # Item column
+        self.setItemDelegateForColumn(2, ColorDotDelegate(self))       # Color column
+        self.setItemDelegateForColumn(3, AlternatingRowDelegate(self))  # Barcode column
+        self.setItemDelegateForColumn(4, AlternatingRowDelegate(self))  # Price column
+        self.setItemDelegateForColumn(5, AlternatingRowDelegate(self))  # Stock column
+        self.setItemDelegateForColumn(6, AlternatingRowDelegate(self))  # Min column
+        self.setItemDelegateForColumn(7, DifferenceDelegate(self))      # Difference column
+        self.setItemDelegateForColumn(8, StatusBadgeDelegate(self))      # Status column
         self._data: list[InventoryItem] = []
         self.itemSelectionChanged.connect(self._emit)
+        # Store default widths for reset
+        self._default_widths = self._WIDTHS.copy()
 
     def retranslate(self):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
+    
+    def reset_column_widths(self):
+        """Reset all column widths to default values."""
+        for i, w in enumerate(self._default_widths):
+            self.setColumnWidth(i, w)
 
     def load(self, items: list[InventoryItem]):
         self._data = list(items)
@@ -257,14 +388,20 @@ class ProductTable(QTableWidget):
             sl  = _sl(item.stock, item.min_stock)
             sp  = item.sell_price
             price_str = cfg.format_currency(sp) if sp is not None else "—"
+            diff = item.stock - item.min_stock
+            diff_str = f"Δ{diff:+d}" if item.min_stock > 0 else "—"
+            
             vals = [str(item.id), item.display_name,
-                    item.barcode or "—", price_str,
-                    str(item.stock), str(item.min_stock), sl]
+                    item.color or "—", item.barcode or "—", price_str,
+                    str(item.stock), str(item.min_stock), diff_str, sl]
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                if j == 4:
+                if j == 5:  # Stock column
                     it.setForeground(sc)
                     it.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
+                elif j == 7:  # Difference column
+                    it.setForeground(sc)
+                    it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
                 self.setItem(i, j, it)
             self.setRowHeight(i, 44)
         self.setSortingEnabled(True)
@@ -686,7 +823,7 @@ class MainWindow(QMainWindow):
         self.prod_tbl.row_selected.connect(self._sel)
         self.search.barcode_scanned.connect(self._barcode)
         self.search.textChanged.connect(
-            lambda txt: self._refresh_products() if len(txt) != 1 else None
+            lambda txt: self._refresh_products() if txt.strip() else None
         )
         self.detail.request_in.connect(lambda:  self._stock_op("IN"))
         self.detail.request_out.connect(lambda: self._stock_op("OUT"))
@@ -806,6 +943,7 @@ class MainWindow(QMainWindow):
 
     def _refresh_products(self):
         s     = self.search.text().strip()
+        # Search for any text length, but only use search if length >= 2
         items = _item_repo.get_all_items(
             search=s if len(s) >= 2 else "",
             filter_low_stock=self.low_cb.isChecked(),
@@ -829,6 +967,7 @@ class MainWindow(QMainWindow):
         self.txn_tbl.load(_txn_repo.get_transactions(limit=500))
 
     def _refresh_all(self):
+        self.prod_tbl.reset_column_widths()  # Reset column widths to defaults
         self._refresh_products(); self._refresh_summary(); self._refresh_all_txns()
         if self._cp:
             self._cp = _item_repo.get_by_id(self._cp.id)

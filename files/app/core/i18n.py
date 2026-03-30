@@ -806,23 +806,23 @@ _TR: dict[str, dict[str, str]] = {
     },
     # ── Matrix column headers ─────────────────────────────────────────────────
     "col_stamm_zahl": {
-        "EN": "Stamm-Zahl",
+        "EN": "Min-Stock",
         "DE": "Stamm-Zahl",
         "AR": "الحد الأدنى",
     },
     "col_best_bung": {
-        "EN": "Best-Bung",
+        "EN": "Δ Difference",
         "DE": "Best-Bung",
         "AR": "الفرق",
     },
     "col_inventur": {
-        "EN": "Inventur",
+        "EN": "Inventory",
         "DE": "Inventur",
         "AR": "الجرد",
     },
     # ── ThresholdDialog form label ────────────────────────────────────────────
     "lbl_stamm_zahl": {
-        "EN": "Stamm-Zahl:",
+        "EN": "Min-Stock:",
         "DE": "Stamm-Zahl:",
         "AR": "الحد الأدنى:",
     },

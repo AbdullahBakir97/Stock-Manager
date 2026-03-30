@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QFont
 
+from app.core.theme import THEME
 from app.models.category import CategoryConfig
 from app.models.item import InventoryItem
 from app.repositories.item_repo import ItemRepository
@@ -46,8 +47,7 @@ class MatrixWidget(QTableWidget):
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.verticalHeader().setVisible(False)
-        self.setAlternatingRowColors(False)
-        self.setShowGrid(True)
+        self.setAlternatingRowColors(True); self.setShowGrid(True)  # Enable alternating colors like Excel
         self.cellDoubleClicked.connect(self._on_dbl)
 
     def load(self, cat: CategoryConfig, models,
@@ -173,6 +173,16 @@ class MatrixWidget(QTableWidget):
         self.setHorizontalHeaderLabels(labels)
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.setColumnWidth(0, _COL_W["model"])
+        for i in range(n_types):
+            b = _base(i)
+            self.setColumnWidth(b,     _COL_W["stamm"])
+            self.setColumnWidth(b + 1, _COL_W["bestbung"])
+            self.setColumnWidth(b + 2, _COL_W["stock"])
+            self.setColumnWidth(b + 3, _COL_W["inventur"])
+            # Set alternating row delegate for all data cells
+            for col in range(4):
+                self.setItemDelegateForColumn(col, MatrixAlternatingRowDelegate(self))
         self.setColumnWidth(0, _COL_W["model"])
         for i in range(n_types):
             b = _base(i)

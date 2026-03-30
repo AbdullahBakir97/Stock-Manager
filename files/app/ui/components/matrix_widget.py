@@ -20,6 +20,7 @@ from app.services.stock_service import StockService
 from app.ui.dialogs.matrix_dialogs import StockOpDialog, ThresholdDialog, InventurDialog
 from app.core.theme import THEME, qc
 from app.core.i18n import t
+from app.ui.delegates import AlternatingRowDelegate
 
 _item_repo  = ItemRepository()
 _stock_svc  = StockService()
@@ -182,7 +183,7 @@ class MatrixWidget(QTableWidget):
             self.setColumnWidth(b + 3, _COL_W["inventur"])
             # Set alternating row delegate for all data cells
             for col in range(4):
-                self.setItemDelegateForColumn(col, MatrixAlternatingRowDelegate(self))
+                self.setItemDelegateForColumn(col, AlternatingRowDelegate(self))
         self.setColumnWidth(0, _COL_W["model"])
         for i in range(n_types):
             b = _base(i)

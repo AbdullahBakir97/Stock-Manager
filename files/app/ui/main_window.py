@@ -36,6 +36,8 @@ from app.core.colors import PALETTE
 from app.ui.dialogs.product_dialogs import ProductDialog, StockOpDialog, LowStockDialog
 from app.core.theme import THEME, GradientBackground, qc, _rgba
 from app.core.i18n import t, set_lang, LANG, color_t, note_t
+from app.ui.delegates import AlternatingRowDelegate
+from app.core.icon_utils import load_svg_icon, get_button_icon
 
 # ── Module-level singletons ───────────────────────────────────────────────────
 _cat_repo   = CategoryRepository()
@@ -223,32 +225,6 @@ class SummaryCard(QFrame):
 
 # ── Table Delegates ───────────────────────────────────────────────────────
 from app.core.theme import THEME
-
-class AlternatingRowDelegate(QStyledItemDelegate):
-    """Delegate for alternating row colors like Excel."""
-    def paint(self, painter, option, index):
-        painter.save()
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Draw alternating row background
-        if option.state & QStyle.StateFlag.State_Selected:
-            painter.fillRect(option.rect, qc(THEME.tokens.blue, 0x40))
-        elif index.row() % 2 == 0:
-            painter.fillRect(option.rect, QColor(THEME.tokens.card))
-        else:
-            painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
-        
-        # Draw text or "—" for empty values
-        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
-        if text:
-            painter.setPen(QColor(THEME.tokens.t1))
-            painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
-        else:
-            # Draw "—" in muted color for empty cells
-            painter.setPen(QColor(128, 128, 128))
-            painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
-        
-        painter.restore()
 
 class ColorDotDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
@@ -581,8 +557,12 @@ class ProductDetail(QWidget):
         root.addWidget(oc)
 
         mr = QHBoxLayout(); mr.setSpacing(8)
-        self.bed = QPushButton(t("btn_edit"));   self.bed.setObjectName("mgmt_edit")
-        self.bdl = QPushButton(t("btn_delete")); self.bdl.setObjectName("mgmt_del")
+        self.bed = QPushButton(); self.bed.setObjectName("mgmt_edit")
+        self.bed.setIcon(get_button_icon("edit"))
+        self.bed.setIconSize(QSize(16, 16))
+        self.bdl = QPushButton(); self.bdl.setObjectName("mgmt_del")
+        self.bdl.setIcon(get_button_icon("delete"))
+        self.bdl.setIconSize(QSize(16, 16))
         mr.addWidget(self.bed); mr.addWidget(self.bdl)
         self.bed.clicked.connect(self.request_edit)
         self.bdl.clicked.connect(self.request_del)
@@ -605,8 +585,7 @@ class ProductDetail(QWidget):
         self._oh.setText(t("detail_operations"))
         self._th.setText(t("detail_recent_txns"))
         self._set_op_btn_text()
-        self.bed.setText(t("btn_edit"))
-        self.bdl.setText(t("btn_delete"))
+        # Edit and delete buttons use icons only - don't set text
         if self._item: self.set_product(self._item)
         else:           self._empty()
 
@@ -726,15 +705,17 @@ class MainWindow(QMainWindow):
         self.alert_btn = QPushButton(t("alert_ok")); self.alert_btn.setObjectName("alert_ok")
         self.alert_btn.clicked.connect(self._show_alerts)
 
-        self.refresh_btn = QPushButton("\u21BA"); self.refresh_btn.setObjectName("icon_btn")
+        self.refresh_btn = QPushButton(); self.refresh_btn.setObjectName("icon_btn")
         self.refresh_btn.setFixedSize(44, 44)
-        self.refresh_btn.setFont(QFont("Segoe UI Symbol", 16, QFont.Weight.Bold))
+        self.refresh_btn.setIcon(get_button_icon("refresh"))
+        self.refresh_btn.setIconSize(QSize(24, 24))
         self.refresh_btn.setToolTip(t("tooltip_refresh"))
         self.refresh_btn.clicked.connect(self._refresh_all)
 
-        self.mode_btn = QPushButton("\u2600"); self.mode_btn.setObjectName("mode_btn")
+        self.mode_btn = QPushButton(); self.mode_btn.setObjectName("mode_btn")
         self.mode_btn.setFixedSize(44, 44)
-        self.mode_btn.setFont(QFont("Segoe UI Symbol", 16))
+        self.mode_btn.setIcon(get_button_icon("settings"))
+        self.mode_btn.setIconSize(QSize(24, 24))
         self.mode_btn.setToolTip(t("tooltip_theme"))
         self.mode_btn.clicked.connect(self._toggle_mode)
 
@@ -746,9 +727,10 @@ class MainWindow(QMainWindow):
             b.setFixedSize(40, 30); b.clicked.connect(lambda _, c=code: self._set_lang(c))
             lang_lay.addWidget(b); self._lang_btns[code] = b
 
-        self.admin_btn = QPushButton("⚙"); self.admin_btn.setObjectName("icon_btn")
+        self.admin_btn = QPushButton(); self.admin_btn.setObjectName("icon_btn")
         self.admin_btn.setFixedSize(44, 44)
-        self.admin_btn.setFont(QFont("Segoe UI Symbol", 16))
+        self.admin_btn.setIcon(get_button_icon("settings"))
+        self.admin_btn.setIconSize(QSize(24, 24))
         self.admin_btn.setToolTip(t("tooltip_admin"))
         self.admin_btn.clicked.connect(self._open_admin)
 
@@ -789,7 +771,9 @@ class MainWindow(QMainWindow):
         tl = QVBoxLayout(txn_pg); tl.setContentsMargins(0, 8, 0, 0); tl.setSpacing(8)
         tbar = QHBoxLayout(); tbar.setContentsMargins(4, 0, 4, 0)
         self._txn_caption = QLabel(t("txn_history_caption")); self._txn_caption.setObjectName("section_caption")
-        self._txn_ref_btn = QPushButton(t("btn_refresh")); self._txn_ref_btn.setObjectName("btn_secondary")
+        self._txn_ref_btn = QPushButton(); self._txn_ref_btn.setObjectName("btn_secondary")
+        self._txn_ref_btn.setIcon(get_button_icon("refresh"))
+        self._txn_ref_btn.setIconSize(QSize(16, 16))
         self._txn_ref_btn.clicked.connect(self._refresh_all_txns)
         tbar.addWidget(self._txn_caption); tbar.addStretch(); tbar.addWidget(self._txn_ref_btn)
         tl.addLayout(tbar)
@@ -800,7 +784,8 @@ class MainWindow(QMainWindow):
         for cat in _cat_repo.get_all_active():
             tab = MatrixTab(cat.key)
             self._matrix_tabs.append(tab)
-            self.tabs.addTab(tab, f"{cat.icon}  {cat.name('EN')}")
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            self.tabs.addTab(tab, f"{icon}  {cat.name('EN')}")
 
         sp.addWidget(self.tabs)
 
@@ -902,7 +887,8 @@ class MainWindow(QMainWindow):
         for cat in _cat_repo.get_all_active():
             tab = MatrixTab(cat.key)
             self._matrix_tabs.append(tab)
-            self.tabs.addTab(tab, f"{cat.icon}  {cat.name(LANG)}")
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            self.tabs.addTab(tab, f"{icon}  {cat.name(LANG)}")
 
     # ── Language ───────────────────────────────────────────────────────────────
 
@@ -930,10 +916,11 @@ class MainWindow(QMainWindow):
         self.tabs.setTabText(1, t("tab_transactions"))
         for i, tab in enumerate(self._matrix_tabs):
             if tab._cat:
-                self.tabs.setTabText(2 + i, f"{tab._cat.icon}  {tab._cat.name(LANG)}")
+                icon = load_svg_icon(tab._cat.icon) if tab._cat.icon else "📁"
+                self.tabs.setTabText(2 + i, f"{icon}  {tab._cat.name(LANG)}")
             tab.retranslate()
         self._txn_caption.setText(t("txn_history_caption"))
-        self._txn_ref_btn.setText(t("btn_refresh"))
+        # Transaction refresh button uses icon only - don't set text
         self.prod_tbl.retranslate(); self.txn_tbl.retranslate()
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         self.detail.retranslate(); self._check_alerts()
@@ -998,7 +985,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_mode(self):
         THEME.toggle()
-        self.mode_btn.setText("\u2600" if THEME.is_dark else "\U0001F319")
+        # Theme button uses icon only - don't set text
         self._bg.update()
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         if self._cp: self.detail.set_product(self._cp)

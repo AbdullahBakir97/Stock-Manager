@@ -9,10 +9,10 @@ from __future__ import annotations
 DEMO_CATEGORIES: list[tuple] = [
     # (key, name_en, name_de, name_ar, sort_order, icon)
     ("displays",       "Displays",       "Displays",      "الشاشات",         1, "🖥"),
-    ("batteries",      "Batteries",      "Akkus",         "البطاريات",       2, "🔋"),
+    ("batteries",      "Batteries",      "Akkus",         "البطاريات",       2, "⚡"),
     ("cases",          "Cases",          "Gehäuse",       "الأغطية",         3, "📱"),
     ("cameras",        "Cameras",        "Kameras",       "الكاميرات",       4, "📷"),
-    ("charging_ports", "Charging Ports", "Ladebuchsen",   "منافذ الشحن",     5, "⚡"),
+    ("charging_ports", "Charging Ports", "Ladebuchsen",   "منافذ الشحن",     5, "🔌"),
     ("back_covers",    "Back Covers",    "Rückdeckel",    "الأغطية الخلفية", 6, "🔲"),
 ]
 
@@ -52,8 +52,8 @@ DEMO_PART_TYPES: dict[str, list[tuple]] = {
 
 DEMO_PHONE_MODELS: list[tuple] = [
     # (brand, name, sort_order)
-    ("Apple", "X / XS",        1),  ("Apple", "XR",             2),
-    ("Apple", "XS max",         3),  ("Apple", "11",             4),
+    ("Apple", "X",              1),  ("Apple", "XS",             2),
+    ("Apple", "XS max",         3),  ("Apple", "XR",             4),
     ("Apple", "11 Pro",         5),  ("Apple", "11 Pro max",     6),
     ("Apple", "12 mini",        7),  ("Apple", "12 / 12 Pro",    8),
     ("Apple", "12 Pro max",     9),  ("Apple", "13 mini",       10),

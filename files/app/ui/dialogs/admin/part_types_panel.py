@@ -10,9 +10,10 @@ from PyQt6.QtWidgets import (
     QComboBox, QLineEdit, QPushButton, QLabel,
     QDialog, QDialogButtonBox, QMessageBox,
 )
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 
 from app.repositories.category_repo import CategoryRepository
+from app.core.icon_utils import load_svg_icon, get_button_icon
 from app.models.category import CategoryConfig, PartTypeConfig
 from app.ui.dialogs.admin.color_picker_widget import ColorPickerWidget
 from app.core.i18n import t
@@ -112,8 +113,12 @@ class PartTypesPanel(QWidget):
         self._add_btn  = QPushButton(t("pt_btn_add"));    self._add_btn.clicked.connect(self._add)
         self._edit_btn = QPushButton(t("pt_btn_edit"));   self._edit_btn.clicked.connect(self._edit)
         self._del_btn  = QPushButton(t("pt_btn_delete")); self._del_btn.clicked.connect(self._delete)
-        self._up_btn   = QPushButton(t("cat_btn_move_up"));   self._up_btn.clicked.connect(self._move_up)
-        self._down_btn = QPushButton(t("cat_btn_move_down")); self._down_btn.clicked.connect(self._move_down)
+        self._up_btn   = QPushButton(); self._up_btn.clicked.connect(self._move_up)
+        self._up_btn.setIcon(get_button_icon("up"))
+        self._up_btn.setIconSize(QSize(16, 16))
+        self._down_btn = QPushButton(); self._down_btn.clicked.connect(self._move_down)
+        self._down_btn.setIcon(get_button_icon("down"))
+        self._down_btn.setIconSize(QSize(16, 16))
         for b in (self._add_btn, self._edit_btn, self._del_btn, self._up_btn, self._down_btn):
             btn_row.addWidget(b)
         btn_row.addStretch()
@@ -123,7 +128,8 @@ class PartTypesPanel(QWidget):
         self._cat_combo.blockSignals(True)
         self._cat_combo.clear()
         for cat in _cat_repo.get_all():
-            self._cat_combo.addItem(f"{cat.icon}  {cat.name_en}", cat.id)
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            self._cat_combo.addItem(f"{icon}  {cat.name_en}", cat.id)
         self._cat_combo.blockSignals(False)
         self._on_cat_change(0)
 

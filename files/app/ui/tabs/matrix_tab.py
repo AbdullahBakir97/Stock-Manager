@@ -10,6 +10,7 @@ Usage:
 """
 from __future__ import annotations
 
+from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QComboBox, QLabel,
     QPushButton, QFrame, QDialog, QMessageBox,
@@ -21,6 +22,7 @@ from app.repositories.model_repo import ModelRepository
 from app.repositories.item_repo import ItemRepository
 from app.ui.components.matrix_widget import MatrixWidget
 from app.ui.dialogs.matrix_dialogs import AddModelDialog
+from app.core.icon_utils import get_button_icon
 from app.ui.tabs.base_tab import BaseTab
 from app.core.i18n import t
 
@@ -64,8 +66,9 @@ class MatrixTab(BaseTab):
         self._add_btn.setObjectName("btn_primary")
         self._add_btn.clicked.connect(self._add_model)
 
-        self._ref_btn = QPushButton(t("btn_refresh"))
-        self._ref_btn.setObjectName("btn_secondary")
+        self._ref_btn = QPushButton(); self._ref_btn.setObjectName("btn_secondary")
+        self._ref_btn.setIcon(get_button_icon("refresh"))
+        self._ref_btn.setIconSize(QSize(16, 16))
         self._ref_btn.clicked.connect(self.refresh)
 
         tb.addWidget(self._brand_lbl)
@@ -171,7 +174,7 @@ class MatrixTab(BaseTab):
         self._brand_lbl.setText(t("disp_filter_brand"))
         self._caption.setText(t("disp_caption"))
         self._add_btn.setText(t("disp_add_model"))
-        self._ref_btn.setText(t("btn_refresh"))
+        # Refresh button uses icon only - don't set text
         self._brand_combo.blockSignals(True)
         self._brand_combo.setItemText(0, t("disp_all_brands"))
         self._brand_combo.blockSignals(False)

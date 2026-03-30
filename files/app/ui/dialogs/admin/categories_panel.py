@@ -8,9 +8,11 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QLineEdit, QCheckBox,
     QPushButton, QLabel, QMessageBox,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
 
 from app.repositories.category_repo import CategoryRepository
+from app.core.icon_utils import load_svg_icon
+from PyQt6.QtCore import Qt, pyqtSignal
+
 from app.models.category import CategoryConfig
 from app.core.database import load_demo_data
 from app.core.i18n import t
@@ -102,7 +104,8 @@ class CategoriesPanel(QWidget):
         self._cats = _cat_repo.get_all()
         self._list.clear()
         for cat in self._cats:
-            item = QListWidgetItem(f"{cat.icon}  {cat.name_en}")
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            item = QListWidgetItem(f"{icon}  {cat.name_en}")
             item.setData(Qt.ItemDataRole.UserRole, cat.id)
             self._list.addItem(item)
         self._form_widget.hide()

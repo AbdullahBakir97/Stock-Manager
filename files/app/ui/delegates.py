@@ -20,7 +20,7 @@ class AlternatingRowDelegate(QStyledItemDelegate):
         elif index.row() % 2 == 0:
             painter.fillRect(option.rect, QColor(THEME.tokens.card))
         else:
-            painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
+            painter.fillRect(option.rect, QColor(THEME.tokens.card2))
         
         # Draw text or "—" for empty values
         text = index.data(Qt.ItemDataRole.DisplayRole) or ""
@@ -29,7 +29,7 @@ class AlternatingRowDelegate(QStyledItemDelegate):
             painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
         else:
             # Draw "—" in muted color for empty cells
-            painter.setPen(QColor(128, 128, 128))
+            painter.setPen(QColor(THEME.tokens.t4))
             painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
         
         painter.restore()

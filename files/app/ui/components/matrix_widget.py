@@ -1,18 +1,22 @@
 """
 app/ui/components/matrix_widget.py — Generic phone-model × part-type matrix table.
 
-Used by MatrixTab for every inventory category (Displays, Batteries, Cases, …).
-Excel-like color banding: model rows have distinct color, each part type group
-has its own background tint derived from the part type's accent color.
+Excel-like color banding:
+  - Model name column: strong distinct background (stands out from data)
+  - Each part type group (4 columns) gets its OWN color band
+  - All 4 fields within a part type share the same background
+  - Different part types have visually different backgrounds
+  - Header row: bold colored banners per part type
 """
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QDialog, QAbstractItemView, QMessageBox,
+    QDialog, QAbstractItemView, QMessageBox, QFrame,
+    QStyledItemDelegate, QStyleOptionViewItem, QMenu,
 )
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QColor, QFont
+from PyQt6.QtCore import Qt, QModelIndex, QPoint
+from PyQt6.QtGui import QColor, QFont, QPainter, QAction
 
 from app.core.theme import THEME
 from app.models.category import CategoryConfig
@@ -20,51 +24,123 @@ from app.models.item import InventoryItem
 from app.repositories.item_repo import ItemRepository
 from app.services.stock_service import StockService
 from app.ui.dialogs.matrix_dialogs import StockOpDialog, ThresholdDialog, InventurDialog
-from app.core.theme import THEME, qc
 from app.core.i18n import t
 
 _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
 _COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
-_COL_W = {"model": 160, "stamm": 82, "bestbung": 82, "stock": 72, "inventur": 82}
+_COL_W = {"model": 180, "stamm": 100, "bestbung": 100, "stock": 90, "inventur": 100}
 _HEADER_ROW = 0
+
+# Fonts
+_FONT_MONO   = QFont("JetBrains Mono", 11, QFont.Weight.Bold)
+_FONT_MONO.setStyleHint(QFont.StyleHint.Monospace)
+_FONT_MODEL  = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
+_FONT_HEADER = QFont("Segoe UI", 10, QFont.Weight.Bold)
+_FONT_DATA   = QFont("Segoe UI", 10)
+
+
+class _MatrixCellDelegate(QStyledItemDelegate):
+    """Delegate that paints the cell background from BackgroundRole.
+
+    QSS `QTableWidget::item { background }` overrides programmatic
+    setBackground(). This delegate bypasses QSS by painting the
+    background directly, then drawing text with the item's foreground and font.
+    """
+
+    def paint(self, painter: QPainter, option: QStyleOptionViewItem, index: QModelIndex):
+        from PyQt6.QtWidgets import QStyle
+        from PyQt6.QtGui import QBrush
+
+        painter.save()
+        rect = option.rect
+
+        # 1) Paint cell background from the item's BackgroundRole
+        bg = index.data(Qt.ItemDataRole.BackgroundRole)
+        if isinstance(bg, QBrush):
+            painter.fillRect(rect, bg)
+        elif isinstance(bg, QColor):
+            painter.fillRect(rect, bg)
+
+        # 2) Selection highlight
+        if option.state & QStyle.StateFlag.State_Selected:
+            sel = QColor(THEME.tokens.blue)
+            sel.setAlpha(100)
+            painter.fillRect(rect, sel)
+
+        # 3) Text
+        text = index.data(Qt.ItemDataRole.DisplayRole) or ""
+        fg = index.data(Qt.ItemDataRole.ForegroundRole)
+        if isinstance(fg, QBrush):
+            painter.setPen(fg.color())
+        elif isinstance(fg, QColor):
+            painter.setPen(fg)
+        else:
+            painter.setPen(QColor(THEME.tokens.t1))
+
+        font = index.data(Qt.ItemDataRole.FontRole)
+        if isinstance(font, QFont):
+            painter.setFont(font)
+
+        alignment = index.data(Qt.ItemDataRole.TextAlignmentRole)
+        if alignment is None:
+            alignment = int(Qt.AlignmentFlag.AlignCenter)
+        painter.drawText(rect.adjusted(6, 0, -6, 0), int(alignment), text)
+
+        painter.restore()
 
 
 def _base(ti: int) -> int:
     return 1 + ti * _COLS_PER_TYPE
 
 
-def _tint_color(accent_hex: str, is_dark: bool) -> QColor:
-    """Create a subtle background tint from accent color for data cells."""
+def _part_type_bg(accent_hex: str, is_dark: bool) -> QColor:
+    """Visible background tint for a part-type column group.
+
+    Blends the part type's accent color into the base background
+    at a strength that's clearly visible but still readable.
+    """
     c = QColor(accent_hex)
     if is_dark:
-        return QColor(c.red(), c.green(), c.blue(), 18)  # very subtle in dark mode
+        # Blend accent into #0F0F0F base at 15%
+        r = int(0.15 * c.red()   + 0.85 * 15)
+        g = int(0.15 * c.green() + 0.85 * 15)
+        b = int(0.15 * c.blue()  + 0.85 * 15)
+        return QColor(r, g, b)
     else:
-        return QColor(c.red(), c.green(), c.blue(), 15)  # very subtle in light mode
+        # Blend accent into #FFFFFF base at 12%
+        r = int(0.12 * c.red()   + 0.88 * 255)
+        g = int(0.12 * c.green() + 0.88 * 255)
+        b = int(0.12 * c.blue()  + 0.88 * 255)
+        return QColor(r, g, b)
 
 
-def _model_row_color(is_dark: bool) -> QColor:
-    """Color for the model name column — distinct from data columns."""
+def _model_col_bg(is_dark: bool) -> QColor:
+    """Strong distinct background for the model name column."""
     if is_dark:
-        return QColor(40, 44, 72, 255)  # slightly brighter slate
+        return QColor(30, 33, 54)     # blue-slate
     else:
-        return QColor(230, 228, 245, 255)  # soft lavender
+        return QColor(55, 65, 81)     # dark slate-gray (dark enough for white text)
 
 
 class MatrixWidget(QTableWidget):
     """
-    Generic matrix table: phone models (rows) × part types (column groups, 4 cols each).
-    Driven by CategoryConfig loaded from DB — works for any category without code changes.
+    Matrix table: phone models (rows) × part types (column groups).
 
-    Excel-like color banding:
-    - Model name column has its own distinct background
-    - Each part type group (4 columns) has a tinted background from its accent color
-    - Header row has colored banners per part type
+    Color banding (Excel-like):
+    ┌──────────┬──────────────────┬──────────────────┬────────────────┐
+    │  MODEL   │   Part Type A    │   Part Type B    │  Part Type C   │
+    │ (slate)  │   (red tint)     │  (blue tint)     │ (green tint)   │
+    ├──────────┼────┬────┬───┬────┼────┬────┬───┬────┼────┬───┬───┬───┤
+    │ iPhone15 │ MS │ BB │ S │ O  │ MS │ BB │ S │ O  │ MS │BB │ S │ O │
+    │ iPhone14 │ MS │ BB │ S │ O  │ MS │ BB │ S │ O  │ MS │BB │ S │ O │
+    └──────────┴────┴────┴───┴────┴────┴────┴───┴────┴────┴───┴───┴───┘
     """
 
     def __init__(self, refresh_cb, parent=None):
         super().__init__(parent)
+        self.setObjectName("matrix_table")
         self._refresh_cb = refresh_cb
         self._cat: CategoryConfig | None = None
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -73,7 +149,12 @@ class MatrixWidget(QTableWidget):
         self.verticalHeader().setVisible(False)
         self.setAlternatingRowColors(False)
         self.setShowGrid(True)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.cellDoubleClicked.connect(self._on_dbl)
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self._on_context_menu)
 
     def load(self, cat: CategoryConfig, models,
              item_map: dict[tuple[int, str], InventoryItem]) -> None:
@@ -83,50 +164,64 @@ class MatrixWidget(QTableWidget):
         is_dark = THEME.is_dark
         self.clearContents()
         self.setRowCount(1 + len(models))
-        self.setRowHeight(_HEADER_ROW, 30)
+        self.setRowHeight(_HEADER_ROW, 36)
 
-        model_bg = _model_row_color(is_dark)
+        model_bg = _model_col_bg(is_dark)
+
+        # Pre-compute background colors for each part type group
+        type_bgs = [_part_type_bg(pt.accent_color, is_dark) for pt in cat.part_types]
 
         # Row 0 — colour-coded group-name banner
         corner = self._ro("")
-        corner.setBackground(QColor(tk.card2))
+        corner.setBackground(model_bg)
         self.setItem(_HEADER_ROW, 0, corner)
         for ti, pt in enumerate(cat.part_types):
             b = _base(ti)
             self.setSpan(_HEADER_ROW, b, 1, _COLS_PER_TYPE)
             it = self._ro(pt.name)
             it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            it.setBackground(qc(pt.accent_color, 0x45))
+            # Header banner: stronger version of the column tint
+            hdr_bg = QColor(pt.accent_color)
+            if is_dark:
+                it.setBackground(QColor(
+                    int(0.30 * hdr_bg.red()   + 0.70 * 15),
+                    int(0.30 * hdr_bg.green() + 0.70 * 15),
+                    int(0.30 * hdr_bg.blue()  + 0.70 * 15),
+                ))
+            else:
+                it.setBackground(QColor(
+                    int(0.25 * hdr_bg.red()   + 0.75 * 255),
+                    int(0.25 * hdr_bg.green() + 0.75 * 255),
+                    int(0.25 * hdr_bg.blue()  + 0.75 * 255),
+                ))
             it.setForeground(QColor(pt.accent_color))
-            it.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
+            it.setFont(_FONT_HEADER)
             self.setItem(_HEADER_ROW, b, it)
-
-        # Pre-compute tint colors for each part type
-        type_tints = [_tint_color(pt.accent_color, is_dark) for pt in cat.part_types]
 
         # Model rows
         for ri, model in enumerate(models):
             r = ri + 1
-            self.setRowHeight(r, 40)
+            self.setRowHeight(r, 48)
 
-            # Model name cell — distinct color
+            # Model name cell — strong distinct background, always white text
             name_it = self._ro(f"  {model.name}")
             name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
             name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-            name_it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-            name_it.setForeground(QColor(tk.t1))
+            name_it.setFont(_FONT_MODEL)
+            name_it.setForeground(QColor("#FFFFFF"))
             name_it.setBackground(model_bg)
             self.setItem(r, 0, name_it)
 
             for ti, pt in enumerate(cat.part_types):
                 b    = _base(ti)
                 item = item_map.get((model.id, pt.key))
-                tint = type_tints[ti]
+                bg   = type_bgs[ti]
 
                 if not item:
                     for c in range(_COLS_PER_TYPE):
                         cell = self._ro("—")
-                        cell.setBackground(tint)
+                        cell.setBackground(bg)
+                        cell.setForeground(QColor(tk.t4))
                         self.setItem(r, b + c, cell)
                     continue
 
@@ -146,7 +241,8 @@ class MatrixWidget(QTableWidget):
                 # Min-Stock (Stamm-Zahl)
                 st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
                 st.setForeground(QColor(tk.t2))
-                st.setBackground(tint)
+                st.setFont(_FONT_DATA)
+                st.setBackground(bg)
                 st.setToolTip(t("disp_tip_stamm"))
                 self.setItem(r, b, st)
 
@@ -163,11 +259,12 @@ class MatrixWidget(QTableWidget):
                     bb_tip = t("disp_tip_bb_pos", n=best)
                 bb = self._cell(bb_txt, meta | {"field": "best_bung"})
                 bb.setForeground(QColor(bb_col))
-                bb.setBackground(tint)
+                bb.setFont(_FONT_MONO)
+                bb.setBackground(bg)
                 bb.setToolTip(bb_tip)
                 self.setItem(r, b + 1, bb)
 
-                # Stock
+                # Stock — monospace, bold, color-coded
                 stk = self._cell(str(stock), meta | {"field": "stock"})
                 if stock == 0:
                     stk.setForeground(QColor(tk.red))
@@ -175,8 +272,8 @@ class MatrixWidget(QTableWidget):
                     stk.setForeground(QColor(tk.yellow))
                 else:
                     stk.setForeground(QColor(tk.green))
-                stk.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
-                stk.setBackground(tint)
+                stk.setFont(_FONT_MONO)
+                stk.setBackground(bg)
                 stk.setToolTip(t("disp_tip_stock"))
                 self.setItem(r, b + 2, stk)
 
@@ -184,7 +281,8 @@ class MatrixWidget(QTableWidget):
                 inv_txt = str(inventur) if inventur is not None else "—"
                 inv = self._cell(inv_txt, meta | {"field": "inventur"})
                 inv.setForeground(QColor(tk.t3))
-                inv.setBackground(tint)
+                inv.setFont(_FONT_DATA)
+                inv.setBackground(bg)
                 inv.setToolTip(t("disp_tip_inv"))
                 self.setItem(r, b + 3, inv)
 
@@ -211,6 +309,10 @@ class MatrixWidget(QTableWidget):
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
         self.setColumnWidth(0, _COL_W["model"])
+        # Apply cell delegate to every column so backgrounds render
+        delegate = _MatrixCellDelegate(self)
+        for col in range(total):
+            self.setItemDelegateForColumn(col, delegate)
         for i in range(n_types):
             b = _base(i)
             self.setColumnWidth(b,     _COL_W["stamm"])
@@ -232,6 +334,81 @@ class MatrixWidget(QTableWidget):
         it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
         it.setData(Qt.ItemDataRole.UserRole, meta)
         return it
+
+    # ── Right-click context menu ─────────────────────────────────────────────
+
+    def _on_context_menu(self, pos: QPoint) -> None:
+        item = self.itemAt(pos)
+        if not item:
+            return
+        meta = item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(meta, dict) or "item_id" not in meta:
+            return
+
+        item_id    = meta["item_id"]
+        model_name = meta["model_name"]
+        dtype_lbl  = meta["dtype_lbl"]
+
+        menu = QMenu(self)
+
+        # Stock operation
+        act_stock = QAction(f"📦  Stock IN/OUT…", self)
+        act_stock.triggered.connect(lambda: self._ctx_stock(item_id, dtype_lbl))
+        menu.addAction(act_stock)
+
+        # Min stock
+        act_min = QAction(f"📊  Set Min Stock…", self)
+        act_min.triggered.connect(lambda: self._ctx_threshold(item_id, model_name, dtype_lbl, meta["min_stock"]))
+        menu.addAction(act_min)
+
+        # Order
+        act_order = QAction(f"📋  Set Order…", self)
+        act_order.triggered.connect(lambda: self._ctx_order(item_id, model_name, dtype_lbl, meta["stock"]))
+        menu.addAction(act_order)
+
+        menu.addSeparator()
+
+        # Assign barcode
+        act_bc = QAction(t("barcode_ctx_assign"), self)
+        act_bc.triggered.connect(lambda: self._ctx_barcode(item_id, f"{model_name} · {dtype_lbl}"))
+        menu.addAction(act_bc)
+
+        menu.exec(self.viewport().mapToGlobal(pos))
+
+    def _ctx_stock(self, item_id: int, dtype_lbl: str) -> None:
+        item = _item_repo.get_by_id(item_id)
+        if not item:
+            return
+        dlg = StockOpDialog(item, dtype_lbl, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            op, qty = dlg.result_data()
+            try:
+                if op == "IN":    _stock_svc.stock_in(item_id, qty)
+                elif op == "OUT": _stock_svc.stock_out(item_id, qty)
+                else:             _stock_svc.stock_adjust(item_id, qty)
+                self._refresh_cb()
+            except ValueError as exc:
+                QMessageBox.warning(self, t("disp_stock_err"), str(exc))
+
+    def _ctx_threshold(self, item_id: int, model_name: str, dtype_lbl: str, current: int) -> None:
+        dlg = ThresholdDialog(model_name, dtype_lbl, current, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            _item_repo.update_min_stock(item_id, dlg.value())
+            self._refresh_cb()
+
+    def _ctx_order(self, item_id: int, model_name: str, dtype_lbl: str, stock: int) -> None:
+        dlg = InventurDialog(model_name, dtype_lbl, stock, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            _item_repo.update_inventur(item_id, dlg.value())
+            self._refresh_cb()
+
+    def _ctx_barcode(self, item_id: int, item_name: str) -> None:
+        from app.ui.dialogs.barcode_assign_dialog import BarcodeAssignDialog
+        item = _item_repo.get_by_id(item_id)
+        bc = item.barcode if item else None
+        dlg = BarcodeAssignDialog(item_id, item_name, bc, self)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh_cb()
 
     # ── Double-click handler ───────────────────────────────────────────────────
 

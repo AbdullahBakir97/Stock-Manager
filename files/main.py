@@ -25,6 +25,7 @@ def main():
 
     font = QFont("Segoe UI", 10)
     font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
+    font.setWeight(QFont.Weight.Normal)
     app.setFont(font)
 
     icon = QIcon(_icon_path("icon_logo.ico"))

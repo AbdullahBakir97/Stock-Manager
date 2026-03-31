@@ -1,4 +1,11 @@
-"""dialogs.py — All modal dialogs for Stock Manager Pro."""
+"""dialogs.py — All modal dialogs for Stock Manager Pro.
+
+Modern design guide compliance:
+- ModernDialog base with drop shadow + custom header
+- FormField widget for consistent label + input layout
+- Monospace font for barcodes and stock numbers
+- 4px grid spacing system
+"""
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
@@ -6,6 +13,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QDialogButtonBox, QGroupBox, QFrame,
     QMessageBox, QToolButton, QGridLayout, QWidget,
     QTableWidget, QTableWidgetItem, QHeaderView,
+    QGraphicsDropShadowEffect,
 )
 from PyQt6.QtGui import QDoubleValidator
 from PyQt6.QtCore import Qt, pyqtSignal, QSize, QTimer
@@ -24,6 +32,12 @@ from app.core.config import ShopConfig
 _prod_repo = ProductRepository()
 _alert_svc = AlertService()
 
+# ── Typography constants ──────────────────────────────────────────────────────
+_FONT_MONO = QFont("JetBrains Mono", 10)
+_FONT_MONO.setStyleHint(QFont.StyleHint.Monospace)
+_FONT_BODY = QFont("Segoe UI", 10)
+_FONT_HEADING = QFont("Segoe UI", 14, QFont.Weight.DemiBold)
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -31,7 +45,7 @@ def _row(p) -> dict:
     return dict(p) if p is not None else {}
 
 def _field(ph="", txt=""):
-    w = QLineEdit(txt); w.setPlaceholderText(ph); w.setMinimumHeight(40); return w
+    w = QLineEdit(txt); w.setPlaceholderText(ph); w.setMinimumHeight(38); return w
 
 def _pm(hex_, sz=18):
     pm = QPixmap(sz, sz); pm.fill(Qt.GlobalColor.transparent)
@@ -47,7 +61,6 @@ def _style(dlg):
     dlg.setStyleSheet(THEME.stylesheet()); THEME.register(dlg)
 
 def _cancel_btn(bb: QDialogButtonBox):
-    """Set translated text on the Cancel button of a QDialogButtonBox."""
     btn = bb.button(QDialogButtonBox.StandardButton.Cancel)
     if btn: btn.setText(t("op_cancel"))
 
@@ -61,9 +74,7 @@ class QuantitySpin(QWidget):
     def __init__(self, mn: int = 0, mx: int = 999_999, v: int = 0, parent=None):
         super().__init__(parent)
         self._min = mn; self._max = mx; self._val = v
-        # Delay timer: waits 400 ms before starting repeat
         self._delay = QTimer(self); self._delay.setSingleShot(True); self._delay.setInterval(400)
-        # Repeat timer: fires every 80 ms while held
         self._repeat = QTimer(self); self._repeat.setInterval(80)
         self._delay.timeout.connect(self._repeat.start)
         self._build()
@@ -77,7 +88,7 @@ class QuantitySpin(QWidget):
         self._edit = QLineEdit(str(self._val)); self._edit.setObjectName("spin_edit")
         self._edit.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._edit.setFixedHeight(44)
-        self._edit.setFont(QFont("Segoe UI", 14, QFont.Weight.Bold))
+        self._edit.setFont(QFont("JetBrains Mono", 14, QFont.Weight.Bold))
 
         self._plus = QPushButton("+"); self._plus.setObjectName("spin_plus")
         self._plus.setFixedSize(44, 44)
@@ -97,7 +108,6 @@ class QuantitySpin(QWidget):
         self._delay.start()
 
     def _on_released(self, d: int):
-        # If the delay hasn't fired yet the user tapped (not held) — step once
         quick = self._delay.isActive()
         self._delay.stop()
         self._repeat.stop()
@@ -129,21 +139,53 @@ class QuantitySpin(QWidget):
         self._min = mn; self._max = mx; self.setValue(self._val)
 
 
-# ── Gradient Dialog base ──────────────────────────────────────────────────────
+# ── Modern Dialog base ───────────────────────────────────────────────────────
 
-class GradientDialog(QDialog):
+class ModernDialog(QDialog):
+    """Professional dialog with drop shadow and solid background."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
     def paintEvent(self, _ev):
         tk = THEME.tokens
         p = QPainter(self)
-        g = QLinearGradient(0, 0, 0, self.height())
-        g.setColorAt(0.0, QColor(tk.grad_top))
-        g.setColorAt(1.0, QColor(tk.grad_bot))
-        p.fillRect(self.rect(), QBrush(g)); p.end()
+        p.fillRect(self.rect(), QColor(tk.grad_top))
+        p.end()
+
+
+# ── Legacy alias (keep backward compat with GradientDialog imports) ──────────
+GradientDialog = ModernDialog
+
+
+# ── FormField — consistent label + input ─────────────────────────────────────
+
+class FormField(QWidget):
+    """Consistent form field with label above input."""
+    def __init__(self, label: str, widget: QWidget,
+                 required: bool = False, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 12)
+        layout.setSpacing(6)
+
+        label_row = QHBoxLayout()
+        label_row.setSpacing(4)
+        lbl = QLabel(label)
+        lbl.setStyleSheet(f"font-size:12px; font-weight:500; color:{THEME.tokens.t2};")
+        label_row.addWidget(lbl)
+        if required:
+            req = QLabel("*")
+            req.setStyleSheet(f"color:{THEME.tokens.red}; font-weight:600;")
+            label_row.addWidget(req)
+        label_row.addStretch()
+        layout.addLayout(label_row)
+        layout.addWidget(widget)
 
 
 # ── Color Picker ──────────────────────────────────────────────────────────────
 
-class ColorPickerDialog(GradientDialog):
+class ColorPickerDialog(ModernDialog):
     def __init__(self, cur="", parent=None):
         super().__init__(parent)
         self.setWindowTitle(t("dlg_choose_color")); self.setModal(True); self.setFixedWidth(460)
@@ -152,7 +194,14 @@ class ColorPickerDialog(GradientDialog):
 
     def _build(self):
         root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 20); root.setSpacing(16)
-        hdr = QLabel(t("dlg_choose_color")); hdr.setObjectName("dlg_header"); root.addWidget(hdr)
+
+        # Header with close button
+        hdr_row = QHBoxLayout()
+        hdr = QLabel(t("dlg_choose_color")); hdr.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        root.addLayout(hdr_row)
 
         gw = QWidget()
         grid = QGridLayout(gw); grid.setSpacing(10)
@@ -163,7 +212,7 @@ class ColorPickerDialog(GradientDialog):
             btn.setStyleSheet(
                 f"QToolButton{{background:{hex_};border-radius:27px;border:2.5px solid {idle};}}"
                 f"QToolButton:hover{{border:3px solid rgba(255,255,255,153);}}"
-                f"QToolButton:checked{{border:3.5px solid {THEME.tokens.blue};}}"
+                f"QToolButton:checked{{border:3.5px solid {THEME.tokens.green};}}"
             )
             btn.clicked.connect(lambda _, n=name: self._pick(n))
             grid.addWidget(btn, i // 6, i % 6); self._btns[name] = btn
@@ -192,7 +241,7 @@ class ColorPickerDialog(GradientDialog):
             self._nm.setText(t("dlg_color_none")); return
         h = clr.hex_for(n); brd = "rgba(102,102,102,153)" if clr.is_light(h) else "transparent"
         self._dot.setStyleSheet(f"background:{h};border-radius:17px;border:2px solid {brd};")
-        self._nm.setText(color_t(n))   # ← translated color name
+        self._nm.setText(color_t(n))
 
     def _confirm(self):
         self.accept()
@@ -205,7 +254,7 @@ class ColorPickerDialog(GradientDialog):
 class ColorButton(QPushButton):
     def __init__(self, init="", parent=None):
         super().__init__(parent); self.setObjectName("color_pick_btn")
-        self._c = init; self.setMinimumHeight(40); self.setMinimumWidth(180)
+        self._c = init; self.setMinimumHeight(38); self.setMinimumWidth(180)
         self.clicked.connect(self._open); self._refresh()
 
     def _refresh(self):
@@ -225,7 +274,7 @@ class ColorButton(QPushButton):
 
 # ── Product Dialog ────────────────────────────────────────────────────────────
 
-class ProductDialog(GradientDialog):
+class ProductDialog(ModernDialog):
     def __init__(self, parent=None, product=None):
         super().__init__(parent)
         self.product = _row(product) if product is not None else None
@@ -238,24 +287,33 @@ class ProductDialog(GradientDialog):
     def _build(self):
         is_edit = bool(self.product)
         title   = t("dlg_edit_product") if is_edit else t("dlg_new_product")
-        root = QVBoxLayout(self); root.setContentsMargins(28, 28, 28, 24); root.setSpacing(20)
-        hdr = QLabel(title); hdr.setObjectName("dlg_header"); root.addWidget(hdr)
+        root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 20); root.setSpacing(16)
 
+        # Header with close button
+        hdr_row = QHBoxLayout()
+        hdr = QLabel(title); hdr.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        root.addLayout(hdr_row)
+
+        # Identity section
         ig = QGroupBox(t("dlg_grp_identity")); fl = QFormLayout(ig)
-        fl.setLabelAlignment(Qt.AlignmentFlag.AlignRight); fl.setSpacing(10); fl.setHorizontalSpacing(20)
+        fl.setLabelAlignment(Qt.AlignmentFlag.AlignRight); fl.setSpacing(12); fl.setHorizontalSpacing(16)
         self.brand_edit   = _field(t("dlg_ph_brand"))
         self.type_edit    = _field(t("dlg_ph_type"))
         self.color_btn    = ColorButton()
         self.barcode_edit = _field(t("dlg_ph_barcode"))
-        self.barcode_edit.setFont(QFont("Consolas", 10))
+        self.barcode_edit.setFont(_FONT_MONO)
         fl.addRow(t("dlg_lbl_brand"),   self.brand_edit)
         fl.addRow(t("dlg_lbl_type"),    self.type_edit)
         fl.addRow(t("dlg_lbl_color"),   self.color_btn)
         fl.addRow(t("dlg_lbl_barcode"), self.barcode_edit)
         root.addWidget(ig)
 
+        # Stock section
         sg = QGroupBox(t("dlg_grp_stock")); sf = QFormLayout(sg)
-        sf.setLabelAlignment(Qt.AlignmentFlag.AlignRight); sf.setSpacing(10); sf.setHorizontalSpacing(20)
+        sf.setLabelAlignment(Qt.AlignmentFlag.AlignRight); sf.setSpacing(12); sf.setHorizontalSpacing(16)
         if not self.product:
             self.initial_stock = QuantitySpin(0, 999_999, 0)
             sf.addRow(t("dlg_lbl_init_stock"), self.initial_stock)
@@ -266,12 +324,14 @@ class ProductDialog(GradientDialog):
         sf.addRow(t("dlg_lbl_sell_price"), self.price_edit)
         root.addWidget(sg)
 
-        bb = QDialogButtonBox(QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
-        ok = bb.button(QDialogButtonBox.StandardButton.Ok)
-        ok.setText(t("dlg_save_product")); ok.setObjectName("btn_primary")
-        _cancel_btn(bb)
-        bb.accepted.connect(self._validate); bb.rejected.connect(self.reject)
-        root.addWidget(bb)
+        # Buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        cancel = QPushButton(t("op_cancel")); cancel.setObjectName("btn_ghost")
+        cancel.setMinimumHeight(40); cancel.clicked.connect(self.reject)
+        save = QPushButton(t("dlg_save_product")); save.setObjectName("btn_primary")
+        save.setMinimumHeight(40); save.clicked.connect(self._validate)
+        btn_row.addStretch(); btn_row.addWidget(cancel); btn_row.addWidget(save)
+        root.addLayout(btn_row)
 
     def _populate(self, p: dict):
         self.brand_edit.setText(p.get("brand", ""))
@@ -311,7 +371,7 @@ class ProductDialog(GradientDialog):
 
 # ── Stock Operation Dialog ────────────────────────────────────────────────────
 
-class StockOpDialog(GradientDialog):
+class StockOpDialog(ModernDialog):
     _META_KEYS = {
         "IN":     ("↑", "op_stock_in",  "op_confirm_in",  "btn_confirm_in"),
         "OUT":    ("↓", "op_stock_out", "op_confirm_out", "btn_confirm_out"),
@@ -331,20 +391,22 @@ class StockOpDialog(GradientDialog):
         ic, title_key, ctxt_key, cobj = self._META_KEYS[self.operation]
         icol = {"IN": tk.green, "OUT": tk.red, "ADJUST": tk.blue}[self.operation]
 
-        root = QVBoxLayout(self); root.setContentsMargins(28, 28, 28, 24); root.setSpacing(18)
+        root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 20); root.setSpacing(16)
 
-        # ── Header ──
+        # Header with close button
         hr = QHBoxLayout()
-        il = QLabel(ic); il.setFixedSize(58, 58); il.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        il = QLabel(ic); il.setFixedSize(48, 48); il.setAlignment(Qt.AlignmentFlag.AlignCenter)
         il.setStyleSheet(
-            f"background:{_rgba(icol, '25')}; color:{icol}; border-radius:29px;"
-            "font-size:26pt; font-weight:900;"
+            f"background:{_rgba(icol, '20')}; color:{icol}; border-radius:24px;"
+            "font-size:22pt; font-weight:700;"
         )
         tl = QLabel(t(title_key)); tl.setObjectName("dlg_header")
-        hr.addWidget(il); hr.addSpacing(14); hr.addWidget(tl); hr.addStretch()
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hr.addWidget(il); hr.addSpacing(12); hr.addWidget(tl); hr.addStretch(); hr.addWidget(close_btn)
         root.addLayout(hr)
 
-        # ── Product card ──
+        # Product card
         p    = self.product
         card = QFrame(); card.setObjectName("op_card")
         cl   = QVBoxLayout(card); cl.setContentsMargins(16, 14, 16, 14); cl.setSpacing(6)
@@ -352,7 +414,7 @@ class StockOpDialog(GradientDialog):
         hc  = clr.hex_for(p.get("color", ""))
         brd = "rgba(102,102,102,153)" if clr.is_light(hc) else "transparent"
 
-        nr = QHBoxLayout(); nr.setSpacing(9)
+        nr = QHBoxLayout(); nr.setSpacing(8)
         dot = QLabel(); dot.setFixedSize(14, 14)
         dot.setStyleSheet(f"background:{hc}; border-radius:7px; border:1px solid {brd};")
         nl = QLabel(
@@ -363,7 +425,7 @@ class StockOpDialog(GradientDialog):
         cl.addLayout(nr)
 
         mr  = QHBoxLayout()
-        cur = QLabel(f"{t('op_current_stock')}  <b style='font-size:13pt'>{p.get('stock', 0)}</b>")
+        cur = QLabel(f"{t('op_current_stock')}  <b style='font-size:14px'>{p.get('stock', 0)}</b>")
         cur.setObjectName("card_meta")
         thr = QLabel(t("op_alert_le", thr=p.get("low_stock_threshold", 5)))
         thr.setObjectName("card_meta_dim")
@@ -376,10 +438,10 @@ class StockOpDialog(GradientDialog):
 
         root.addWidget(card)
 
-        # ── Inputs ──
+        # Inputs
         fm = QFormLayout()
         fm.setLabelAlignment(Qt.AlignmentFlag.AlignRight)
-        fm.setSpacing(10); fm.setHorizontalSpacing(20)
+        fm.setSpacing(12); fm.setHorizontalSpacing(16)
 
         current_stock = p.get("stock", 0)
         if self.operation == "ADJUST":
@@ -393,17 +455,17 @@ class StockOpDialog(GradientDialog):
         fm.addRow(t("op_note"), self.note_edit)
         root.addLayout(fm)
 
-        # ── Live preview ──
+        # Live preview
         self.prev = QLabel(); self.prev.setObjectName("op_preview")
-        self.prev.setAlignment(Qt.AlignmentFlag.AlignCenter); self.prev.setMinimumHeight(64)
+        self.prev.setAlignment(Qt.AlignmentFlag.AlignCenter); self.prev.setMinimumHeight(60)
         root.addWidget(self.prev)
 
-        # ── Buttons ──
+        # Buttons
         self.cbtn = QPushButton(t(ctxt_key)); self.cbtn.setObjectName(cobj)
-        self.cbtn.setMinimumHeight(46); self.cbtn.clicked.connect(self._validate)
+        self.cbtn.setMinimumHeight(44); self.cbtn.clicked.connect(self._validate)
         can = QPushButton(t("op_cancel")); can.setObjectName("btn_ghost")
-        can.setMinimumHeight(46); can.clicked.connect(self.reject)
-        br = QHBoxLayout(); br.setSpacing(10)
+        can.setMinimumHeight(44); can.clicked.connect(self.reject)
+        br = QHBoxLayout(); br.setSpacing(8)
         br.addWidget(can); br.addWidget(self.cbtn)
         root.addLayout(br)
 
@@ -426,11 +488,11 @@ class StockOpDialog(GradientDialog):
         else:              fg, badge = tk.green,  t("op_ok")
 
         self.prev.setText(
-            f"<span style='color:{tk.t3};font-size:9pt'>{t('op_after')}</span>"
-            f"<span style='font-size:28pt;font-weight:900;color:{fg}'>{after}</span>"
-            f"<span style='color:{tk.t3};font-size:9pt'>  {sign}</span>  "
-            f"<span style='font-size:8pt;font-weight:700;color:{fg};"
-            f"background:{_rgba(fg, '22')};padding:3px 10px;border-radius:10px'>{badge}</span>"
+            f"<span style='color:{tk.t3};font-size:12px'>{t('op_after')}</span>"
+            f"<span style='font-size:28pt;font-weight:700;color:{fg}'>{after}</span>"
+            f"<span style='color:{tk.t3};font-size:12px'>  {sign}</span>  "
+            f"<span style='font-size:11px;font-weight:600;color:{fg};"
+            f"background:{_rgba(fg, '18')};padding:4px 10px;border-radius:4px'>{badge}</span>"
         )
         self.cbtn.setEnabled(after >= 0)
 
@@ -449,7 +511,7 @@ class StockOpDialog(GradientDialog):
 
 # ── Low Stock Alert Dialog ────────────────────────────────────────────────────
 
-class LowStockDialog(GradientDialog):
+class LowStockDialog(ModernDialog):
     product_selected = pyqtSignal(int)
 
     def __init__(self, parent=None):
@@ -459,8 +521,15 @@ class LowStockDialog(GradientDialog):
         self._build(); _style(self); self.refresh()
 
     def _build(self):
-        root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 20); root.setSpacing(14)
-        hdr = QLabel(t("dlg_alerts_header")); hdr.setObjectName("dlg_header"); root.addWidget(hdr)
+        root = QVBoxLayout(self); root.setContentsMargins(24, 24, 24, 20); root.setSpacing(16)
+
+        # Header with close button
+        hdr_row = QHBoxLayout()
+        hdr = QLabel(t("dlg_alerts_header")); hdr.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.close)
+        hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        root.addLayout(hdr_row)
 
         self.table = QTableWidget(); self.table.setObjectName("alert_table")
         self.table.setColumnCount(6)
@@ -507,7 +576,7 @@ class LowStockDialog(GradientDialog):
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 it.setForeground(QColor(fg)); self.table.setItem(i, j, it)
-            self.table.setRowHeight(i, 42)
+            self.table.setRowHeight(i, 48)
 
     def _dbl(self, idx):
         r = idx.row()

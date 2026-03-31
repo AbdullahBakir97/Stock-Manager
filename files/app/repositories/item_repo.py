@@ -241,6 +241,13 @@ class ItemRepository(BaseRepository):
                 (value, item_id),
             )
 
+    def update_barcode(self, item_id: int, barcode: str | None) -> None:
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE inventory_items SET barcode=?, updated_at=datetime('now') WHERE id=?",
+                (barcode or None, item_id),
+            )
+
     # ── Builder ───────────────────────────────────────────────────────────────
 
     def _build(self, row) -> InventoryItem:

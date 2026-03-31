@@ -2,12 +2,13 @@
 app/ui/dialogs/matrix_dialogs.py — Modal dialogs for matrix stock operations.
 
 Used by every MatrixTab regardless of category.
+Modern design with consistent spacing and close buttons.
 """
 from __future__ import annotations
 
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QFormLayout,
-    QLabel, QPushButton, QComboBox,
+    QLabel, QPushButton, QComboBox, QLineEdit,
     QDialogButtonBox, QMessageBox,
 )
 from PyQt6.QtCore import Qt
@@ -21,6 +22,12 @@ from app.ui.dialogs.product_dialogs import QuantitySpin
 _model_repo = ModelRepository()
 
 
+# ── Dialog base ──────────────────────────────────────────────────────────────
+
+def _apply(dlg: QDialog) -> None:
+    THEME.apply(dlg)
+
+
 # ── Stock IN / OUT / Set-Exact ─────────────────────────────────────────────────
 
 class StockOpDialog(QDialog):
@@ -29,15 +36,19 @@ class StockOpDialog(QDialog):
     def __init__(self, entry: InventoryItem, part_type_name: str, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{entry.model_name}  ·  {part_type_name}")
-        self.setModal(True); self.setMinimumWidth(380)
-        THEME.apply(self)
+        self.setModal(True); self.setMinimumWidth(400)
+        _apply(self)
         tk  = THEME.tokens
-        lay = QVBoxLayout(self); lay.setSpacing(14); lay.setContentsMargins(24, 24, 24, 20)
+        lay = QVBoxLayout(self); lay.setSpacing(16); lay.setContentsMargins(24, 24, 24, 20)
 
-        # Header
+        # Header with close
+        hdr_row = QHBoxLayout()
         title = QLabel(f"{entry.model_name}  ·  {part_type_name}")
-        title.setObjectName("dlg_header"); title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(title)
+        title.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(title); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        lay.addLayout(hdr_row)
 
         # Context line (surplus / deficit)
         needed = entry.min_stock - entry.stock
@@ -72,16 +83,19 @@ class StockOpDialog(QDialog):
         lay.addLayout(op_row)
 
         # Quantity spin
-        form = QFormLayout(); form.setSpacing(10)
+        form = QFormLayout(); form.setSpacing(12)
         self._qty_lbl = QLabel(t("disp_qty_lbl"))
         self.qty_spin = QuantitySpin(0, 9999, max(1, needed) if needed > 0 else 1)
         form.addRow(self._qty_lbl, self.qty_spin); lay.addLayout(form)
 
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        btns.accepted.connect(self.accept); btns.rejected.connect(self.reject)
-        lay.addWidget(btns)
+        # Buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        cancel = QPushButton(t("op_cancel")); cancel.setObjectName("btn_ghost")
+        cancel.setMinimumHeight(40); cancel.clicked.connect(self.reject)
+        ok = QPushButton("OK"); ok.setObjectName("btn_primary")
+        ok.setMinimumHeight(40); ok.clicked.connect(self.accept)
+        btn_row.addStretch(); btn_row.addWidget(cancel); btn_row.addWidget(ok)
+        lay.addLayout(btn_row)
 
     def _set_op(self, op: str) -> None:
         self._op = op
@@ -102,56 +116,86 @@ class ThresholdDialog(QDialog):
                  current: int, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{model_name}  ·  {part_type_name}")
-        self.setModal(True); self.setMinimumWidth(300)
-        THEME.apply(self)
-        lay = QVBoxLayout(self); lay.setSpacing(12); lay.setContentsMargins(20, 20, 20, 16)
+        self.setModal(True); self.setMinimumWidth(320)
+        _apply(self)
+        lay = QVBoxLayout(self); lay.setSpacing(16); lay.setContentsMargins(24, 24, 24, 20)
 
+        # Header with close
+        hdr_row = QHBoxLayout()
         title = QLabel(f"{model_name}  ·  {part_type_name}")
-        title.setObjectName("dlg_header"); title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(title)
+        title.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(title); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        lay.addLayout(hdr_row)
 
-        form = QFormLayout(); form.setSpacing(8)
+        hint = QLabel(t("disp_stamm_hint"))
+        hint.setObjectName("section_caption")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+
+        form = QFormLayout(); form.setSpacing(12)
         self._spin = QuantitySpin(0, 9999, current)
         form.addRow(t("lbl_stamm_zahl"), self._spin)
         lay.addLayout(form)
 
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        btns.accepted.connect(self.accept); btns.rejected.connect(self.reject)
-        lay.addWidget(btns)
+        # Buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        cancel = QPushButton(t("op_cancel")); cancel.setObjectName("btn_ghost")
+        cancel.setMinimumHeight(40); cancel.clicked.connect(self.reject)
+        ok = QPushButton("OK"); ok.setObjectName("btn_primary")
+        ok.setMinimumHeight(40); ok.clicked.connect(self.accept)
+        btn_row.addStretch(); btn_row.addWidget(cancel); btn_row.addWidget(ok)
+        lay.addLayout(btn_row)
 
     def value(self) -> int:
         return self._spin.value()
 
 
-# ── Record Inventur count ─────────────────────────────────────────────────────
+# ── Record Order amount (was Inventur) ────────────────────────────────────────
 
 class InventurDialog(QDialog):
-    """Record a physical stock count (Inventur) for a matrix cell."""
+    """Record order amount for a matrix cell."""
 
     def __init__(self, model_name: str, part_type_name: str,
                  current_stock: int, parent=None):
         super().__init__(parent)
         self.setWindowTitle(f"{model_name}  ·  {part_type_name}")
-        self.setModal(True); self.setMinimumWidth(300)
-        THEME.apply(self)
-        lay = QVBoxLayout(self); lay.setSpacing(12); lay.setContentsMargins(20, 20, 20, 16)
+        self.setModal(True); self.setMinimumWidth(320)
+        _apply(self)
+        lay = QVBoxLayout(self); lay.setSpacing(16); lay.setContentsMargins(24, 24, 24, 20)
 
+        # Header with close
+        hdr_row = QHBoxLayout()
         title = QLabel(f"{model_name}  ·  {part_type_name}")
-        title.setObjectName("dlg_header"); title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(title)
+        title.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(title); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        lay.addLayout(hdr_row)
 
-        form = QFormLayout(); form.setSpacing(8)
+        hint = QLabel(t("disp_order_hint"))
+        hint.setObjectName("section_caption")
+        hint.setWordWrap(True)
+        lay.addWidget(hint)
+
+        sys_lbl = QLabel(t("disp_sys_stock", n=current_stock))
+        sys_lbl.setObjectName("card_meta")
+        lay.addWidget(sys_lbl)
+
+        form = QFormLayout(); form.setSpacing(12)
         self._spin = QuantitySpin(0, 9999, current_stock)
         form.addRow(t("col_inventur"), self._spin)
         lay.addLayout(form)
 
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        btns.accepted.connect(self.accept); btns.rejected.connect(self.reject)
-        lay.addWidget(btns)
+        # Buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        cancel = QPushButton(t("op_cancel")); cancel.setObjectName("btn_ghost")
+        cancel.setMinimumHeight(40); cancel.clicked.connect(self.reject)
+        ok = QPushButton("OK"); ok.setObjectName("btn_primary")
+        ok.setMinimumHeight(40); ok.clicked.connect(self.accept)
+        btn_row.addStretch(); btn_row.addWidget(cancel); btn_row.addWidget(ok)
+        lay.addLayout(btn_row)
 
     def value(self) -> int:
         return self._spin.value()
@@ -164,12 +208,21 @@ class AddModelDialog(QDialog):
 
     def __init__(self, existing_brands: list[str], parent=None):
         super().__init__(parent)
-        self.setWindowTitle(t("disp_add_model"))
-        self.setModal(True); self.setMinimumWidth(340)
-        THEME.apply(self)
-        lay = QVBoxLayout(self); lay.setSpacing(12); lay.setContentsMargins(20, 20, 20, 16)
+        self.setWindowTitle(t("disp_dlg_add_model"))
+        self.setModal(True); self.setMinimumWidth(380)
+        _apply(self)
+        lay = QVBoxLayout(self); lay.setSpacing(16); lay.setContentsMargins(24, 24, 24, 20)
 
-        form = QFormLayout(); form.setSpacing(10)
+        # Header with close
+        hdr_row = QHBoxLayout()
+        title = QLabel(t("disp_dlg_add_model"))
+        title.setObjectName("dlg_header")
+        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
+        hdr_row.addWidget(title); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
+        lay.addLayout(hdr_row)
+
+        form = QFormLayout(); form.setSpacing(12)
 
         self._brand_combo = QComboBox()
         self._brand_combo.setEditable(True)
@@ -177,27 +230,29 @@ class AddModelDialog(QDialog):
             self._brand_combo.addItem(b)
         self._brand_combo.setCurrentText("")
 
-        from PyQt6.QtWidgets import QLineEdit
         self._name_edit = QLineEdit()
-        self._name_edit.setPlaceholderText(t("disp_model_ph"))
+        self._name_edit.setPlaceholderText(t("disp_ph_model"))
+        self._name_edit.setMinimumHeight(38)
 
-        form.addRow(t("disp_brand_lbl"), self._brand_combo)
-        form.addRow(t("disp_model_lbl"), self._name_edit)
+        form.addRow(t("disp_lbl_brand"), self._brand_combo)
+        form.addRow(t("disp_lbl_model_name"), self._name_edit)
         lay.addLayout(form)
 
-        btns = QDialogButtonBox(
-            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel
-        )
-        btns.accepted.connect(self._validate)
-        btns.rejected.connect(self.reject)
-        lay.addWidget(btns)
+        # Buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        cancel = QPushButton(t("op_cancel")); cancel.setObjectName("btn_ghost")
+        cancel.setMinimumHeight(40); cancel.clicked.connect(self.reject)
+        save = QPushButton(t("disp_save_model")); save.setObjectName("btn_primary")
+        save.setMinimumHeight(40); save.clicked.connect(self._validate)
+        btn_row.addStretch(); btn_row.addWidget(cancel); btn_row.addWidget(save)
+        lay.addLayout(btn_row)
 
     def _validate(self) -> None:
         if not self._name_edit.text().strip():
             QMessageBox.warning(self, t("dlg_required_title"), t("disp_model_empty"))
             return
         if not self._brand_combo.currentText().strip():
-            QMessageBox.warning(self, t("dlg_required_title"), t("disp_brand_empty"))
+            QMessageBox.warning(self, t("dlg_required_title"), t("disp_model_empty"))
             return
         self.accept()
 

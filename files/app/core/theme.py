@@ -521,6 +521,94 @@ QTableWidget#alert_table {{
     selection-background-color: {b_30};
 }}
 
+/* ── Sidebar ──────────────────────────────────────────────── */
+QFrame#sidebar {{
+    background: {t.card};
+    border-right: 1px solid {t.border};
+    border-radius: 0;
+}}
+QPushButton#sidebar_btn {{
+    background: transparent;
+    color: {t.t3};
+    border: none;
+    border-radius: 10px;
+    font-size: 9pt;
+    font-weight: 600;
+    text-align: left;
+    padding: 10px 14px;
+    margin: 2px 6px;
+    min-height: 38px;
+}}
+QPushButton#sidebar_btn:hover {{
+    background: {t.card2};
+    color: {t.t1};
+}}
+QPushButton#sidebar_btn_active {{
+    background: {b_20};
+    color: {t.blue};
+    border: none;
+    border-left: 3px solid {t.blue};
+    border-radius: 10px;
+    font-size: 9pt;
+    font-weight: 700;
+    text-align: left;
+    padding: 10px 14px;
+    margin: 2px 6px;
+    min-height: 38px;
+}}
+QPushButton#sidebar_btn_active:hover {{
+    background: {b_30};
+}}
+
+/* ── Theme toggle switch ─────────────────────────────────── */
+QFrame#theme_toggle {{
+    background: {t.card2};
+    border: 1.5px solid {t.border};
+    border-radius: 14px;
+    min-height: 28px;
+    max-height: 28px;
+}}
+
+/* ── Quick scan feed ─────────────────────────────────────── */
+QFrame#scan_feed_item {{
+    background: {t.card};
+    border: 1px solid {t.border};
+    border-radius: 10px;
+    padding: 8px 12px;
+}}
+QFrame#scan_feed_success {{
+    background: {g_20};
+    border: 1px solid {g_40};
+    border-radius: 10px;
+    padding: 8px 12px;
+}}
+QFrame#scan_feed_error {{
+    background: {r_15};
+    border: 1px solid {r_40};
+    border-radius: 10px;
+    padding: 8px 12px;
+}}
+QFrame#scan_feed_warn {{
+    background: {o_20};
+    border: 1px solid {t.border};
+    border-radius: 10px;
+    padding: 8px 12px;
+}}
+
+/* ── Stock ops card ──────────────────────────────────────── */
+QFrame#stockops_card {{
+    background: qlineargradient(x1:0,y1:0,x2:0,y2:1,
+        stop:0 {t.card}, stop:1 {t.card2});
+    border: 1.5px solid {t.border};
+    border-radius: 16px;
+}}
+QFrame#stockops_selected {{
+    background: {b_15};
+    border: 1.5px solid {b_40};
+    border-radius: 12px;
+    padding: 12px;
+}}
+
 /* ── Splitter ─────────────────────────────────────────────── */
 QSplitter::handle {{ background: {t.border}; width: 1px; height: 1px; }}
 

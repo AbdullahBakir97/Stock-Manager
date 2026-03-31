@@ -366,16 +366,16 @@ _TR: dict[str, dict[str, str]] = {
     },
     # ── Inventur dialog ───────────────────────────────────────────────────────
     "disp_dlg_inv": {
-        "EN": "Physical Count (Inventur)",
-        "DE": "Körperliche Zählung (Inventur)",
-        "AR": "الجرد الفعلي (Inventur)",
+        "EN": "Set Order Amount",
+        "DE": "Bestellmenge festlegen",
+        "AR": "تحديد كمية الطلب",
     },
     "disp_sys_stock": {
-        "EN": "System stock: {n}",
-        "DE": "Systembestand: {n}",
-        "AR": "مخزون النظام: {n}",
+        "EN": "Current stock: {n}",
+        "DE": "Aktueller Bestand: {n}",
+        "AR": "المخزون الحالي: {n}",
     },
-    "disp_phys_count": {"EN": "Physical count:", "DE": "Physische Zählung:", "AR": "العدد الفعلي:"},
+    "disp_phys_count": {"EN": "Order amount:", "DE": "Bestellmenge:", "AR": "الكمية المطلوبة:"},
     # ── Tooltips ──────────────────────────────────────────────────────────────
     "disp_tip_stamm": {
         "EN": "Double-click to set Stamm-Zahl (minimum stock level)",
@@ -388,9 +388,9 @@ _TR: dict[str, dict[str, str]] = {
         "AR": "انقر مرتين لإضافة / سحب المخزون",
     },
     "disp_tip_inv": {
-        "EN": "Double-click to record physical count (Inventur)",
-        "DE": "Doppelklick zur Erfassung des Inventurs",
-        "AR": "انقر مرتين لتسجيل الجرد الفعلي",
+        "EN": "Double-click to set/clear order amount",
+        "DE": "Doppelklick zum Setzen/Löschen der Bestellmenge",
+        "AR": "انقر مرتين لتحديد/مسح كمية الطلب",
     },
     "disp_tip_bb_neg":  {"EN": "Need {n} more to reach Stamm-Zahl", "DE": "{n} mehr bis Stamm-Zahl", "AR": "يحتاج {n} لبلوغ Stamm-Zahl"},
     "disp_tip_bb_pos":  {"EN": "Surplus: {n} above Stamm-Zahl",     "DE": "Überschuss: {n}",         "AR": "فائض: {n} فوق Stamm-Zahl"},
@@ -816,15 +816,134 @@ _TR: dict[str, dict[str, str]] = {
         "AR": "الفرق",
     },
     "col_inventur": {
-        "EN": "Inventory",
-        "DE": "Inventur",
-        "AR": "الجرد",
+        "EN": "Order",
+        "DE": "Bestellung",
+        "AR": "الطلب",
     },
     # ── ThresholdDialog form label ────────────────────────────────────────────
     "lbl_stamm_zahl": {
         "EN": "Min-Stock:",
         "DE": "Stamm-Zahl:",
         "AR": "الحد الأدنى:",
+    },
+    # ── Sidebar navigation ──────────────────────────────────────────────────
+    "nav_inventory": {
+        "EN": "Inventory",
+        "DE": "Inventar",
+        "AR": "المخزون",
+    },
+    "nav_transactions": {
+        "EN": "Transactions",
+        "DE": "Transaktionen",
+        "AR": "المعاملات",
+    },
+    "nav_stock_ops": {
+        "EN": "Stock Ops",
+        "DE": "Lagervorgänge",
+        "AR": "عمليات المخزون",
+    },
+    "nav_quick_scan": {
+        "EN": "Quick Scan",
+        "DE": "Schnellscan",
+        "AR": "مسح سريع",
+    },
+    # ── Quick Scan tab ────────────────────────────────────────────────────────
+    "qscan_title": {
+        "EN": "Quick Scan — Barcode Takeout",
+        "DE": "Schnellscan — Barcode-Ausgabe",
+        "AR": "مسح سريع — سحب بالباركود",
+    },
+    "qscan_hint": {
+        "EN": "Scan a barcode to instantly take 1 unit out of stock",
+        "DE": "Barcode scannen, um 1 Einheit sofort auszubuchen",
+        "AR": "امسح باركود لسحب وحدة واحدة فوراً",
+    },
+    "qscan_scan_field": {
+        "EN": "Scan barcode here…",
+        "DE": "Barcode hier scannen…",
+        "AR": "امسح الباركود هنا…",
+    },
+    "qscan_last_scans": {
+        "EN": "RECENT SCANS",
+        "DE": "LETZTE SCANS",
+        "AR": "آخر عمليات المسح",
+    },
+    "qscan_taken_out": {
+        "EN": "✓  Taken out: {name}  ·  Stock: {before} → {after}",
+        "DE": "✓  Ausgebucht: {name}  ·  Bestand: {before} → {after}",
+        "AR": "✓  تم السحب: {name}  ·  المخزون: {before} → {after}",
+    },
+    "qscan_not_found": {
+        "EN": "✕  Barcode not found: {bc}",
+        "DE": "✕  Barcode nicht gefunden: {bc}",
+        "AR": "✕  الباركود غير موجود: {bc}",
+    },
+    "qscan_out_of_stock": {
+        "EN": "⚠  Out of stock: {name}",
+        "DE": "⚠  Ausverkauft: {name}",
+        "AR": "⚠  نفد المخزون: {name}",
+    },
+    "qscan_count": {
+        "EN": "Items scanned: {n}",
+        "DE": "Gescannte Artikel: {n}",
+        "AR": "المنتجات الممسوحة: {n}",
+    },
+    # ── Stock Operations tab ──────────────────────────────────────────────────
+    "stockops_title": {
+        "EN": "Stock Operations",
+        "DE": "Lagervorgänge",
+        "AR": "عمليات المخزون",
+    },
+    "stockops_search": {
+        "EN": "Search product or scan barcode…",
+        "DE": "Produkt suchen oder Barcode scannen…",
+        "AR": "ابحث عن منتج أو امسح الباركود…",
+    },
+    "stockops_select_prompt": {
+        "EN": "Select a product from the list to perform stock operations",
+        "DE": "Wählen Sie ein Produkt für Lagervorgänge",
+        "AR": "اختر منتجاً من القائمة لإجراء عمليات المخزون",
+    },
+    "stockops_selected": {
+        "EN": "Selected: {name}",
+        "DE": "Ausgewählt: {name}",
+        "AR": "المحدد: {name}",
+    },
+    "stockops_qty_label": {
+        "EN": "Quantity:",
+        "DE": "Menge:",
+        "AR": "الكمية:",
+    },
+    "stockops_note_label": {
+        "EN": "Note (optional):",
+        "DE": "Notiz (optional):",
+        "AR": "ملاحظة (اختياري):",
+    },
+    # ── Order field (was Inventur) ────────────────────────────────────────────
+    "disp_dlg_order": {
+        "EN": "Set Order Amount",
+        "DE": "Bestellmenge festlegen",
+        "AR": "تحديد كمية الطلب",
+    },
+    "disp_order_hint": {
+        "EN": "Enter the amount you ordered.\nWhen the delivery arrives, check against this number,\nthen clear it after verification.",
+        "DE": "Geben Sie die bestellte Menge ein.\nBei Lieferung mit dieser Zahl abgleichen,\ndanach zurücksetzen.",
+        "AR": "أدخل الكمية المطلوبة.\nعند وصول الطلب، تحقق من هذا الرقم،\nثم امسحه بعد التحقق.",
+    },
+    "disp_order_amount": {
+        "EN": "Ordered amount:",
+        "DE": "Bestellmenge:",
+        "AR": "الكمية المطلوبة:",
+    },
+    "disp_order_clear": {
+        "EN": "Clear Order",
+        "DE": "Bestellung löschen",
+        "AR": "مسح الطلب",
+    },
+    "disp_tip_order": {
+        "EN": "Double-click to set/clear order amount",
+        "DE": "Doppelklick zum Setzen/Löschen der Bestellmenge",
+        "AR": "انقر مرتين لتحديد/مسح كمية الطلب",
     },
     # ── StockService error messages ───────────────────────────────────────────
     "err_qty_positive": {

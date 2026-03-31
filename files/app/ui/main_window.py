@@ -97,7 +97,7 @@ class ColorSwatchDelegate(QStyledItemDelegate):
         o = QStyleOptionViewItem(opt); self.initStyleOption(o, idx)
         painter.save(); painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         tk  = THEME.tokens
-        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        alt = THEME.tokens.card2
 
         if o.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(o.rect, qc(tk.blue, 0x40))
@@ -132,7 +132,7 @@ class StatusBadgeDelegate(QStyledItemDelegate):
         o = QStyleOptionViewItem(opt); self.initStyleOption(o, idx)
         painter.save(); painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         tk  = THEME.tokens
-        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        alt = THEME.tokens.card2
 
         if o.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(o.rect, qc(tk.blue, 0x40))
@@ -237,8 +237,8 @@ class ColorDotDelegate(QStyledItemDelegate):
             elif index.row() % 2 == 0:
                 painter.fillRect(option.rect, QColor(THEME.tokens.card))
             else:
-                painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
-            painter.setPen(QColor(128, 128, 128))
+                painter.fillRect(option.rect, QColor(THEME.tokens.card2))
+            painter.setPen(QColor(THEME.tokens.t4))
             painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
             painter.restore()
             return
@@ -247,7 +247,7 @@ class ColorDotDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         tk = THEME.tokens
-        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        alt = THEME.tokens.card2
 
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, qc(tk.blue, 0x40))
@@ -271,7 +271,7 @@ class DifferenceDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         painter.save()
         tk = THEME.tokens
-        alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
+        alt = THEME.tokens.card2
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, qc(tk.blue, 0x40))
         elif index.row() % 2 == 0:
@@ -288,7 +288,7 @@ class DifferenceDelegate(QStyledItemDelegate):
                 painter.setFont(font)
                 painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
             else:
-                painter.setPen(QColor(128, 128, 128))
+                painter.setPen(QColor(THEME.tokens.t4))
                 painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
         painter.restore()
 
@@ -298,7 +298,7 @@ class ProductTable(QTableWidget):
     row_selected = pyqtSignal(object)
     _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
                  "col_stock", "col_min", "col_best_bung", "col_status"]
-    _WIDTHS    = [42, 280, 60, 100, 80, 60, 60, 100, 96]
+    _WIDTHS    = [48, 260, 60, 120, 90, 70, 60, 100, 96]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -312,8 +312,10 @@ class ProductTable(QTableWidget):
         self.setSelectionMode(self.SelectionMode.SingleSelection)
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(False); self.setSortingEnabled(True)
-        self.setShowGrid(True)
         self.verticalHeader().setVisible(False); self.setShowGrid(False)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
+        self.setHorizontalScrollMode(self.ScrollMode.ScrollPerPixel)
         self.setItemDelegateForColumn(0, AlternatingRowDelegate(self))
         self.setItemDelegateForColumn(1, AlternatingRowDelegate(self))
         self.setItemDelegateForColumn(2, ColorDotDelegate(self))
@@ -349,16 +351,20 @@ class ProductTable(QTableWidget):
             vals = [str(item.id), item.display_name,
                     item.color or "—", item.barcode or "—", price_str,
                     str(item.stock), str(item.min_stock), diff_str, sl]
+            _mono = QFont("JetBrains Mono", 11, QFont.Weight.Bold)
+            _mono.setStyleHint(QFont.StyleHint.Monospace)
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                if j == 5:
+                if j == 3:  # Barcode — monospace
+                    it.setFont(QFont("JetBrains Mono", 10))
+                elif j == 5:  # Stock — monospace bold colored
                     it.setForeground(sc)
-                    it.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-                elif j == 7:
+                    it.setFont(_mono)
+                elif j == 7:  # Difference — monospace bold colored
                     it.setForeground(sc)
-                    it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+                    it.setFont(_mono)
                 self.setItem(i, j, it)
-            self.setRowHeight(i, 44)
+            self.setRowHeight(i, 48)
         self.setSortingEnabled(True)
 
     def _emit(self):
@@ -383,7 +389,7 @@ class ProductTable(QTableWidget):
 class TransactionTable(QTableWidget):
     _COL_KEYS = ["col_datetime", "txn_col_item",
                  "col_operation", "col_delta", "col_before", "col_after_col", "col_note"]
-    _WIDTHS   = [130, 220, 90, 64, 64, 64, 150]
+    _WIDTHS   = [140, 220, 90, 70, 70, 70, 160]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -397,6 +403,8 @@ class TransactionTable(QTableWidget):
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
         self.setAlternatingRowColors(True); self.verticalHeader().setVisible(False)
         self.setShowGrid(False)
+        self.setFrameShape(QFrame.Shape.NoFrame)
+        self.setVerticalScrollMode(self.ScrollMode.ScrollPerPixel)
 
     def retranslate(self):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
@@ -419,16 +427,22 @@ class TransactionTable(QTableWidget):
                 str(row.stock_before), str(row.stock_after),
                 note_t(row.note or "") or "—",
             ]
+            _mono_d = QFont("JetBrains Mono", 11, QFont.Weight.Bold)
+            _mono_d.setStyleHint(QFont.StyleHint.Monospace)
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                if j == 2:
+                if j == 0:  # Timestamp — monospace
+                    it.setFont(QFont("JetBrains Mono", 10))
+                elif j == 2:  # Operation — bold colored
                     it.setForeground(QColor(OP.get(op_key, tk.t3)))
-                    it.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
-                elif j == 3:
+                    it.setFont(QFont("Segoe UI", 10, QFont.Weight.DemiBold))
+                elif j == 3:  # Delta — monospace bold
                     it.setForeground(QColor(tk.green if d >= 0 else tk.red))
-                    it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+                    it.setFont(_mono_d)
+                elif j in (4, 5):  # Before/After — monospace
+                    it.setFont(QFont("JetBrains Mono", 10))
                 self.setItem(i, j, it)
-            self.setRowHeight(i, 44)
+            self.setRowHeight(i, 48)
 
 
 # ── Mini transaction list ──────────────────────────────────────────────────────
@@ -634,109 +648,234 @@ class ProductDetail(QWidget):
 # ── Quick Scan Tab ────────────────────────────────────────────────────────────
 
 class QuickScanTab(QWidget):
-    """Fast barcode scanning for instant stock takeout."""
+    """Barcode-driven Quick Scan with TAKEOUT/INSERT modes and pending list."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._scan_count = 0
+        from app.services.scan_session_service import ScanSessionService
+        self._session = ScanSessionService()
         self._build()
 
     def _build(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(24, 24, 24, 24)
-        root.setSpacing(16)
+        root.setContentsMargins(16, 16, 16, 16)
+        root.setSpacing(12)
 
-        # Title
-        title = QLabel(t("qscan_title"))
-        title.setObjectName("dlg_header")
-        root.addWidget(title)
+        # Top bar: title + settings
+        top = QHBoxLayout()
+        self._title = QLabel(t("qscan_title")); self._title.setObjectName("dlg_header")
+        top.addWidget(self._title); top.addStretch()
+        root.addLayout(top)
 
-        hint = QLabel(t("qscan_hint"))
-        hint.setObjectName("section_caption")
-        root.addWidget(hint)
+        # Mode indicator bar
+        self._mode_bar = QFrame(); self._mode_bar.setObjectName("scan_mode_idle")
+        mb_lay = QHBoxLayout(self._mode_bar); mb_lay.setContentsMargins(16, 10, 16, 10)
+        self._mode_icon = QLabel(""); self._mode_icon.setFixedWidth(24)
+        self._mode_label = QLabel(t("qscan_mode_idle"))
+        self._mode_label.setStyleSheet("font-weight:600; font-size:13px;")
+        self._cancel_session_btn = QPushButton(t("qscan_cancel_btn"))
+        self._cancel_session_btn.setObjectName("btn_ghost")
+        self._cancel_session_btn.setFixedHeight(30)
+        self._cancel_session_btn.clicked.connect(self._cancel_session)
+        self._cancel_session_btn.hide()
+        mb_lay.addWidget(self._mode_icon); mb_lay.addWidget(self._mode_label)
+        mb_lay.addStretch(); mb_lay.addWidget(self._cancel_session_btn)
+        root.addWidget(self._mode_bar)
 
-        # Scan input — large and prominent
+        # Scan input
         self._scan_input = BarcodeLineEdit()
         self._scan_input.setObjectName("search_bar")
         self._scan_input.setPlaceholderText(t("qscan_scan_field"))
-        self._scan_input.setMinimumHeight(56)
+        self._scan_input.setMinimumHeight(52)
         self._scan_input.setFont(QFont("Segoe UI", 14))
         self._scan_input.barcode_scanned.connect(self._on_scan)
         root.addWidget(self._scan_input)
 
-        # Counter
-        self._counter = QLabel(t("qscan_count", n=0))
-        self._counter.setObjectName("card_label")
-        root.addWidget(self._counter)
+        # Pending table header
+        self._pending_hdr = QLabel(t("qscan_pending_hdr", n=0))
+        self._pending_hdr.setObjectName("detail_section_hdr")
+        root.addWidget(self._pending_hdr)
 
-        # Feed header
-        feed_hdr = QLabel(t("qscan_last_scans"))
-        feed_hdr.setObjectName("detail_section_hdr")
-        root.addWidget(feed_hdr)
-        self._feed_hdr = feed_hdr
+        # Pending table
+        self._pending_tbl = QTableWidget()
+        self._pending_tbl.setColumnCount(6)
+        self._pending_tbl.setHorizontalHeaderLabels(["#", t("col_item"), t("col_barcode"), "Qty", "After", ""])
+        hh = self._pending_tbl.horizontalHeader()
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self._pending_tbl.setColumnWidth(0, 40)
+        self._pending_tbl.setColumnWidth(2, 120)
+        self._pending_tbl.setColumnWidth(3, 50)
+        self._pending_tbl.setColumnWidth(4, 60)
+        self._pending_tbl.setColumnWidth(5, 40)
+        self._pending_tbl.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._pending_tbl.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._pending_tbl.verticalHeader().setVisible(False)
+        self._pending_tbl.setAlternatingRowColors(True)
+        self._pending_tbl.setShowGrid(False)
+        root.addWidget(self._pending_tbl, 1)
 
-        # Scan feed
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll.setObjectName("txn_scroll_area")
-        self._feed_widget = QWidget()
-        self._feed_lay = QVBoxLayout(self._feed_widget)
-        self._feed_lay.setContentsMargins(0, 0, 0, 0)
-        self._feed_lay.setSpacing(6)
-        self._feed_lay.addStretch()
-        scroll.setWidget(self._feed_widget)
-        root.addWidget(scroll, 1)
+        # Action bar: summary + cancel + confirm
+        action = QHBoxLayout(); action.setSpacing(8)
+        self._summary_lbl = QLabel("")
+        self._summary_lbl.setObjectName("section_caption")
+        action.addWidget(self._summary_lbl); action.addStretch()
+        self._btn_cancel = QPushButton(t("qscan_cancel_btn"))
+        self._btn_cancel.setObjectName("btn_ghost"); self._btn_cancel.setFixedHeight(36)
+        self._btn_cancel.clicked.connect(self._cancel_session)
+        self._btn_confirm = QPushButton(t("qscan_confirm_btn"))
+        self._btn_confirm.setObjectName("btn_primary"); self._btn_confirm.setFixedHeight(36)
+        self._btn_confirm.clicked.connect(self._confirm_session)
+        action.addWidget(self._btn_cancel); action.addWidget(self._btn_confirm)
+        root.addLayout(action)
 
+        # Recent sessions feed (collapsible)
+        self._recent_section = CollapsibleSection(t("qscan_recent"))
+        root.addWidget(self._recent_section)
         self._feed_items: list[QFrame] = []
 
-    def _on_scan(self, bc: str):
-        item = _item_repo.get_by_barcode(bc)
-        if not item:
-            self._add_feed_item(t("qscan_not_found", bc=bc), "error")
-            return
-        if item.stock <= 0:
-            self._add_feed_item(t("qscan_out_of_stock", name=item.display_name), "warn")
-            return
-        try:
-            res = _stock_svc.stock_out(item.id, 1, "Quick Scan")
-            self._scan_count += 1
-            self._counter.setText(t("qscan_count", n=self._scan_count))
-            self._add_feed_item(
-                t("qscan_taken_out", name=item.display_name,
-                  before=res["before"], after=res["after"]),
-                "success"
-            )
-        except ValueError:
-            self._add_feed_item(t("qscan_out_of_stock", name=item.display_name), "warn")
+        self._update_ui()
+
+    def process_command_barcode(self, bc: str):
+        """Called from header/global scanner when a command barcode is detected."""
+        self._on_scan(bc)
+
+    def _update_ui(self):
+        """Update mode bar, pending table, and button states."""
+        mode = self._session.mode
+        tk = THEME.tokens
+
+        if mode == "TAKEOUT":
+            self._mode_bar.setObjectName("scan_mode_takeout")
+            self._mode_icon.setText("↓")
+            self._mode_icon.setStyleSheet(f"color:{tk.red}; font-size:18px; font-weight:700;")
+            self._mode_label.setText(t("qscan_mode_takeout"))
+            self._mode_label.setStyleSheet(f"color:{tk.red}; font-weight:600; font-size:13px;")
+            self._cancel_session_btn.show()
+        elif mode == "INSERT":
+            self._mode_bar.setObjectName("scan_mode_insert")
+            self._mode_icon.setText("↑")
+            self._mode_icon.setStyleSheet(f"color:{tk.green}; font-size:18px; font-weight:700;")
+            self._mode_label.setText(t("qscan_mode_insert"))
+            self._mode_label.setStyleSheet(f"color:{tk.green}; font-weight:600; font-size:13px;")
+            self._cancel_session_btn.show()
+        else:
+            self._mode_bar.setObjectName("scan_mode_idle")
+            self._mode_icon.setText("")
+            self._mode_label.setText(t("qscan_mode_idle"))
+            self._mode_label.setStyleSheet(f"color:{tk.t3}; font-weight:600; font-size:13px;")
+            self._cancel_session_btn.hide()
+
+        self._mode_bar.style().unpolish(self._mode_bar)
+        self._mode_bar.style().polish(self._mode_bar)
+        self._refresh_pending()
+
+    def _cancel_session(self):
+        """Cancel current scan session."""
+        self._session.cancel()
+        self._update_ui()
+
+    def _confirm_session(self):
+        """Confirm and commit current scan session."""
+        from app.models.scan_session import ScanEventType
+        event = self._session.commit()
+        if event.event_type == ScanEventType.BATCH_COMMITTED:
+            self._add_feed_item(event.message, "success")
+        self._update_ui()
+
+    def _refresh_pending(self):
+        """Rebuild the pending table from session state."""
+        items = self._session.pending_items
+        tk = THEME.tokens
+        self._pending_hdr.setText(t("qscan_pending_hdr", n=len(items)))
+        self._pending_tbl.setRowCount(len(items))
+
+        for i, p in enumerate(items):
+            vals = [
+                str(i + 1),
+                p.item.display_name,
+                p.item.barcode or "—",
+                str(p.quantity),
+                str(p.predicted_after),
+                "✕",
+            ]
+            row_color = tk.red if self._session.mode == "TAKEOUT" else tk.green
+            for j, v in enumerate(vals):
+                it = QTableWidgetItem(v)
+                it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if j == 5:  # Remove button column
+                    it.setForeground(QColor(tk.red))
+                elif j == 3:  # Qty
+                    it.setFont(QFont("JetBrains Mono", 11, QFont.Weight.Bold))
+                    it.setForeground(QColor(row_color))
+                elif j == 4:  # After
+                    it.setFont(QFont("JetBrains Mono", 11))
+                    after_val = p.predicted_after
+                    if after_val <= 0:
+                        it.setForeground(QColor(tk.red))
+                    else:
+                        it.setForeground(QColor(tk.t2))
+                self._pending_tbl.setItem(i, j, it)
+            self._pending_tbl.setRowHeight(i, 40)
+
+        total_qty = self._session.pending_count
+        total_items = self._session.pending_item_count
+        self._summary_lbl.setText(
+            t("qscan_total_summary", ops=total_qty, items=total_items) if total_items else ""
+        )
+        has_pending = total_items > 0
+        self._btn_cancel.setEnabled(has_pending or self._session.mode is not None)
+        self._btn_confirm.setEnabled(has_pending)
 
     def _add_feed_item(self, text: str, style: str):
         frame = QFrame()
         obj_map = {"success": "scan_feed_success", "error": "scan_feed_error", "warn": "scan_feed_warn"}
         frame.setObjectName(obj_map.get(style, "scan_feed_item"))
-        lay = QHBoxLayout(frame)
-        lay.setContentsMargins(12, 8, 12, 8)
-        lbl = QLabel(text)
-        lbl.setWordWrap(True)
+        lay = QHBoxLayout(frame); lay.setContentsMargins(12, 8, 12, 8)
+        lbl = QLabel(text); lbl.setWordWrap(True)
         tk = THEME.tokens
         color_map = {"success": tk.green, "error": tk.red, "warn": tk.orange}
-        lbl.setStyleSheet(f"color:{color_map.get(style, tk.t1)}; font-size:10pt;")
+        lbl.setStyleSheet(f"color:{color_map.get(style, tk.t1)}; font-size:12px;")
         lay.addWidget(lbl)
-
-        # Insert at top (before stretch)
-        self._feed_lay.insertWidget(0, frame)
+        self._recent_section.add_widget(frame)
         self._feed_items.insert(0, frame)
-
-        # Keep max 50 items
-        while len(self._feed_items) > 50:
+        while len(self._feed_items) > 30:
             old = self._feed_items.pop()
-            self._feed_lay.removeWidget(old)
             old.deleteLater()
 
     def retranslate(self):
-        self._counter.setText(t("qscan_count", n=self._scan_count))
-        self._feed_hdr.setText(t("qscan_last_scans"))
+        self._title.setText(t("qscan_title"))
         self._scan_input.setPlaceholderText(t("qscan_scan_field"))
+        self._btn_cancel.setText(t("qscan_cancel_btn"))
+        self._btn_confirm.setText(t("qscan_confirm_btn"))
+        self._cancel_session_btn.setText(t("qscan_cancel_btn"))
+        self._update_ui()
+
+    def _on_scan(self, bc: str):
+        """Handle barcode scan in Quick Scan tab."""
+        from app.models.scan_session import ScanEventType
+        event = self._session.process_barcode(bc)
+
+        if event.event_type == ScanEventType.MODE_CHANGED:
+            self._update_ui()
+        elif event.event_type in (ScanEventType.ITEM_ADDED, ScanEventType.ITEM_INCREMENTED):
+            self._refresh_pending()
+        elif event.event_type == ScanEventType.BATCH_COMMITTED:
+            self._add_feed_item(event.message, "success")
+            self._update_ui()
+        elif event.event_type == ScanEventType.BATCH_EMPTY:
+            self._add_feed_item(event.message, "warn")
+        elif event.event_type == ScanEventType.NOT_FOUND:
+            self._add_feed_item(event.message, "error")
+        elif event.event_type == ScanEventType.NO_MODE:
+            self._add_feed_item(event.message, "warn")
+        elif event.event_type == ScanEventType.INSUFFICIENT_STOCK:
+            self._add_feed_item(event.message, "warn")
+        elif event.event_type == ScanEventType.SESSION_ACTIVE:
+            self._add_feed_item(event.message, "warn")
+
+        # Keep focus on scan input
+        self._scan_input.clear()
+        self._scan_input.setFocus()
 
     def focus_input(self):
         self._scan_input.setFocus()
@@ -1001,43 +1140,127 @@ class StockOpsTab(QWidget):
 
 # ── Theme Toggle Widget ──────────────────────────────────────────────────────
 
-class ThemeToggle(QFrame):
-    """Professional dark/light toggle switch."""
-    toggled = pyqtSignal()
+class ThemeToggle(QWidget):
+    """Animated sliding toggle with sun/moon icons. Click = toggle, right-click = cycle."""
+    theme_toggled = pyqtSignal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setObjectName("theme_toggle")
-        self.setFixedSize(56, 28)
+        self.setFixedSize(52, 28)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setToolTip(t("tooltip_theme"))
+        self._knob_x = self._target_x()
+        self._anim_timer = QTimer(self)
+        self._anim_timer.setInterval(12)
+        self._anim_timer.timeout.connect(self._animate_step)
 
-    def paintEvent(self, event):
+    def _target_x(self) -> float:
+        return float(self.width() - self.height() + 2) if THEME.is_dark else 2.0
+
+    def _animate_step(self):
+        target = self._target_x()
+        diff = target - self._knob_x
+        if abs(diff) < 0.5:
+            self._knob_x = target
+            self._anim_timer.stop()
+        else:
+            self._knob_x += diff * 0.25
+        self.update()
+
+    def paintEvent(self, _ev):
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        tk = THEME.tokens
+        w, h = self.width(), self.height()
+        knob_d = h - 4
 
-        # Track background
-        track_color = QColor(tk.blue) if THEME.is_dark else QColor(tk.border2)
-        p.setBrush(track_color)
+        # Track — indigo for dark, light gray for light
+        track_col = QColor("#334155") if THEME.is_dark else QColor("#CBD5E1")
+        p.setBrush(track_col)
         p.setPen(Qt.PenStyle.NoPen)
-        p.drawRoundedRect(0, 0, self.width(), self.height(), 14, 14)
+        p.drawRoundedRect(0, 0, w, h, h // 2, h // 2)
+
+        # Stars dots in dark side (left when light mode, right when dark)
+        if THEME.is_dark:
+            p.setBrush(QColor(255, 255, 255, 40))
+            p.drawEllipse(8, 7, 3, 3)
+            p.drawEllipse(14, 14, 2, 2)
+            p.drawEllipse(11, 19, 2, 2)
+        else:
+            # Sun rays hint on right side
+            p.setBrush(QColor(251, 191, 36, 50))
+            p.drawEllipse(34, 8, 3, 3)
+            p.drawEllipse(38, 15, 2, 2)
+            p.drawEllipse(32, 18, 2, 2)
 
         # Knob
-        knob_x = 30 if THEME.is_dark else 4
+        kx = int(self._knob_x)
         p.setBrush(QColor("#FFFFFF"))
-        p.drawEllipse(knob_x, 4, 20, 20)
+        p.drawEllipse(kx, 2, knob_d, knob_d)
 
         # Icon on knob
-        p.setPen(QColor(tk.card if THEME.is_dark else tk.t2))
-        f = QFont("Segoe UI", 8)
-        p.setFont(f)
-        icon = "🌙" if THEME.is_dark else "☀"
-        p.drawText(knob_x, 4, 20, 20, Qt.AlignmentFlag.AlignCenter, icon)
+        icon_font = QFont("Segoe UI", 11)
+        p.setFont(icon_font)
+        if THEME.is_dark:
+            p.setPen(QColor("#1E293B"))
+            p.drawText(kx, 2, knob_d, knob_d, Qt.AlignmentFlag.AlignCenter, "🌙")
+        else:
+            p.setPen(QColor("#92400E"))
+            p.drawText(kx, 2, knob_d, knob_d, Qt.AlignmentFlag.AlignCenter, "☀")
 
         p.end()
 
     def mousePressEvent(self, event):
-        self.toggled.emit()
+        if event.button() == Qt.MouseButton.RightButton:
+            THEME.cycle()
+        else:
+            THEME.toggle()
+        self._anim_timer.start()
+        self.theme_toggled.emit()
+
+    def _update_text(self):
+        self._knob_x = self._target_x()
+        self.update()
+
+
+class CollapsibleSection(QWidget):
+    """A section with a clickable header that shows/hides its content."""
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        self._expanded = True
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        lay.setSpacing(0)
+
+        # Header button
+        self._header = QPushButton(f"  ▾  {title}")
+        self._header.setObjectName("sidebar_section_toggle")
+        self._header.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._header.clicked.connect(self._toggle)
+        lay.addWidget(self._header)
+
+        # Content container
+        self._content = QWidget()
+        self._content_lay = QVBoxLayout(self._content)
+        self._content_lay.setContentsMargins(0, 2, 0, 0)
+        self._content_lay.setSpacing(2)
+        lay.addWidget(self._content)
+
+        self._title = title
+
+    def add_widget(self, w: QWidget):
+        self._content_lay.addWidget(w)
+
+    def _toggle(self):
+        self._expanded = not self._expanded
+        self._content.setVisible(self._expanded)
+        arrow = "▾" if self._expanded else "▸"
+        self._header.setText(f"  {arrow}  {self._title}")
+
+    def set_title(self, title: str):
+        self._title = title
+        arrow = "▾" if self._expanded else "▸"
+        self._header.setText(f"  {arrow}  {title}")
 
 
 # ── Main Window ────────────────────────────────────────────────────────────────
@@ -1054,6 +1277,12 @@ class MainWindow(QMainWindow):
         super().__init__()
         init_db()
         cfg = ShopConfig.get()
+
+        # Apply saved theme
+        saved_theme = cfg.theme
+        if saved_theme in ("pro_dark", "pro_light", "dark", "light"):
+            THEME.set_theme(saved_theme)
+
         _title = cfg.name if cfg.name else t("app_title")
         self.setWindowTitle(_title); self.resize(1440, 900)
         self._cp: InventoryItem | None = None
@@ -1081,41 +1310,145 @@ class MainWindow(QMainWindow):
     # ── Build ──────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        root = QHBoxLayout(self._bg)
-        root.setContentsMargins(0, 0, 0, 0)
-        root.setSpacing(0)
+        outer = QVBoxLayout(self._bg)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
-        # ── Sidebar ──────────────────────────────────────────────────────────
-        sidebar = QFrame()
-        sidebar.setObjectName("sidebar")
-        sidebar.setFixedWidth(200)
-        sidebar.setMinimumHeight(600)
-        sb_lay = QVBoxLayout(sidebar)
-        sb_lay.setContentsMargins(6, 12, 6, 12)
-        sb_lay.setSpacing(4)
+        # ══════════════════════════════════════════════════════════════════════
+        # HEADER BAR (56px) — Logo, Title, Search, Notifications, Settings
+        # ══════════════════════════════════════════════════════════════════════
+        header = QFrame()
+        header.setObjectName("header_bar")
+        header.setFixedHeight(56)
+        hdr_lay = QHBoxLayout(header)
+        hdr_lay.setContentsMargins(16, 0, 16, 0)
+        hdr_lay.setSpacing(0)
 
-        # Logo + title
+        # Left group: hamburger + logo + title
+        left_hdr = QHBoxLayout(); left_hdr.setSpacing(8)
         cfg = ShopConfig.get()
         _title = cfg.name if cfg.name else t("app_title")
+
+        # Sidebar toggle (hamburger)
+        self._sidebar_toggle = QPushButton("☰")
+        self._sidebar_toggle.setObjectName("header_icon")
+        self._sidebar_toggle.setFixedSize(34, 34)
+        self._sidebar_toggle.setToolTip("Toggle sidebar")
+        self._sidebar_toggle.clicked.connect(self._toggle_sidebar)
+        left_hdr.addWidget(self._sidebar_toggle)
+
         self._logo_lbl = self._build_logo_label()
         if self._logo_lbl:
-            logo_row = QHBoxLayout()
-            logo_row.setContentsMargins(8, 4, 8, 8)
-            logo_row.addWidget(self._logo_lbl)
-            logo_row.addStretch()
-            sb_lay.addLayout(logo_row)
-
+            left_hdr.addWidget(self._logo_lbl)
         self._title_lbl = QLabel(_title)
-        self._title_lbl.setStyleSheet("font-size:13pt; font-weight:800; padding:4px 10px 12px 10px;")
-        self._title_lbl.setWordWrap(True)
-        sb_lay.addWidget(self._title_lbl)
+        self._title_lbl.setObjectName("app_title")
+        left_hdr.addWidget(self._title_lbl)
+        hdr_lay.addLayout(left_hdr)
 
-        # Nav separator
-        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.HLine)
-        sep1.setStyleSheet("color:rgba(128,128,128,40); margin:0 8px;")
-        sb_lay.addWidget(sep1)
+        hdr_lay.addStretch()
 
-        # Navigation buttons
+        # Center: search
+        self.search = BarcodeLineEdit(); self.search.setObjectName("search_bar")
+        self.search.setFixedWidth(260)
+        self.search.setFixedHeight(34)
+        hdr_lay.addWidget(self.search)
+
+        hdr_lay.addSpacing(12)
+
+        # Right actions
+        right_hdr = QHBoxLayout(); right_hdr.setSpacing(6)
+
+        # Language switcher (compact, in header)
+        lang_fr = QFrame(); lang_fr.setObjectName("lang_bar")
+        lang_lay = QHBoxLayout(lang_fr)
+        lang_lay.setContentsMargins(2, 2, 2, 2); lang_lay.setSpacing(1)
+        self._lang_btns: dict[str, QPushButton] = {}
+        for code in ("EN", "DE", "AR"):
+            b = QPushButton(code)
+            b.setObjectName("lang_btn_active" if code == LANG else "lang_btn")
+            b.setFixedSize(34, 26)
+            b.clicked.connect(lambda _, c=code: self._set_lang(c))
+            lang_lay.addWidget(b); self._lang_btns[code] = b
+        right_hdr.addWidget(lang_fr)
+
+        right_hdr.addSpacing(4)
+
+        # Notification bell with badge
+        self.notif_btn = QPushButton("🔔")
+        self.notif_btn.setObjectName("header_icon")
+        self.notif_btn.setFixedSize(34, 34)
+        self.notif_btn.setToolTip(t("tooltip_refresh"))
+        self.notif_btn.clicked.connect(self._show_alerts)
+        self._notif_badge = QLabel("0", self.notif_btn)
+        self._notif_badge.setObjectName("notif_badge")
+        self._notif_badge.setFixedSize(18, 18)
+        self._notif_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._notif_badge.move(18, -2)
+        self._notif_badge.hide()
+        right_hdr.addWidget(self.notif_btn)
+
+        # Refresh
+        self.refresh_btn = QPushButton()
+        self.refresh_btn.setObjectName("header_icon")
+        self.refresh_btn.setFixedSize(34, 34)
+        self.refresh_btn.setIcon(get_button_icon("refresh"))
+        self.refresh_btn.setIconSize(QSize(16, 16))
+        self.refresh_btn.setToolTip(t("tooltip_refresh"))
+        self.refresh_btn.clicked.connect(self._refresh_all)
+        right_hdr.addWidget(self.refresh_btn)
+
+        # Theme toggle (animated sliding switch)
+        self._theme_toggle = ThemeToggle()
+        self._theme_toggle.theme_toggled.connect(self._toggle_mode)
+        right_hdr.addWidget(self._theme_toggle)
+
+        # Admin/Settings
+        self.admin_btn = QPushButton()
+        self.admin_btn.setObjectName("header_icon")
+        self.admin_btn.setFixedSize(34, 34)
+        self.admin_btn.setIcon(get_button_icon("settings"))
+        self.admin_btn.setIconSize(QSize(16, 16))
+        self.admin_btn.setToolTip(t("tooltip_admin"))
+        self.admin_btn.clicked.connect(self._open_admin)
+        right_hdr.addWidget(self.admin_btn)
+
+        hdr_lay.addLayout(right_hdr)
+        outer.addWidget(header)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # BODY — Sidebar (240px) + Content
+        # ══════════════════════════════════════════════════════════════════════
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
+
+        # ── SIDEBAR ──────────────────────────────────────────────────────────
+        self._sidebar = QFrame()
+        sidebar_frame = self._sidebar
+        sidebar_frame.setObjectName("sidebar")
+        sidebar_frame.setFixedWidth(240)
+        sidebar_outer = QVBoxLayout(sidebar_frame)
+        sidebar_outer.setContentsMargins(0, 0, 0, 0)
+        sidebar_outer.setSpacing(0)
+
+        # Scrollable area for nav + categories
+        sb_scroll = QScrollArea()
+        sb_scroll.setWidgetResizable(True)
+        sb_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        sb_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        sb_scroll.setObjectName("sidebar_scroll")
+
+        sb_inner = QWidget()
+        sb_lay = QVBoxLayout(sb_inner)
+        sb_lay.setContentsMargins(0, 0, 0, 0)
+        sb_lay.setSpacing(0)
+
+        # ── Main navigation ──
+        nav_section = QWidget()
+        nav_lay = QVBoxLayout(nav_section)
+        nav_lay.setContentsMargins(8, 12, 8, 4)
+        nav_lay.setSpacing(2)
+
         self._nav_btns: list[QPushButton] = []
         self._nav_keys: list[str] = []
         nav_items = [
@@ -1129,16 +1462,18 @@ class MainWindow(QMainWindow):
             btn.setObjectName("sidebar_btn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, k=key: self._nav_to(k))
-            sb_lay.addWidget(btn)
+            nav_lay.addWidget(btn)
             self._nav_btns.append(btn)
             self._nav_keys.append(key)
+        sb_lay.addWidget(nav_section)
 
-        # Matrix category separator
-        self._cat_sep = QFrame(); self._cat_sep.setFrameShape(QFrame.Shape.HLine)
-        self._cat_sep.setStyleSheet("color:rgba(128,128,128,40); margin:4px 8px;")
+        # ── Collapsible categories ──
+        self._cat_sep = QFrame()
+        self._cat_sep.setObjectName("sidebar_divider")
+        self._cat_sep.setFixedHeight(1)
         sb_lay.addWidget(self._cat_sep)
 
-        # Dynamic category nav buttons
+        self._cat_section = CollapsibleSection("CATEGORIES")
         self._cat_nav_btns: list[QPushButton] = []
         for cat in _cat_repo.get_all_active():
             icon = load_svg_icon(cat.icon) if cat.icon else "📁"
@@ -1146,109 +1481,85 @@ class MainWindow(QMainWindow):
             btn.setObjectName("sidebar_btn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, k=cat.key: self._nav_to(f"cat_{k}"))
-            sb_lay.addWidget(btn)
+            self._cat_section.add_widget(btn)
             self._cat_nav_btns.append(btn)
             self._nav_btns.append(btn)
             self._nav_keys.append(f"cat_{cat.key}")
+        sb_lay.addWidget(self._cat_section)
 
         sb_lay.addStretch()
+        sb_scroll.setWidget(sb_inner)
+        sidebar_outer.addWidget(sb_scroll, 1)
 
-        # Bottom: Alert
-        self.alert_btn = QPushButton(t("alert_ok")); self.alert_btn.setObjectName("alert_ok")
-        self.alert_btn.clicked.connect(self._show_alerts)
-        sb_lay.addWidget(self.alert_btn)
+        # ── Fixed bottom: shop info ──
+        btm_div = QFrame()
+        btm_div.setObjectName("sidebar_divider")
+        btm_div.setFixedHeight(1)
+        sidebar_outer.addWidget(btm_div)
 
-        # Language switcher
-        lang_fr = QFrame(); lang_fr.setObjectName("lang_bar")
-        lang_lay = QHBoxLayout(lang_fr); lang_lay.setContentsMargins(3, 3, 3, 3); lang_lay.setSpacing(1)
-        self._lang_btns: dict[str, QPushButton] = {}
-        for code in ("EN", "DE", "AR"):
-            b = QPushButton(code); b.setObjectName("lang_btn_active" if code == LANG else "lang_btn")
-            b.setFixedSize(40, 30); b.clicked.connect(lambda _, c=code: self._set_lang(c))
-            lang_lay.addWidget(b); self._lang_btns[code] = b
-        sb_lay.addWidget(lang_fr)
+        if cfg.name:
+            shop_frame = QFrame()
+            shop_frame.setObjectName("sidebar_user_info")
+            sf_lay = QVBoxLayout(shop_frame)
+            sf_lay.setContentsMargins(12, 10, 12, 10)
+            sf_lay.setSpacing(2)
+            self._shop_name_lbl = QLabel(cfg.name)
+            self._shop_name_lbl.setObjectName("sidebar_shop_name")
+            sf_lay.addWidget(self._shop_name_lbl)
+            if cfg.contact_info:
+                self._shop_meta_lbl = QLabel(cfg.contact_info)
+                self._shop_meta_lbl.setObjectName("sidebar_shop_meta")
+                sf_lay.addWidget(self._shop_meta_lbl)
+            else:
+                self._shop_meta_lbl = None
+            sidebar_outer.addWidget(shop_frame)
+        else:
+            self._shop_name_lbl = None
+            self._shop_meta_lbl = None
 
-        # Theme toggle + Admin
-        bottom_row = QHBoxLayout()
-        bottom_row.setSpacing(8)
-        bottom_row.setContentsMargins(4, 8, 4, 0)
+        # Hidden alert button (used by _check_alerts, not visible in sidebar)
+        self.alert_btn = QPushButton()
+        self.alert_btn.setObjectName("alert_ok")
+        self.alert_btn.hide()
 
-        self._theme_toggle = ThemeToggle()
-        self._theme_toggle.toggled.connect(self._toggle_mode)
-        self._theme_toggle.setToolTip(t("tooltip_theme"))
-        bottom_row.addWidget(self._theme_toggle)
+        body.addWidget(sidebar_frame)
 
-        bottom_row.addStretch()
-
-        self.admin_btn = QPushButton()
-        self.admin_btn.setObjectName("icon_btn")
-        self.admin_btn.setFixedSize(36, 36)
-        self.admin_btn.setIcon(get_button_icon("settings"))
-        self.admin_btn.setIconSize(QSize(18, 18))
-        self.admin_btn.setToolTip(t("tooltip_admin"))
-        self.admin_btn.clicked.connect(self._open_admin)
-        bottom_row.addWidget(self.admin_btn)
-
-        sb_lay.addLayout(bottom_row)
-
-        root.addWidget(sidebar)
-
-        # ── Content area ─────────────────────────────────────────────────────
+        # ── CONTENT AREA ─────────────────────────────────────────────────────
         content = QVBoxLayout()
-        content.setContentsMargins(12, 12, 12, 12)
-        content.setSpacing(8)
+        content.setContentsMargins(16, 16, 16, 12)
+        content.setSpacing(12)
 
-        # Top bar (minimal — refresh only)
-        top = QHBoxLayout(); top.setSpacing(8)
-        self.refresh_btn = QPushButton()
-        self.refresh_btn.setObjectName("icon_btn")
-        self.refresh_btn.setFixedSize(36, 36)
-        self.refresh_btn.setIcon(get_button_icon("refresh"))
-        self.refresh_btn.setIconSize(QSize(18, 18))
-        self.refresh_btn.setToolTip(t("tooltip_refresh"))
-        self.refresh_btn.clicked.connect(self._refresh_all)
-        top.addStretch()
-        top.addWidget(self.refresh_btn)
-        content.addLayout(top)
-
-        # Stacked content pages
         self._stack = QStackedWidget()
 
-        # Page 0: Inventory (with summary cards + detail panel)
+        # Page 0: Inventory
         inv_page = QWidget()
         inv_lay = QVBoxLayout(inv_page)
         inv_lay.setContentsMargins(0, 0, 0, 0)
-        inv_lay.setSpacing(8)
+        inv_lay.setSpacing(12)
 
-        # Summary cards (only in inventory)
-        cr = QHBoxLayout(); cr.setSpacing(8)
+        cr = QHBoxLayout(); cr.setSpacing(12)
         self.c_tot = SummaryCard("card_total_products")
         self.c_unt = SummaryCard("card_total_units")
         self.c_low = SummaryCard("card_low_stock")
         self.c_out = SummaryCard("card_out_of_stock")
         self.c_val = SummaryCard("card_inventory_value")
-        for c in (self.c_tot, self.c_unt, self.c_low, self.c_out, self.c_val): cr.addWidget(c)
+        for c in (self.c_tot, self.c_unt, self.c_low, self.c_out, self.c_val):
+            cr.addWidget(c)
         inv_lay.addLayout(cr)
 
-        # Toolbar — smaller search
         tb = QHBoxLayout(); tb.setSpacing(8)
-        self.search = BarcodeLineEdit(); self.search.setObjectName("search_bar")
-        self.search.setMaximumWidth(350)
-        self.search.setMinimumHeight(36)
-        self.search.setMaximumHeight(36)
         self.low_cb = QCheckBox(t("low_stock_only"))
         self.low_cb.stateChanged.connect(self._refresh_products)
-        self.add_btn = QPushButton(t("btn_new_product")); self.add_btn.setObjectName("btn_primary")
+        self.add_btn = QPushButton(t("btn_new_product"))
+        self.add_btn.setObjectName("btn_primary")
         self.add_btn.setMaximumHeight(36)
         self.add_btn.clicked.connect(self._add_product)
-        tb.addWidget(self.search); tb.addWidget(self.low_cb); tb.addStretch(); tb.addWidget(self.add_btn)
+        tb.addWidget(self.low_cb); tb.addStretch(); tb.addWidget(self.add_btn)
         inv_lay.addLayout(tb)
 
-        # Splitter: table + detail
         sp = QSplitter(Qt.Orientation.Horizontal); sp.setHandleWidth(1)
         self.prod_tbl = ProductTable()
         sp.addWidget(self.prod_tbl)
-
         rs = QScrollArea(); rs.setWidgetResizable(True)
         rs.setMinimumWidth(280); rs.setMaximumWidth(340)
         rs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -1257,30 +1568,32 @@ class MainWindow(QMainWindow):
         sp.addWidget(rs)
         sp.setStretchFactor(0, 5); sp.setStretchFactor(1, 1)
         inv_lay.addWidget(sp, 1)
-
-        self._stack.addWidget(inv_page)  # index 0
+        self._stack.addWidget(inv_page)
 
         # Page 1: Transactions
         txn_pg = QWidget()
         tl = QVBoxLayout(txn_pg); tl.setContentsMargins(0, 0, 0, 0); tl.setSpacing(8)
         tbar = QHBoxLayout(); tbar.setContentsMargins(0, 0, 0, 0)
-        self._txn_caption = QLabel(t("txn_history_caption")); self._txn_caption.setObjectName("section_caption")
-        self._txn_ref_btn = QPushButton(); self._txn_ref_btn.setObjectName("btn_secondary")
+        self._txn_caption = QLabel(t("txn_history_caption"))
+        self._txn_caption.setObjectName("section_caption")
+        self._txn_ref_btn = QPushButton()
+        self._txn_ref_btn.setObjectName("btn_secondary")
         self._txn_ref_btn.setIcon(get_button_icon("refresh"))
         self._txn_ref_btn.setIconSize(QSize(16, 16))
         self._txn_ref_btn.clicked.connect(self._refresh_all_txns)
-        tbar.addWidget(self._txn_caption); tbar.addStretch(); tbar.addWidget(self._txn_ref_btn)
+        tbar.addWidget(self._txn_caption); tbar.addStretch()
+        tbar.addWidget(self._txn_ref_btn)
         tl.addLayout(tbar)
         self.txn_tbl = TransactionTable(); tl.addWidget(self.txn_tbl)
-        self._stack.addWidget(txn_pg)  # index 1
+        self._stack.addWidget(txn_pg)
 
         # Page 2: Stock Operations
         self._stock_ops_tab = StockOpsTab()
-        self._stack.addWidget(self._stock_ops_tab)  # index 2
+        self._stack.addWidget(self._stock_ops_tab)
 
         # Page 3: Quick Scan
         self._quick_scan_tab = QuickScanTab()
-        self._stack.addWidget(self._quick_scan_tab)  # index 3
+        self._stack.addWidget(self._quick_scan_tab)
 
         # Pages 4+: Dynamic matrix tabs
         self._matrix_tabs: list[MatrixTab] = []
@@ -1290,19 +1603,52 @@ class MainWindow(QMainWindow):
             self._stack.addWidget(tab)
 
         content.addWidget(self._stack, 1)
-
         content_w = QWidget()
         content_w.setLayout(content)
-        root.addWidget(content_w, 1)
+        body.addWidget(content_w, 1)
 
-        self.status = QStatusBar(); self.setStatusBar(self.status)
-        self.status.showMessage(t("statusbar_ready"))
+        body_w = QWidget()
+        body_w.setLayout(body)
+        outer.addWidget(body_w, 1)
+
+        # ══════════════════════════════════════════════════════════════════════
+        # FOOTER BAR (32px) — Status, Version, Sync indicator
+        # ══════════════════════════════════════════════════════════════════════
+        footer = QFrame()
+        footer.setObjectName("footer_bar")
+        footer.setFixedHeight(32)
+        ftr_lay = QHBoxLayout(footer)
+        ftr_lay.setContentsMargins(16, 0, 16, 0)
+        ftr_lay.setSpacing(0)
+
+        self._footer_status = QLabel(t("statusbar_ready"))
+        self._footer_status.setObjectName("footer_status")
+        ftr_lay.addWidget(self._footer_status)
+        ftr_lay.addStretch()
+
+        self._footer_version = QLabel("v2.0.0")
+        self._footer_version.setObjectName("footer_version")
+        ftr_lay.addWidget(self._footer_version)
+        ftr_lay.addStretch()
+
+        right_ftr = QHBoxLayout(); right_ftr.setSpacing(8)
+        self._footer_sync = QLabel("●  Connected")
+        self._footer_sync.setObjectName("footer_sync")
+        right_ftr.addWidget(self._footer_sync)
+        ftr_lay.addLayout(right_ftr)
+
+        outer.addWidget(footer)
 
         # Set initial active nav
         self._current_nav = "nav_inventory"
         self._update_nav_styles()
 
     # ── Navigation ────────────────────────────────────────────────────────────
+
+    def _toggle_sidebar(self):
+        vis = self._sidebar.isVisible()
+        self._sidebar.setVisible(not vis)
+        self._sidebar_toggle.setText("☰" if vis else "✕")
 
     def _nav_to(self, key: str):
         self._current_nav = key
@@ -1354,6 +1700,44 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("F5"),     self).activated.connect(self._refresh_all)
         QShortcut(QKeySequence("Ctrl+I"), self).activated.connect(lambda: self._stock_op("IN"))
         QShortcut(QKeySequence("Ctrl+O"), self).activated.connect(lambda: self._stock_op("OUT"))
+        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self._toggle_sidebar)
+
+        # Global barcode capture — catches scanner input even when no field is focused
+        self._global_bc_buf: list[str] = []
+        self._global_bc_timer = QTimer(self)
+        self._global_bc_timer.setSingleShot(True)
+        self._global_bc_timer.setInterval(100)
+        self._global_bc_timer.timeout.connect(self._flush_global_bc)
+
+    def keyPressEvent(self, event):
+        """Capture keystrokes globally for barcode scanner detection."""
+        # Only intercept if no QLineEdit/QSpinBox currently has focus
+        focus = self.focusWidget()
+        if isinstance(focus, (QLineEdit, QSpinBox)):
+            super().keyPressEvent(event)
+            return
+
+        key = event.key()
+        if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            # Flush buffer as barcode
+            self._global_bc_timer.stop()
+            bc = "".join(self._global_bc_buf).strip()
+            self._global_bc_buf.clear()
+            if bc:
+                self._barcode(bc)
+        elif event.text() and event.text().isprintable():
+            self._global_bc_buf.append(event.text())
+            self._global_bc_timer.start()
+        else:
+            super().keyPressEvent(event)
+
+    def _flush_global_bc(self):
+        """Auto-flush global buffer if 3+ chars accumulated (scanner fires fast)."""
+        if len(self._global_bc_buf) >= 3:
+            bc = "".join(self._global_bc_buf).strip()
+            if bc:
+                self._barcode(bc)
+        self._global_bc_buf.clear()
 
     # ── Logo ───────────────────────────────────────────────────────────────────
 
@@ -1394,6 +1778,11 @@ class MainWindow(QMainWindow):
     def _open_admin(self) -> None:
         open_admin(self)
         ShopConfig.invalidate()
+        cfg = ShopConfig.get()
+        if cfg.theme in ("pro_dark", "pro_light", "dark", "light"):
+            THEME.set_theme(cfg.theme)
+            self._theme_toggle._update_text()
+            self._bg.update()
         ensure_matrix_entries()
         self._rebuild_matrix_tabs()
         self._retranslate()
@@ -1408,7 +1797,6 @@ class MainWindow(QMainWindow):
         # Remove old category nav buttons
         for btn in self._cat_nav_btns:
             btn.deleteLater()
-        # Remove those buttons from nav_btns/nav_keys too
         for btn in self._cat_nav_btns:
             if btn in self._nav_btns:
                 idx = self._nav_btns.index(btn)
@@ -1416,20 +1804,14 @@ class MainWindow(QMainWindow):
                 self._nav_keys.pop(idx)
         self._cat_nav_btns.clear()
 
-        # Find sidebar layout (parent of _cat_sep)
-        sb_lay = self._cat_sep.parent().layout()
-        # Find insert position (after _cat_sep)
-        insert_idx = sb_lay.indexOf(self._cat_sep) + 1
-
-        # Rebuild
+        # Rebuild into collapsible section
         for cat in _cat_repo.get_all_active():
             icon = load_svg_icon(cat.icon) if cat.icon else "📁"
             btn = QPushButton(f"  {icon}   {cat.name(LANG)}")
             btn.setObjectName("sidebar_btn")
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.clicked.connect(lambda _, k=cat.key: self._nav_to(f"cat_{k}"))
-            sb_lay.insertWidget(insert_idx, btn)
-            insert_idx += 1
+            self._cat_section.add_widget(btn)
             self._cat_nav_btns.append(btn)
             self._nav_btns.append(btn)
             self._nav_keys.append(f"cat_{cat.key}")
@@ -1495,9 +1877,24 @@ class MainWindow(QMainWindow):
         for tab in self._matrix_tabs:
             tab.retranslate()
 
+        # Shop info in sidebar
+        cfg2 = ShopConfig.get()
+        if self._shop_name_lbl and cfg2.name:
+            self._shop_name_lbl.setText(cfg2.name)
+        if self._shop_meta_lbl and cfg2.contact_info:
+            self._shop_meta_lbl.setText(cfg2.contact_info)
+
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         self.detail.retranslate(); self._check_alerts()
-        self.status.showMessage(t("statusbar_ready"))
+        self._show_status(t("statusbar_ready"))
+
+    # ── Status ─────────────────────────────────────────────────────────────────
+
+    def _show_status(self, msg: str, timeout: int = 0):
+        """Update footer status text."""
+        self._footer_status.setText(msg)
+        if timeout > 0:
+            QTimer.singleShot(timeout, lambda: self._footer_status.setText(t("statusbar_ready")))
 
     # ── Refresh ────────────────────────────────────────────────────────────────
 
@@ -1508,7 +1905,7 @@ class MainWindow(QMainWindow):
             filter_low_stock=self.low_cb.isChecked(),
         )
         self.prod_tbl.load(items)
-        self.status.showMessage(t("status_n_products", n=len(items)), 3000)
+        self._show_status(t("status_n_products", n=len(items)), 3000)
 
     def _refresh_summary(self):
         s = _item_repo.get_summary(); tk = THEME.tokens
@@ -1532,7 +1929,7 @@ class MainWindow(QMainWindow):
             self._cp = _item_repo.get_by_id(self._cp.id)
             self.detail.set_product(self._cp)
         self._check_alerts()
-        self.status.showMessage(t("status_refreshed"), 2000)
+        self._show_status(t("status_refreshed"), 2000)
 
     # ── Events ─────────────────────────────────────────────────────────────────
 
@@ -1541,14 +1938,37 @@ class MainWindow(QMainWindow):
         self.detail.set_product(item)
 
     def _barcode(self, bc: str):
+        from app.core.scan_config import ScanConfig
+        scan_cfg = ScanConfig.get()
+
+        # 1) Command barcodes → always Quick Scan
+        if scan_cfg.is_command(bc):
+            self.search.clear()
+            self._nav_to("nav_quick_scan")
+            self._quick_scan_tab.process_command_barcode(bc)
+            self._quick_scan_tab.focus_input()
+            return
+
+        # 2) Quick Scan has active session → route item barcodes there
+        if self._quick_scan_tab._session.mode:
+            self.search.clear()
+            self._nav_to("nav_quick_scan")
+            self._quick_scan_tab.process_command_barcode(bc)
+            self._quick_scan_tab.focus_input()
+            return
+
+        # 3) Normal: navigate to inventory + select product
         item = _item_repo.get_by_barcode(bc)
         if item:
-            self.prod_tbl.select_by_id(item.id); self._sel(item)
-            self.status.showMessage(
+            self.search.clear()
+            self._nav_to("nav_inventory")
+            self.prod_tbl.select_by_id(item.id)
+            self._sel(item)
+            self._show_status(
                 t("status_scanned", brand=item.display_name, type=""), 5000
             )
         else:
-            self.status.showMessage(t("status_unknown_bc", bc=bc), 4000)
+            self._show_status(t("status_unknown_bc", bc=bc), 4000)
             if QMessageBox.question(
                 self, t("msg_unknown_bc_title"), t("msg_unknown_bc_body", bc=bc),
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
@@ -1556,8 +1976,7 @@ class MainWindow(QMainWindow):
                 self._add_product(preset_barcode=bc)
 
     def _toggle_mode(self):
-        THEME.toggle()
-        self._theme_toggle.update()
+        # Theme was already toggled by ThemeToggle widget — just refresh UI
         self._bg.update()
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         if self._cp: self.detail.set_product(self._cp)
@@ -1579,7 +1998,7 @@ class MainWindow(QMainWindow):
             )
             self._refresh_products(); self._refresh_summary(); self._refresh_all_txns()
             self.prod_tbl.select_by_id(pid)
-            self.status.showMessage(t("status_product_added", pid=pid), 4000)
+            self._show_status(t("status_product_added", pid=pid), 4000)
         except Exception as e:
             QMessageBox.critical(self, t("msg_error"), str(e))
 
@@ -1597,7 +2016,7 @@ class MainWindow(QMainWindow):
                 sell_price=data.get("sell_price"),
             )
             self._refresh_all()
-            self.status.showMessage(t("status_product_updated"), 3000)
+            self._show_status(t("status_product_updated"), 3000)
         except Exception as e:
             QMessageBox.critical(self, t("msg_error"), str(e))
 
@@ -1616,7 +2035,7 @@ class MainWindow(QMainWindow):
             _item_repo.delete(item.id)
             self._cp = None; self.detail.set_product(None)
             self._refresh_all()
-            self.status.showMessage(t("status_product_deleted"), 3000)
+            self._show_status(t("status_product_deleted"), 3000)
         except Exception as e:
             QMessageBox.critical(self, t("msg_error"), str(e))
 
@@ -1639,7 +2058,7 @@ class MainWindow(QMainWindow):
                 res = _stock_svc.stock_adjust(item.id, data["quantity"], data["note"])
 
             self._refresh_all(); self._check_alerts()
-            self.status.showMessage(
+            self._show_status(
                 t("status_stock_op", op=op, before=res["before"], after=res["after"]), 4000
             )
             updated = _item_repo.get_by_id(item.id)
@@ -1661,14 +2080,19 @@ class MainWindow(QMainWindow):
         low = _alert_svc.get_low_stock_items(); n = len(low)
         if n == 0:
             self.alert_btn.setText(t("alert_ok")); self.alert_btn.setObjectName("alert_ok")
+            self._notif_badge.hide()
         elif any(p.is_out for p in low):
             s = "s" if n > 1 else ""
             self.alert_btn.setText(t("alert_critical", n=n, s=s))
             self.alert_btn.setObjectName("alert_critical")
+            self._notif_badge.setText(str(n))
+            self._notif_badge.show()
         else:
             s = "s" if n > 1 else ""
             self.alert_btn.setText(t("alert_warn", n=n, s=s))
             self.alert_btn.setObjectName("alert_warn")
+            self._notif_badge.setText(str(n))
+            self._notif_badge.show()
         self.alert_btn.style().unpolish(self.alert_btn)
         self.alert_btn.style().polish(self.alert_btn)
 

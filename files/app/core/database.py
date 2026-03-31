@@ -181,7 +181,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_inv_txn_time           ON inventory_transactions(timestamp);
 """
 
-_SCHEMA_VERSION = "4"
+_SCHEMA_VERSION = "5"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -202,6 +202,20 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
 
 
 # ── V3 → V4 migration ────────────────────────────────────────────────────────
+
+def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
+    """Seed default command barcodes for Quick Scan."""
+    defaults = [
+        ("scan_cmd_takeout", "CMD-TAKEOUT"),
+        ("scan_cmd_insert",  "CMD-INSERT"),
+        ("scan_cmd_confirm", "CMD-CONFIRM"),
+    ]
+    for key, val in defaults:
+        conn.execute(
+            "INSERT OR IGNORE INTO app_config (key, value) VALUES (?,?)",
+            (key, val),
+        )
+
 
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
@@ -389,6 +403,10 @@ def init_db() -> None:
             if current == "3":
                 _migrate_v3_to_v4(conn)
                 current = "4"
+
+            if current == "4":
+                _migrate_v4_to_v5(conn)
+                current = "5"
 
             if current != _SCHEMA_VERSION:
                 conn.execute(

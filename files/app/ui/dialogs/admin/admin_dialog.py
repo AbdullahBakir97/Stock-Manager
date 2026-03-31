@@ -9,10 +9,11 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import pyqtSignal
 
 from app.core.config import ShopConfig
-from app.ui.dialogs.admin.shop_settings_panel import ShopSettingsPanel
-from app.ui.dialogs.admin.categories_panel    import CategoriesPanel
-from app.ui.dialogs.admin.part_types_panel    import PartTypesPanel
-from app.ui.dialogs.admin.models_panel        import ModelsPanel
+from app.ui.dialogs.admin.shop_settings_panel  import ShopSettingsPanel
+from app.ui.dialogs.admin.categories_panel     import CategoriesPanel
+from app.ui.dialogs.admin.part_types_panel     import PartTypesPanel
+from app.ui.dialogs.admin.models_panel         import ModelsPanel
+from app.ui.dialogs.admin.scan_settings_panel  import ScanSettingsPanel
 from app.core.theme import THEME
 from app.core.i18n import t
 
@@ -43,11 +44,13 @@ class AdminDialog(QDialog):
         self._cat_panel   = CategoriesPanel()
         self._pt_panel    = PartTypesPanel()
         self._mdl_panel   = ModelsPanel()
+        self._scan_panel  = ScanSettingsPanel()
 
         self._tabs.addTab(self._shop_panel,  t("admin_tab_shop"))
         self._tabs.addTab(self._cat_panel,   t("admin_tab_categories"))
         self._tabs.addTab(self._pt_panel,    t("admin_tab_part_types"))
         self._tabs.addTab(self._mdl_panel,   t("admin_tab_models"))
+        self._tabs.addTab(self._scan_panel,  t("admin_tab_scan"))
 
         lay.addWidget(self._tabs)
 

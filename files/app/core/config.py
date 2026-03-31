@@ -11,7 +11,7 @@ class ShopConfig:
     currency:          str = "€"
     currency_position: str = "prefix"   # "prefix" | "suffix"
     default_language:  str = "EN"
-    theme:             str = "dark"     # "dark" | "light"
+    theme:             str = "pro_dark"  # "pro_dark" | "pro_light" | "dark" | "light"
     logo_path:         str = ""
     admin_pin:         str = ""         # empty = no PIN gate
     contact_info:      str = ""

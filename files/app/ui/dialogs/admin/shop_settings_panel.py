@@ -64,6 +64,8 @@ class ShopSettingsPanel(QWidget):
 
         # Theme
         self._theme = QComboBox()
+        self._theme.addItem(t("shop_theme_pro_dark"), "pro_dark")
+        self._theme.addItem(t("shop_theme_pro_light"), "pro_light")
         self._theme.addItem(t("shop_theme_dark"), "dark")
         self._theme.addItem(t("shop_theme_light"), "light")
         form.addRow(t("shop_lbl_theme"), self._theme)

@@ -2,6 +2,8 @@
 app/ui/components/matrix_widget.py — Generic phone-model × part-type matrix table.
 
 Used by MatrixTab for every inventory category (Displays, Batteries, Cases, …).
+Excel-like color banding: model rows have distinct color, each part type group
+has its own background tint derived from the part type's accent color.
 """
 from __future__ import annotations
 
@@ -20,13 +22,12 @@ from app.services.stock_service import StockService
 from app.ui.dialogs.matrix_dialogs import StockOpDialog, ThresholdDialog, InventurDialog
 from app.core.theme import THEME, qc
 from app.core.i18n import t
-from app.ui.delegates import AlternatingRowDelegate
 
 _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
-_COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Inventur
-_COL_W = {"model": 140, "stamm": 82, "bestbung": 82, "stock": 72, "inventur": 82}
+_COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
+_COL_W = {"model": 160, "stamm": 82, "bestbung": 82, "stock": 72, "inventur": 82}
 _HEADER_ROW = 0
 
 
@@ -34,10 +35,32 @@ def _base(ti: int) -> int:
     return 1 + ti * _COLS_PER_TYPE
 
 
+def _tint_color(accent_hex: str, is_dark: bool) -> QColor:
+    """Create a subtle background tint from accent color for data cells."""
+    c = QColor(accent_hex)
+    if is_dark:
+        return QColor(c.red(), c.green(), c.blue(), 18)  # very subtle in dark mode
+    else:
+        return QColor(c.red(), c.green(), c.blue(), 15)  # very subtle in light mode
+
+
+def _model_row_color(is_dark: bool) -> QColor:
+    """Color for the model name column — distinct from data columns."""
+    if is_dark:
+        return QColor(40, 44, 72, 255)  # slightly brighter slate
+    else:
+        return QColor(230, 228, 245, 255)  # soft lavender
+
+
 class MatrixWidget(QTableWidget):
     """
     Generic matrix table: phone models (rows) × part types (column groups, 4 cols each).
     Driven by CategoryConfig loaded from DB — works for any category without code changes.
+
+    Excel-like color banding:
+    - Model name column has its own distinct background
+    - Each part type group (4 columns) has a tinted background from its accent color
+    - Header row has colored banners per part type
     """
 
     def __init__(self, refresh_cb, parent=None):
@@ -48,22 +71,21 @@ class MatrixWidget(QTableWidget):
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.verticalHeader().setVisible(False)
-        self.setAlternatingRowColors(True); self.setShowGrid(True)  # Enable alternating colors like Excel
+        self.setAlternatingRowColors(False)
+        self.setShowGrid(True)
         self.cellDoubleClicked.connect(self._on_dbl)
 
     def load(self, cat: CategoryConfig, models,
              item_map: dict[tuple[int, str], InventoryItem]) -> None:
-        """
-        cat      — CategoryConfig with part_types list
-        models   — list[PhoneModel]
-        item_map — {(model_id, part_type_key): InventoryItem}
-        """
         self._cat = cat
         self._build_headers(cat)
         tk = THEME.tokens
+        is_dark = THEME.is_dark
         self.clearContents()
         self.setRowCount(1 + len(models))
         self.setRowHeight(_HEADER_ROW, 30)
+
+        model_bg = _model_row_color(is_dark)
 
         # Row 0 — colour-coded group-name banner
         corner = self._ro("")
@@ -74,28 +96,38 @@ class MatrixWidget(QTableWidget):
             self.setSpan(_HEADER_ROW, b, 1, _COLS_PER_TYPE)
             it = self._ro(pt.name)
             it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            it.setBackground(qc(pt.accent_color, 0x35))
+            it.setBackground(qc(pt.accent_color, 0x45))
             it.setForeground(QColor(pt.accent_color))
             it.setFont(QFont("Segoe UI", 9, QFont.Weight.Bold))
             self.setItem(_HEADER_ROW, b, it)
+
+        # Pre-compute tint colors for each part type
+        type_tints = [_tint_color(pt.accent_color, is_dark) for pt in cat.part_types]
 
         # Model rows
         for ri, model in enumerate(models):
             r = ri + 1
             self.setRowHeight(r, 40)
+
+            # Model name cell — distinct color
             name_it = self._ro(f"  {model.name}")
             name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
             name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             name_it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
             name_it.setForeground(QColor(tk.t1))
+            name_it.setBackground(model_bg)
             self.setItem(r, 0, name_it)
 
             for ti, pt in enumerate(cat.part_types):
                 b    = _base(ti)
                 item = item_map.get((model.id, pt.key))
+                tint = type_tints[ti]
+
                 if not item:
                     for c in range(_COLS_PER_TYPE):
-                        self.setItem(r, b + c, self._ro("—"))
+                        cell = self._ro("—")
+                        cell.setBackground(tint)
+                        self.setItem(r, b + c, cell)
                     continue
 
                 min_stock = item.min_stock
@@ -114,6 +146,7 @@ class MatrixWidget(QTableWidget):
                 # Min-Stock (Stamm-Zahl)
                 st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
                 st.setForeground(QColor(tk.t2))
+                st.setBackground(tint)
                 st.setToolTip(t("disp_tip_stamm"))
                 self.setItem(r, b, st)
 
@@ -130,6 +163,7 @@ class MatrixWidget(QTableWidget):
                     bb_tip = t("disp_tip_bb_pos", n=best)
                 bb = self._cell(bb_txt, meta | {"field": "best_bung"})
                 bb.setForeground(QColor(bb_col))
+                bb.setBackground(tint)
                 bb.setToolTip(bb_tip)
                 self.setItem(r, b + 1, bb)
 
@@ -142,13 +176,15 @@ class MatrixWidget(QTableWidget):
                 else:
                     stk.setForeground(QColor(tk.green))
                 stk.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+                stk.setBackground(tint)
                 stk.setToolTip(t("disp_tip_stock"))
                 self.setItem(r, b + 2, stk)
 
-                # Inventur
+                # Order (was Inventur)
                 inv_txt = str(inventur) if inventur is not None else "—"
                 inv = self._cell(inv_txt, meta | {"field": "inventur"})
                 inv.setForeground(QColor(tk.t3))
+                inv.setBackground(tint)
                 inv.setToolTip(t("disp_tip_inv"))
                 self.setItem(r, b + 3, inv)
 
@@ -174,16 +210,6 @@ class MatrixWidget(QTableWidget):
         self.setHorizontalHeaderLabels(labels)
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-        self.setColumnWidth(0, _COL_W["model"])
-        for i in range(n_types):
-            b = _base(i)
-            self.setColumnWidth(b,     _COL_W["stamm"])
-            self.setColumnWidth(b + 1, _COL_W["bestbung"])
-            self.setColumnWidth(b + 2, _COL_W["stock"])
-            self.setColumnWidth(b + 3, _COL_W["inventur"])
-            # Set alternating row delegate for all data cells
-            for col in range(4):
-                self.setItemDelegateForColumn(col, AlternatingRowDelegate(self))
         self.setColumnWidth(0, _COL_W["model"])
         for i in range(n_types):
             b = _base(i)

@@ -3,17 +3,13 @@ app/ui/tabs/matrix_tab.py — Generic matrix inventory tab.
 
 One class drives every category tab: Displays, Batteries, Cases, Cameras,
 Charging Ports, Back Covers — whatever is active in the DB.
-
-Usage:
-    tab = MatrixTab("displays")
-    tab = MatrixTab("batteries")
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtCore import QSize
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QComboBox, QLabel,
-    QPushButton, QFrame, QDialog, QMessageBox,
+    QPushButton, QDialog, QMessageBox,
 )
 
 from app.models.category import CategoryConfig
@@ -43,58 +39,39 @@ class MatrixTab(BaseTab):
         self._cat: CategoryConfig | None = _cat_repo.get_by_key(category_key)
 
         lay = QVBoxLayout(self)
-        lay.setContentsMargins(0, 8, 0, 0)
-        lay.setSpacing(6)
+        lay.setContentsMargins(0, 4, 0, 0)
+        lay.setSpacing(4)
 
-        # ── Toolbar ───────────────────────────────────────────────────────────
+        # ── Compact toolbar ───────────────────────────────────────────────────
         tb = QHBoxLayout()
-        tb.setContentsMargins(6, 0, 6, 0)
-        tb.setSpacing(10)
+        tb.setContentsMargins(4, 0, 4, 0)
+        tb.setSpacing(8)
 
         self._brand_lbl = QLabel(t("disp_filter_brand"))
         self._brand_lbl.setObjectName("card_label")
 
         self._brand_combo = QComboBox()
-        self._brand_combo.setMinimumHeight(36)
-        self._brand_combo.setMinimumWidth(160)
+        self._brand_combo.setMinimumHeight(32)
+        self._brand_combo.setMinimumWidth(140)
         self._brand_combo.currentIndexChanged.connect(self.refresh)
-
-        self._caption = QLabel(t("disp_caption"))
-        self._caption.setObjectName("section_caption")
 
         self._add_btn = QPushButton(t("disp_add_model"))
         self._add_btn.setObjectName("btn_primary")
+        self._add_btn.setMaximumHeight(32)
         self._add_btn.clicked.connect(self._add_model)
 
         self._ref_btn = QPushButton(); self._ref_btn.setObjectName("btn_secondary")
         self._ref_btn.setIcon(get_button_icon("refresh"))
-        self._ref_btn.setIconSize(QSize(16, 16))
+        self._ref_btn.setIconSize(QSize(14, 14))
+        self._ref_btn.setMaximumHeight(32)
         self._ref_btn.clicked.connect(self.refresh)
 
         tb.addWidget(self._brand_lbl)
         tb.addWidget(self._brand_combo)
-        tb.addWidget(self._caption, 1)
-        tb.addWidget(self._add_btn)
-        tb.addWidget(self._ref_btn)
-        lay.addLayout(tb)
+        tb.addStretch()
 
-        # ── Legend: BB colours + part-type chips ──────────────────────────────
-        leg = QHBoxLayout()
-        leg.setContentsMargins(6, 0, 6, 4)
-        leg.setSpacing(18)
-        from app.core.theme import THEME as _T
-        _tk = _T.tokens
-        self._legend_items: list[tuple[QLabel, str, str]] = []  # (label, key, color)
-        for lbl_key, color in [
-            ("disp_legend_neg",  _tk.red),
-            ("disp_legend_zero", _tk.yellow),
-            ("disp_legend_pos",  _tk.green),
-        ]:
-            dot = QLabel(f"●  {t(lbl_key)}")
-            dot.setStyleSheet(f"color:{color}; font-size:8pt;")
-            leg.addWidget(dot)
-            self._legend_items.append((dot, lbl_key, color))
-        leg.addStretch()
+        # Compact legend — part type color chips
+        self._legend_chips: list[QLabel] = []
         if self._cat:
             for pt in self._cat.part_types:
                 rv = int(pt.accent_color[1:3], 16)
@@ -102,18 +79,17 @@ class MatrixTab(BaseTab):
                 bv = int(pt.accent_color[5:7], 16)
                 chip = QLabel(pt.name)
                 chip.setStyleSheet(
-                    f"color:{pt.accent_color}; font-size:8pt; font-weight:700; "
-                    f"background:rgba({rv},{gv},{bv},40); border-radius:4px; padding:1px 6px;"
+                    f"color:{pt.accent_color}; font-size:7pt; font-weight:700; "
+                    f"background:rgba({rv},{gv},{bv},35); border-radius:3px; padding:1px 5px;"
                 )
-                leg.addWidget(chip)
-        lay.addLayout(leg)
+                tb.addWidget(chip)
+                self._legend_chips.append(chip)
 
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.HLine)
-        sep.setStyleSheet("color:rgba(128,128,128,60);")
-        lay.addWidget(sep)
+        tb.addWidget(self._add_btn)
+        tb.addWidget(self._ref_btn)
+        lay.addLayout(tb)
 
-        # ── Matrix ────────────────────────────────────────────────────────────
+        # ── Matrix (takes maximum space) ──────────────────────────────────────
         self._table = MatrixWidget(refresh_cb=self.refresh, parent=self)
         lay.addWidget(self._table, 1)
 
@@ -172,13 +148,9 @@ class MatrixTab(BaseTab):
 
     def retranslate(self) -> None:
         self._brand_lbl.setText(t("disp_filter_brand"))
-        self._caption.setText(t("disp_caption"))
         self._add_btn.setText(t("disp_add_model"))
-        # Refresh button uses icon only - don't set text
         self._brand_combo.blockSignals(True)
         self._brand_combo.setItemText(0, t("disp_all_brands"))
         self._brand_combo.blockSignals(False)
-        for dot, lbl_key, color in self._legend_items:
-            dot.setText(f"●  {t(lbl_key)}")
         self._table.retranslate()
         self.refresh()

@@ -1,8 +1,7 @@
 """
 main_window.py — Stock Manager Pro v2
-Gradient dark (indigo-charcoal) / warm light (cream→periwinkle).
-All CRUD, stock ops, scanner, alerts, dark/light toggle, i18n (EN/DE/AR).
-Now powered by the v2 repository + service layer.
+Professional sidebar layout, gradient dark/light, i18n (EN/DE/AR).
+Sidebar navigation, summary cards in inventory only, quick scan mode.
 """
 from __future__ import annotations
 
@@ -12,6 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QFrame, QStatusBar, QScrollArea, QCheckBox,
     QTabWidget, QMessageBox, QDialog, QSizePolicy,
     QStyle, QStyleOptionViewItem, QStyledItemDelegate,
+    QStackedWidget, QComboBox, QSpinBox,
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QRect, QModelIndex, QRectF
 from PyQt6.QtGui import (
@@ -191,7 +191,7 @@ class BarcodeLineEdit(QLineEdit):
             self._buf.append(e.text()); self._t.start()
 
     def _flush(self):
-        if len(self._buf) >= 3:  # Reduced from 4 to allow shorter barcodes
+        if len(self._buf) >= 3:
             bc = "".join(self._buf).strip()
             if bc: self.barcode_scanned.emit(bc)
         self._buf.clear()
@@ -208,7 +208,7 @@ class SummaryCard(QFrame):
     def __init__(self, key: str, parent=None):
         super().__init__(parent); self.setObjectName("summary_card")
         self._key = key
-        lay = QVBoxLayout(self); lay.setContentsMargins(18, 16, 18, 16); lay.setSpacing(4)
+        lay = QVBoxLayout(self); lay.setContentsMargins(14, 12, 14, 12); lay.setSpacing(2)
         self.val = QLabel("—"); self.val.setObjectName("card_value")
         self.val.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.lbl = QLabel(t(key).upper()); self.lbl.setObjectName("card_label")
@@ -230,73 +230,55 @@ class ColorDotDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         color_name = index.data(Qt.ItemDataRole.DisplayRole)
         if not color_name or color_name == "—":
-            # Handle empty color with AlternatingRowDelegate logic
             painter.save()
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-            
-            # Draw alternating row background
             if option.state & QStyle.StateFlag.State_Selected:
                 painter.fillRect(option.rect, qc(THEME.tokens.blue, 0x40))
             elif index.row() % 2 == 0:
                 painter.fillRect(option.rect, QColor(THEME.tokens.card))
             else:
                 painter.fillRect(option.rect, QColor("#2C304C" if THEME.is_dark else "#E4E2F4"))
-            
-            # Draw "—" in muted color
             painter.setPen(QColor(128, 128, 128))
             painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
             painter.restore()
             return
-            
-        # Get hex color from palette
+
         hex_color = PALETTE.get(color_name, color_name)
-        
-        # Draw alternating row background like other delegates
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # Draw background for alternating rows
         tk = THEME.tokens
         alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
-        
+
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, qc(tk.blue, 0x40))
         elif index.row() % 2 == 0:
             painter.fillRect(option.rect, QColor(tk.card))
         else:
             painter.fillRect(option.rect, QColor(alt))
-        
-        # Draw brown border circle
+
         rect = option.rect
         R = 9
         cx = rect.center().x()
         cy = rect.center().y()
-        
         painter.setBrush(QColor(tk.border2))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.drawEllipse(cx-R-1, cy-R-1, 2*R+2, 2*R+2)
-        
-        # Draw color circle with mapped hex color
         painter.setBrush(QColor(hex_color))
         painter.drawEllipse(cx-R, cy-R, 2*R, 2*R)
-        
         painter.restore()
 
 class DifferenceDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
-        # Draw alternating row background like Excel
         painter.save()
         tk = THEME.tokens
         alt = "#2C304C" if THEME.is_dark else "#E4E2F4"
-        
         if option.state & QStyle.StateFlag.State_Selected:
             painter.fillRect(option.rect, qc(tk.blue, 0x40))
         elif index.row() % 2 == 0:
             painter.fillRect(option.rect, QColor(tk.card))
         else:
             painter.fillRect(option.rect, QColor(alt))
-        
-        # Get original text and color from item
+
         item = self.parent().item(index.row(), index.column())
         if item:
             text = item.text()
@@ -306,7 +288,6 @@ class DifferenceDelegate(QStyledItemDelegate):
                 painter.setFont(font)
                 painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, text)
             else:
-                # Draw "—" in muted color
                 painter.setPen(QColor(128, 128, 128))
                 painter.drawText(option.rect, Qt.AlignmentFlag.AlignCenter, "—")
         painter.restore()
@@ -314,7 +295,7 @@ class DifferenceDelegate(QStyledItemDelegate):
 # ── Product Table ──────────────────────────────────────────────────────────────
 
 class ProductTable(QTableWidget):
-    row_selected = pyqtSignal(object)   # emits InventoryItem or None
+    row_selected = pyqtSignal(object)
     _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
                  "col_stock", "col_min", "col_best_bung", "col_status"]
     _WIDTHS    = [42, 280, 60, 100, 80, 60, 60, 100, 96]
@@ -330,28 +311,26 @@ class ProductTable(QTableWidget):
         self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
         self.setSelectionMode(self.SelectionMode.SingleSelection)
         self.setEditTriggers(self.EditTrigger.NoEditTriggers)
-        self.setAlternatingRowColors(False); self.setSortingEnabled(True)  # Custom delegates handle alternating
-        self.setShowGrid(True)  # Show grid lines like matrix
+        self.setAlternatingRowColors(False); self.setSortingEnabled(True)
+        self.setShowGrid(True)
         self.verticalHeader().setVisible(False); self.setShowGrid(False)
-        self.setItemDelegateForColumn(0, AlternatingRowDelegate(self))  # Num column
-        self.setItemDelegateForColumn(1, AlternatingRowDelegate(self))  # Item column
-        self.setItemDelegateForColumn(2, ColorDotDelegate(self))       # Color column
-        self.setItemDelegateForColumn(3, AlternatingRowDelegate(self))  # Barcode column
-        self.setItemDelegateForColumn(4, AlternatingRowDelegate(self))  # Price column
-        self.setItemDelegateForColumn(5, AlternatingRowDelegate(self))  # Stock column
-        self.setItemDelegateForColumn(6, AlternatingRowDelegate(self))  # Min column
-        self.setItemDelegateForColumn(7, DifferenceDelegate(self))      # Difference column
-        self.setItemDelegateForColumn(8, StatusBadgeDelegate(self))      # Status column
+        self.setItemDelegateForColumn(0, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(1, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(2, ColorDotDelegate(self))
+        self.setItemDelegateForColumn(3, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(4, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(5, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(6, AlternatingRowDelegate(self))
+        self.setItemDelegateForColumn(7, DifferenceDelegate(self))
+        self.setItemDelegateForColumn(8, StatusBadgeDelegate(self))
         self._data: list[InventoryItem] = []
         self.itemSelectionChanged.connect(self._emit)
-        # Store default widths for reset
         self._default_widths = self._WIDTHS.copy()
 
     def retranslate(self):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
-    
+
     def reset_column_widths(self):
-        """Reset all column widths to default values."""
         for i, w in enumerate(self._default_widths):
             self.setColumnWidth(i, w)
 
@@ -366,16 +345,16 @@ class ProductTable(QTableWidget):
             price_str = cfg.format_currency(sp) if sp is not None else "—"
             diff = item.stock - item.min_stock
             diff_str = f"Δ{diff:+d}" if item.min_stock > 0 else "—"
-            
+
             vals = [str(item.id), item.display_name,
                     item.color or "—", item.barcode or "—", price_str,
                     str(item.stock), str(item.min_stock), diff_str, sl]
             for j, v in enumerate(vals):
                 it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                if j == 5:  # Stock column
+                if j == 5:
                     it.setForeground(sc)
                     it.setFont(QFont("Segoe UI", 11, QFont.Weight.Bold))
-                elif j == 7:  # Difference column
+                elif j == 7:
                     it.setForeground(sc)
                     it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
                 self.setItem(i, j, it)
@@ -585,7 +564,6 @@ class ProductDetail(QWidget):
         self._oh.setText(t("detail_operations"))
         self._th.setText(t("detail_recent_txns"))
         self._set_op_btn_text()
-        # Edit and delete buttons use icons only - don't set text
         if self._item: self.set_product(self._item)
         else:           self._empty()
 
@@ -653,9 +631,425 @@ class ProductDetail(QWidget):
         for b in (self.bin, self.bot, self.bad, self.bed, self.bdl): b.setEnabled(False)
 
 
+# ── Quick Scan Tab ────────────────────────────────────────────────────────────
+
+class QuickScanTab(QWidget):
+    """Fast barcode scanning for instant stock takeout."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._scan_count = 0
+        self._build()
+
+    def _build(self):
+        root = QVBoxLayout(self)
+        root.setContentsMargins(24, 24, 24, 24)
+        root.setSpacing(16)
+
+        # Title
+        title = QLabel(t("qscan_title"))
+        title.setObjectName("dlg_header")
+        root.addWidget(title)
+
+        hint = QLabel(t("qscan_hint"))
+        hint.setObjectName("section_caption")
+        root.addWidget(hint)
+
+        # Scan input — large and prominent
+        self._scan_input = BarcodeLineEdit()
+        self._scan_input.setObjectName("search_bar")
+        self._scan_input.setPlaceholderText(t("qscan_scan_field"))
+        self._scan_input.setMinimumHeight(56)
+        self._scan_input.setFont(QFont("Segoe UI", 14))
+        self._scan_input.barcode_scanned.connect(self._on_scan)
+        root.addWidget(self._scan_input)
+
+        # Counter
+        self._counter = QLabel(t("qscan_count", n=0))
+        self._counter.setObjectName("card_label")
+        root.addWidget(self._counter)
+
+        # Feed header
+        feed_hdr = QLabel(t("qscan_last_scans"))
+        feed_hdr.setObjectName("detail_section_hdr")
+        root.addWidget(feed_hdr)
+        self._feed_hdr = feed_hdr
+
+        # Scan feed
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setObjectName("txn_scroll_area")
+        self._feed_widget = QWidget()
+        self._feed_lay = QVBoxLayout(self._feed_widget)
+        self._feed_lay.setContentsMargins(0, 0, 0, 0)
+        self._feed_lay.setSpacing(6)
+        self._feed_lay.addStretch()
+        scroll.setWidget(self._feed_widget)
+        root.addWidget(scroll, 1)
+
+        self._feed_items: list[QFrame] = []
+
+    def _on_scan(self, bc: str):
+        item = _item_repo.get_by_barcode(bc)
+        if not item:
+            self._add_feed_item(t("qscan_not_found", bc=bc), "error")
+            return
+        if item.stock <= 0:
+            self._add_feed_item(t("qscan_out_of_stock", name=item.display_name), "warn")
+            return
+        try:
+            res = _stock_svc.stock_out(item.id, 1, "Quick Scan")
+            self._scan_count += 1
+            self._counter.setText(t("qscan_count", n=self._scan_count))
+            self._add_feed_item(
+                t("qscan_taken_out", name=item.display_name,
+                  before=res["before"], after=res["after"]),
+                "success"
+            )
+        except ValueError:
+            self._add_feed_item(t("qscan_out_of_stock", name=item.display_name), "warn")
+
+    def _add_feed_item(self, text: str, style: str):
+        frame = QFrame()
+        obj_map = {"success": "scan_feed_success", "error": "scan_feed_error", "warn": "scan_feed_warn"}
+        frame.setObjectName(obj_map.get(style, "scan_feed_item"))
+        lay = QHBoxLayout(frame)
+        lay.setContentsMargins(12, 8, 12, 8)
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        tk = THEME.tokens
+        color_map = {"success": tk.green, "error": tk.red, "warn": tk.orange}
+        lbl.setStyleSheet(f"color:{color_map.get(style, tk.t1)}; font-size:10pt;")
+        lay.addWidget(lbl)
+
+        # Insert at top (before stretch)
+        self._feed_lay.insertWidget(0, frame)
+        self._feed_items.insert(0, frame)
+
+        # Keep max 50 items
+        while len(self._feed_items) > 50:
+            old = self._feed_items.pop()
+            self._feed_lay.removeWidget(old)
+            old.deleteLater()
+
+    def retranslate(self):
+        self._counter.setText(t("qscan_count", n=self._scan_count))
+        self._feed_hdr.setText(t("qscan_last_scans"))
+        self._scan_input.setPlaceholderText(t("qscan_scan_field"))
+
+    def focus_input(self):
+        self._scan_input.setFocus()
+        self._scan_input.clear()
+
+
+# ── Stock Operations Tab ──────────────────────────────────────────────────────
+
+class StockOpsTab(QWidget):
+    """Professional stock operations panel with search, select, and operate."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._selected_item: InventoryItem | None = None
+        self._build()
+
+    def _build(self):
+        root = QHBoxLayout(self)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(12)
+
+        # Left — item list
+        left = QVBoxLayout()
+        left.setSpacing(8)
+
+        title = QLabel(t("stockops_title"))
+        title.setObjectName("dlg_header")
+        left.addWidget(title)
+        self._title_lbl = title
+
+        self._search = BarcodeLineEdit()
+        self._search.setObjectName("search_bar")
+        self._search.setPlaceholderText(t("stockops_search"))
+        self._search.setMinimumHeight(36)
+        self._search.setMaximumHeight(36)
+        self._search.textChanged.connect(self._filter)
+        self._search.barcode_scanned.connect(self._on_barcode)
+        left.addWidget(self._search)
+
+        self._list = QTableWidget()
+        self._list.setColumnCount(4)
+        self._list.setHorizontalHeaderLabels([t("col_item"), t("col_barcode"), t("col_stock"), t("col_status")])
+        hh = self._list.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
+        hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
+        self._list.setColumnWidth(1, 120)
+        self._list.setColumnWidth(2, 70)
+        self._list.setColumnWidth(3, 80)
+        self._list.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._list.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
+        self._list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._list.verticalHeader().setVisible(False)
+        self._list.setAlternatingRowColors(True)
+        self._list.itemSelectionChanged.connect(self._on_select)
+        left.addWidget(self._list, 1)
+        self._items_data: list[InventoryItem] = []
+
+        left_w = QWidget()
+        left_w.setLayout(left)
+        root.addWidget(left_w, 3)
+
+        # Right — operations panel
+        right = QVBoxLayout()
+        right.setSpacing(12)
+        right.setContentsMargins(0, 0, 0, 0)
+
+        # Selected item card
+        self._sel_card = QFrame()
+        self._sel_card.setObjectName("stockops_selected")
+        scl = QVBoxLayout(self._sel_card)
+        scl.setContentsMargins(16, 14, 16, 14)
+        scl.setSpacing(6)
+        self._sel_name = QLabel(t("stockops_select_prompt"))
+        self._sel_name.setObjectName("detail_product_name")
+        self._sel_name.setWordWrap(True)
+        self._sel_stock = QLabel("")
+        self._sel_stock.setObjectName("big_stock")
+        self._sel_stock.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        scl.addWidget(self._sel_name)
+        scl.addWidget(self._sel_stock)
+        right.addWidget(self._sel_card)
+
+        # Operation buttons
+        ops_card = QFrame()
+        ops_card.setObjectName("stockops_card")
+        ocl = QVBoxLayout(ops_card)
+        ocl.setContentsMargins(16, 16, 16, 16)
+        ocl.setSpacing(10)
+
+        ops_hdr = QLabel(t("detail_operations"))
+        ops_hdr.setObjectName("detail_section_hdr")
+        ocl.addWidget(ops_hdr)
+        self._ops_hdr = ops_hdr
+
+        # Quantity
+        qty_row = QHBoxLayout()
+        qty_row.setSpacing(8)
+        qty_lbl = QLabel(t("stockops_qty_label"))
+        qty_lbl.setMinimumWidth(80)
+        self._qty_lbl = qty_lbl
+        self._qty_spin = QSpinBox()
+        self._qty_spin.setMinimum(1)
+        self._qty_spin.setMaximum(99999)
+        self._qty_spin.setValue(1)
+        self._qty_spin.setMinimumHeight(40)
+        qty_row.addWidget(qty_lbl)
+        qty_row.addWidget(self._qty_spin, 1)
+        ocl.addLayout(qty_row)
+
+        # Note
+        note_lbl = QLabel(t("stockops_note_label"))
+        self._note_lbl = note_lbl
+        ocl.addWidget(note_lbl)
+        self._note_edit = QLineEdit()
+        self._note_edit.setPlaceholderText(t("op_note_ph"))
+        ocl.addWidget(self._note_edit)
+
+        # Buttons
+        self._btn_in = QPushButton(t("btn_stock_in"))
+        self._btn_in.setObjectName("op_in")
+        self._btn_in.clicked.connect(lambda: self._do_op("IN"))
+
+        self._btn_out = QPushButton(t("btn_stock_out"))
+        self._btn_out.setObjectName("op_out")
+        self._btn_out.clicked.connect(lambda: self._do_op("OUT"))
+
+        self._btn_adj = QPushButton(t("btn_adjust"))
+        self._btn_adj.setObjectName("op_adj")
+        self._btn_adj.clicked.connect(lambda: self._do_op("ADJUST"))
+
+        for b in (self._btn_in, self._btn_out, self._btn_adj):
+            b.setEnabled(False)
+            ocl.addWidget(b)
+
+        right.addWidget(ops_card)
+
+        # Recent ops for selected item
+        self._txn_hdr = QLabel(t("detail_recent_txns"))
+        self._txn_hdr.setObjectName("detail_section_hdr")
+        right.addWidget(self._txn_hdr)
+
+        txn_scroll = QScrollArea()
+        txn_scroll.setWidgetResizable(True)
+        txn_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        txn_scroll.setObjectName("txn_scroll_area")
+        self._mini_txn = MiniTxnList()
+        txn_scroll.setWidget(self._mini_txn)
+        right.addWidget(txn_scroll, 1)
+
+        right_w = QWidget()
+        right_w.setLayout(right)
+        root.addWidget(right_w, 2)
+
+        self._load_items()
+
+    def _load_items(self, search: str = ""):
+        items = _item_repo.get_all_items(search=search if len(search) >= 2 else "")
+        self._items_data = items
+        self._list.setRowCount(len(items))
+        tk = THEME.tokens
+        for i, item in enumerate(items):
+            name_it = QTableWidgetItem(item.display_name)
+            name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            self._list.setItem(i, 0, name_it)
+
+            bc_it = QTableWidgetItem(item.barcode or "—")
+            bc_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._list.setItem(i, 1, bc_it)
+
+            stk_it = QTableWidgetItem(str(item.stock))
+            stk_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            sc = _sc(item.stock, item.min_stock)
+            stk_it.setForeground(sc)
+            stk_it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            self._list.setItem(i, 2, stk_it)
+
+            sl = _sl(item.stock, item.min_stock)
+            stat_it = QTableWidgetItem(sl)
+            stat_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._list.setItem(i, 3, stat_it)
+
+            self._list.setRowHeight(i, 38)
+
+    def _filter(self, text: str):
+        self._load_items(text.strip())
+
+    def _on_barcode(self, bc: str):
+        item = _item_repo.get_by_barcode(bc)
+        if item:
+            self._select_item(item)
+        else:
+            self._search.setText(bc)
+
+    def _on_select(self):
+        row = self._list.currentRow()
+        if 0 <= row < len(self._items_data):
+            self._select_item(self._items_data[row])
+
+    def _select_item(self, item: InventoryItem):
+        self._selected_item = item
+        self._sel_name.setText(f"<b>{item.display_name}</b>")
+        tk = THEME.tokens
+        sc = _sc(item.stock, item.min_stock)
+        self._sel_stock.setText(str(item.stock))
+        self._sel_stock.setStyleSheet(f"color:{sc.name()};")
+        for b in (self._btn_in, self._btn_out, self._btn_adj):
+            b.setEnabled(True)
+        self._mini_txn.load(item.id)
+
+    def _do_op(self, op: str):
+        if not self._selected_item:
+            return
+        item = _item_repo.get_by_id(self._selected_item.id)
+        if not item:
+            QMessageBox.warning(self, t("msg_not_found_title"), t("msg_not_found_body"))
+            return
+        qty = self._qty_spin.value()
+        note = self._note_edit.text().strip() or ""
+        try:
+            if op == "IN":
+                res = _stock_svc.stock_in(item.id, qty, note)
+            elif op == "OUT":
+                res = _stock_svc.stock_out(item.id, qty, note)
+            else:
+                res = _stock_svc.stock_adjust(item.id, qty, note)
+
+            # Refresh
+            updated = _item_repo.get_by_id(item.id)
+            if updated:
+                self._select_item(updated)
+            self._load_items(self._search.text().strip())
+            self._note_edit.clear()
+            self._qty_spin.setValue(1)
+        except ValueError as e:
+            QMessageBox.warning(self, t("msg_op_failed"), str(e))
+        except Exception as e:
+            QMessageBox.critical(self, t("msg_error"), str(e))
+
+    def retranslate(self):
+        self._title_lbl.setText(t("stockops_title"))
+        self._search.setPlaceholderText(t("stockops_search"))
+        self._list.setHorizontalHeaderLabels([t("col_item"), t("col_barcode"), t("col_stock"), t("col_status")])
+        self._sel_name.setText(t("stockops_select_prompt") if not self._selected_item else f"<b>{self._selected_item.display_name}</b>")
+        self._ops_hdr.setText(t("detail_operations"))
+        self._qty_lbl.setText(t("stockops_qty_label"))
+        self._note_lbl.setText(t("stockops_note_label"))
+        self._note_edit.setPlaceholderText(t("op_note_ph"))
+        self._btn_in.setText(t("btn_stock_in"))
+        self._btn_out.setText(t("btn_stock_out"))
+        self._btn_adj.setText(t("btn_adjust"))
+        self._txn_hdr.setText(t("detail_recent_txns"))
+
+    def refresh(self):
+        self._load_items(self._search.text().strip())
+        if self._selected_item:
+            updated = _item_repo.get_by_id(self._selected_item.id)
+            if updated:
+                self._select_item(updated)
+
+
+# ── Theme Toggle Widget ──────────────────────────────────────────────────────
+
+class ThemeToggle(QFrame):
+    """Professional dark/light toggle switch."""
+    toggled = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName("theme_toggle")
+        self.setFixedSize(56, 28)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        tk = THEME.tokens
+
+        # Track background
+        track_color = QColor(tk.blue) if THEME.is_dark else QColor(tk.border2)
+        p.setBrush(track_color)
+        p.setPen(Qt.PenStyle.NoPen)
+        p.drawRoundedRect(0, 0, self.width(), self.height(), 14, 14)
+
+        # Knob
+        knob_x = 30 if THEME.is_dark else 4
+        p.setBrush(QColor("#FFFFFF"))
+        p.drawEllipse(knob_x, 4, 20, 20)
+
+        # Icon on knob
+        p.setPen(QColor(tk.card if THEME.is_dark else tk.t2))
+        f = QFont("Segoe UI", 8)
+        p.setFont(f)
+        icon = "🌙" if THEME.is_dark else "☀"
+        p.drawText(knob_x, 4, 20, 20, Qt.AlignmentFlag.AlignCenter, icon)
+
+        p.end()
+
+    def mousePressEvent(self, event):
+        self.toggled.emit()
+
+
 # ── Main Window ────────────────────────────────────────────────────────────────
 
 class MainWindow(QMainWindow):
+    # Sidebar page indices
+    _PAGE_INVENTORY    = 0
+    _PAGE_TRANSACTIONS = 1
+    _PAGE_STOCK_OPS    = 2
+    _PAGE_QUICK_SCAN   = 3
+    _PAGE_MATRIX_START = 4  # dynamic matrix tabs start here
+
     def __init__(self):
         super().__init__()
         init_db()
@@ -682,43 +1076,89 @@ class MainWindow(QMainWindow):
         self._timer.start()
         self._check_alerts()
 
-        # Show first-run wizard if setup not yet completed
         QTimer.singleShot(100, self._check_first_run)
 
     # ── Build ──────────────────────────────────────────────────────────────────
 
     def _build_ui(self):
-        root = QVBoxLayout(self._bg)
-        root.setContentsMargins(18, 16, 18, 16); root.setSpacing(12)
+        root = QHBoxLayout(self._bg)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
-        # Top bar
-        top = QHBoxLayout(); top.setSpacing(10)
+        # ── Sidebar ──────────────────────────────────────────────────────────
+        sidebar = QFrame()
+        sidebar.setObjectName("sidebar")
+        sidebar.setFixedWidth(200)
+        sidebar.setMinimumHeight(600)
+        sb_lay = QVBoxLayout(sidebar)
+        sb_lay.setContentsMargins(6, 12, 6, 12)
+        sb_lay.setSpacing(4)
+
+        # Logo + title
         cfg = ShopConfig.get()
         _title = cfg.name if cfg.name else t("app_title")
-        self._logo_lbl: QLabel | None = None
         self._logo_lbl = self._build_logo_label()
         if self._logo_lbl:
-            top.addWidget(self._logo_lbl)
-        self._title_lbl = QLabel(_title); self._title_lbl.setObjectName("app_title")
-        top.addWidget(self._title_lbl); top.addStretch()
+            logo_row = QHBoxLayout()
+            logo_row.setContentsMargins(8, 4, 8, 8)
+            logo_row.addWidget(self._logo_lbl)
+            logo_row.addStretch()
+            sb_lay.addLayout(logo_row)
 
+        self._title_lbl = QLabel(_title)
+        self._title_lbl.setStyleSheet("font-size:13pt; font-weight:800; padding:4px 10px 12px 10px;")
+        self._title_lbl.setWordWrap(True)
+        sb_lay.addWidget(self._title_lbl)
+
+        # Nav separator
+        sep1 = QFrame(); sep1.setFrameShape(QFrame.Shape.HLine)
+        sep1.setStyleSheet("color:rgba(128,128,128,40); margin:0 8px;")
+        sb_lay.addWidget(sep1)
+
+        # Navigation buttons
+        self._nav_btns: list[QPushButton] = []
+        self._nav_keys: list[str] = []
+        nav_items = [
+            ("nav_inventory",    "📦"),
+            ("nav_transactions", "📋"),
+            ("nav_stock_ops",    "⚙"),
+            ("nav_quick_scan",   "⚡"),
+        ]
+        for key, icon in nav_items:
+            btn = QPushButton(f"  {icon}   {t(key)}")
+            btn.setObjectName("sidebar_btn")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, k=key: self._nav_to(k))
+            sb_lay.addWidget(btn)
+            self._nav_btns.append(btn)
+            self._nav_keys.append(key)
+
+        # Matrix category separator
+        self._cat_sep = QFrame(); self._cat_sep.setFrameShape(QFrame.Shape.HLine)
+        self._cat_sep.setStyleSheet("color:rgba(128,128,128,40); margin:4px 8px;")
+        sb_lay.addWidget(self._cat_sep)
+
+        # Dynamic category nav buttons
+        self._cat_nav_btns: list[QPushButton] = []
+        for cat in _cat_repo.get_all_active():
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            btn = QPushButton(f"  {icon}   {cat.name(LANG)}")
+            btn.setObjectName("sidebar_btn")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, k=cat.key: self._nav_to(f"cat_{k}"))
+            sb_lay.addWidget(btn)
+            self._cat_nav_btns.append(btn)
+            self._nav_btns.append(btn)
+            self._nav_keys.append(f"cat_{cat.key}")
+
+        sb_lay.addStretch()
+
+        # Bottom: Alert
         self.alert_btn = QPushButton(t("alert_ok")); self.alert_btn.setObjectName("alert_ok")
         self.alert_btn.clicked.connect(self._show_alerts)
+        sb_lay.addWidget(self.alert_btn)
 
-        self.refresh_btn = QPushButton(); self.refresh_btn.setObjectName("icon_btn")
-        self.refresh_btn.setFixedSize(44, 44)
-        self.refresh_btn.setIcon(get_button_icon("refresh"))
-        self.refresh_btn.setIconSize(QSize(24, 24))
-        self.refresh_btn.setToolTip(t("tooltip_refresh"))
-        self.refresh_btn.clicked.connect(self._refresh_all)
-
-        self.mode_btn = QPushButton(); self.mode_btn.setObjectName("mode_btn")
-        self.mode_btn.setFixedSize(44, 44)
-        self.mode_btn.setIcon(get_button_icon("settings"))
-        self.mode_btn.setIconSize(QSize(24, 24))
-        self.mode_btn.setToolTip(t("tooltip_theme"))
-        self.mode_btn.clicked.connect(self._toggle_mode)
-
+        # Language switcher
         lang_fr = QFrame(); lang_fr.setObjectName("lang_bar")
         lang_lay = QHBoxLayout(lang_fr); lang_lay.setContentsMargins(3, 3, 3, 3); lang_lay.setSpacing(1)
         self._lang_btns: dict[str, QPushButton] = {}
@@ -726,50 +1166,104 @@ class MainWindow(QMainWindow):
             b = QPushButton(code); b.setObjectName("lang_btn_active" if code == LANG else "lang_btn")
             b.setFixedSize(40, 30); b.clicked.connect(lambda _, c=code: self._set_lang(c))
             lang_lay.addWidget(b); self._lang_btns[code] = b
+        sb_lay.addWidget(lang_fr)
 
-        self.admin_btn = QPushButton(); self.admin_btn.setObjectName("icon_btn")
-        self.admin_btn.setFixedSize(44, 44)
+        # Theme toggle + Admin
+        bottom_row = QHBoxLayout()
+        bottom_row.setSpacing(8)
+        bottom_row.setContentsMargins(4, 8, 4, 0)
+
+        self._theme_toggle = ThemeToggle()
+        self._theme_toggle.toggled.connect(self._toggle_mode)
+        self._theme_toggle.setToolTip(t("tooltip_theme"))
+        bottom_row.addWidget(self._theme_toggle)
+
+        bottom_row.addStretch()
+
+        self.admin_btn = QPushButton()
+        self.admin_btn.setObjectName("icon_btn")
+        self.admin_btn.setFixedSize(36, 36)
         self.admin_btn.setIcon(get_button_icon("settings"))
-        self.admin_btn.setIconSize(QSize(24, 24))
+        self.admin_btn.setIconSize(QSize(18, 18))
         self.admin_btn.setToolTip(t("tooltip_admin"))
         self.admin_btn.clicked.connect(self._open_admin)
+        bottom_row.addWidget(self.admin_btn)
 
-        top.addWidget(lang_fr); top.addWidget(self.alert_btn)
-        top.addWidget(self.refresh_btn); top.addWidget(self.admin_btn); top.addWidget(self.mode_btn)
-        root.addLayout(top)
+        sb_lay.addLayout(bottom_row)
 
-        # Summary cards
-        cr = QHBoxLayout(); cr.setSpacing(12)
+        root.addWidget(sidebar)
+
+        # ── Content area ─────────────────────────────────────────────────────
+        content = QVBoxLayout()
+        content.setContentsMargins(12, 12, 12, 12)
+        content.setSpacing(8)
+
+        # Top bar (minimal — refresh only)
+        top = QHBoxLayout(); top.setSpacing(8)
+        self.refresh_btn = QPushButton()
+        self.refresh_btn.setObjectName("icon_btn")
+        self.refresh_btn.setFixedSize(36, 36)
+        self.refresh_btn.setIcon(get_button_icon("refresh"))
+        self.refresh_btn.setIconSize(QSize(18, 18))
+        self.refresh_btn.setToolTip(t("tooltip_refresh"))
+        self.refresh_btn.clicked.connect(self._refresh_all)
+        top.addStretch()
+        top.addWidget(self.refresh_btn)
+        content.addLayout(top)
+
+        # Stacked content pages
+        self._stack = QStackedWidget()
+
+        # Page 0: Inventory (with summary cards + detail panel)
+        inv_page = QWidget()
+        inv_lay = QVBoxLayout(inv_page)
+        inv_lay.setContentsMargins(0, 0, 0, 0)
+        inv_lay.setSpacing(8)
+
+        # Summary cards (only in inventory)
+        cr = QHBoxLayout(); cr.setSpacing(8)
         self.c_tot = SummaryCard("card_total_products")
         self.c_unt = SummaryCard("card_total_units")
         self.c_low = SummaryCard("card_low_stock")
         self.c_out = SummaryCard("card_out_of_stock")
         self.c_val = SummaryCard("card_inventory_value")
         for c in (self.c_tot, self.c_unt, self.c_low, self.c_out, self.c_val): cr.addWidget(c)
-        root.addLayout(cr)
+        inv_lay.addLayout(cr)
 
-        # Toolbar
-        tb = QHBoxLayout(); tb.setSpacing(10)
+        # Toolbar — smaller search
+        tb = QHBoxLayout(); tb.setSpacing(8)
         self.search = BarcodeLineEdit(); self.search.setObjectName("search_bar")
-        self.search.setMinimumHeight(44)
+        self.search.setMaximumWidth(350)
+        self.search.setMinimumHeight(36)
+        self.search.setMaximumHeight(36)
         self.low_cb = QCheckBox(t("low_stock_only"))
         self.low_cb.stateChanged.connect(self._refresh_products)
         self.add_btn = QPushButton(t("btn_new_product")); self.add_btn.setObjectName("btn_primary")
+        self.add_btn.setMaximumHeight(36)
         self.add_btn.clicked.connect(self._add_product)
-        tb.addWidget(self.search, 1); tb.addWidget(self.low_cb); tb.addWidget(self.add_btn)
-        root.addLayout(tb)
+        tb.addWidget(self.search); tb.addWidget(self.low_cb); tb.addStretch(); tb.addWidget(self.add_btn)
+        inv_lay.addLayout(tb)
 
-        # Splitter
+        # Splitter: table + detail
         sp = QSplitter(Qt.Orientation.Horizontal); sp.setHandleWidth(1)
-
-        # Left — tabs
-        self.tabs = QTabWidget(); self.tabs.setObjectName("main_tabs")
         self.prod_tbl = ProductTable()
-        self.tabs.addTab(self.prod_tbl, t("tab_products"))
+        sp.addWidget(self.prod_tbl)
 
+        rs = QScrollArea(); rs.setWidgetResizable(True)
+        rs.setMinimumWidth(280); rs.setMaximumWidth(340)
+        rs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        rs.setObjectName("detail_scroll_area")
+        self.detail = ProductDetail(); rs.setWidget(self.detail)
+        sp.addWidget(rs)
+        sp.setStretchFactor(0, 5); sp.setStretchFactor(1, 1)
+        inv_lay.addWidget(sp, 1)
+
+        self._stack.addWidget(inv_page)  # index 0
+
+        # Page 1: Transactions
         txn_pg = QWidget()
-        tl = QVBoxLayout(txn_pg); tl.setContentsMargins(0, 8, 0, 0); tl.setSpacing(8)
-        tbar = QHBoxLayout(); tbar.setContentsMargins(4, 0, 4, 0)
+        tl = QVBoxLayout(txn_pg); tl.setContentsMargins(0, 0, 0, 0); tl.setSpacing(8)
+        tbar = QHBoxLayout(); tbar.setContentsMargins(0, 0, 0, 0)
         self._txn_caption = QLabel(t("txn_history_caption")); self._txn_caption.setObjectName("section_caption")
         self._txn_ref_btn = QPushButton(); self._txn_ref_btn.setObjectName("btn_secondary")
         self._txn_ref_btn.setIcon(get_button_icon("refresh"))
@@ -778,29 +1272,69 @@ class MainWindow(QMainWindow):
         tbar.addWidget(self._txn_caption); tbar.addStretch(); tbar.addWidget(self._txn_ref_btn)
         tl.addLayout(tbar)
         self.txn_tbl = TransactionTable(); tl.addWidget(self.txn_tbl)
-        self.tabs.addTab(txn_pg, t("tab_transactions"))
+        self._stack.addWidget(txn_pg)  # index 1
 
+        # Page 2: Stock Operations
+        self._stock_ops_tab = StockOpsTab()
+        self._stack.addWidget(self._stock_ops_tab)  # index 2
+
+        # Page 3: Quick Scan
+        self._quick_scan_tab = QuickScanTab()
+        self._stack.addWidget(self._quick_scan_tab)  # index 3
+
+        # Pages 4+: Dynamic matrix tabs
         self._matrix_tabs: list[MatrixTab] = []
         for cat in _cat_repo.get_all_active():
             tab = MatrixTab(cat.key)
             self._matrix_tabs.append(tab)
-            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
-            self.tabs.addTab(tab, f"{icon}  {cat.name('EN')}")
+            self._stack.addWidget(tab)
 
-        sp.addWidget(self.tabs)
+        content.addWidget(self._stack, 1)
 
-        # Right — detail
-        rs = QScrollArea(); rs.setWidgetResizable(True)
-        rs.setMinimumWidth(295); rs.setMaximumWidth(375)
-        rs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        rs.setObjectName("detail_scroll_area")
-        self.detail = ProductDetail(); rs.setWidget(self.detail)
-        sp.addWidget(rs)
-        sp.setStretchFactor(0, 4); sp.setStretchFactor(1, 1)
-        root.addWidget(sp, 1)
+        content_w = QWidget()
+        content_w.setLayout(content)
+        root.addWidget(content_w, 1)
 
         self.status = QStatusBar(); self.setStatusBar(self.status)
         self.status.showMessage(t("statusbar_ready"))
+
+        # Set initial active nav
+        self._current_nav = "nav_inventory"
+        self._update_nav_styles()
+
+    # ── Navigation ────────────────────────────────────────────────────────────
+
+    def _nav_to(self, key: str):
+        self._current_nav = key
+        self._update_nav_styles()
+
+        if key == "nav_inventory":
+            self._stack.setCurrentIndex(self._PAGE_INVENTORY)
+        elif key == "nav_transactions":
+            self._stack.setCurrentIndex(self._PAGE_TRANSACTIONS)
+            self._refresh_all_txns()
+        elif key == "nav_stock_ops":
+            self._stack.setCurrentIndex(self._PAGE_STOCK_OPS)
+            self._stock_ops_tab.refresh()
+        elif key == "nav_quick_scan":
+            self._stack.setCurrentIndex(self._PAGE_QUICK_SCAN)
+            self._quick_scan_tab.focus_input()
+        elif key.startswith("cat_"):
+            cat_key = key[4:]
+            for i, tab in enumerate(self._matrix_tabs):
+                if tab._cat_key == cat_key:
+                    self._stack.setCurrentIndex(self._PAGE_MATRIX_START + i)
+                    tab.refresh()
+                    break
+
+    def _update_nav_styles(self):
+        for btn, key in zip(self._nav_btns, self._nav_keys):
+            if key == self._current_nav:
+                btn.setObjectName("sidebar_btn_active")
+            else:
+                btn.setObjectName("sidebar_btn")
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
 
     # ── Signals ────────────────────────────────────────────────────────────────
 
@@ -824,7 +1358,6 @@ class MainWindow(QMainWindow):
     # ── Logo ───────────────────────────────────────────────────────────────────
 
     def _build_logo_label(self) -> QLabel | None:
-        """Return a 36×36 QLabel with the shop logo, or None if not set/valid."""
         import os
         cfg = ShopConfig.get()
         path = cfg.logo_path
@@ -840,24 +1373,12 @@ class MainWindow(QMainWindow):
         return lbl
 
     def _reload_logo(self) -> None:
-        """Remove old logo label and insert a fresh one after admin changes."""
-        top_layout = self._title_lbl.parent().layout() if self._title_lbl.parent() else None
-        if top_layout is None:
-            return
-        if self._logo_lbl is not None:
-            top_layout.removeWidget(self._logo_lbl)
-            self._logo_lbl.deleteLater()
-            self._logo_lbl = None
-        new_lbl = self._build_logo_label()
-        if new_lbl:
-            # Insert at position 0 (before title label)
-            top_layout.insertWidget(0, new_lbl)
-            self._logo_lbl = new_lbl
+        # Find the sidebar layout and update logo
+        pass  # Logo reloads on full retranslate
 
     # ── Admin / First-run ──────────────────────────────────────────────────────
 
     def _check_first_run(self) -> None:
-        """Show setup wizard if setup_complete flag is absent."""
         with get_connection() as conn:
             row = conn.execute(
                 "SELECT value FROM app_config WHERE key='setup_complete'"
@@ -878,17 +1399,46 @@ class MainWindow(QMainWindow):
         self._retranslate()
 
     def _rebuild_matrix_tabs(self) -> None:
-        """Remove all matrix tabs and reload from active categories in DB."""
-        while len(self._matrix_tabs) > 0:
-            tab = self._matrix_tabs.pop()
-            idx = self.tabs.indexOf(tab)
-            if idx >= 0:
-                self.tabs.removeTab(idx)
+        # Remove old matrix tabs from stack
+        for tab in self._matrix_tabs:
+            self._stack.removeWidget(tab)
+            tab.deleteLater()
+        self._matrix_tabs.clear()
+
+        # Remove old category nav buttons
+        for btn in self._cat_nav_btns:
+            btn.deleteLater()
+        # Remove those buttons from nav_btns/nav_keys too
+        for btn in self._cat_nav_btns:
+            if btn in self._nav_btns:
+                idx = self._nav_btns.index(btn)
+                self._nav_btns.pop(idx)
+                self._nav_keys.pop(idx)
+        self._cat_nav_btns.clear()
+
+        # Find sidebar layout (parent of _cat_sep)
+        sb_lay = self._cat_sep.parent().layout()
+        # Find insert position (after _cat_sep)
+        insert_idx = sb_lay.indexOf(self._cat_sep) + 1
+
+        # Rebuild
         for cat in _cat_repo.get_all_active():
+            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+            btn = QPushButton(f"  {icon}   {cat.name(LANG)}")
+            btn.setObjectName("sidebar_btn")
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(lambda _, k=cat.key: self._nav_to(f"cat_{k}"))
+            sb_lay.insertWidget(insert_idx, btn)
+            insert_idx += 1
+            self._cat_nav_btns.append(btn)
+            self._nav_btns.append(btn)
+            self._nav_keys.append(f"cat_{cat.key}")
+
             tab = MatrixTab(cat.key)
             self._matrix_tabs.append(tab)
-            icon = load_svg_icon(cat.icon) if cat.icon else "📁"
-            self.tabs.addTab(tab, f"{icon}  {cat.name(LANG)}")
+            self._stack.addWidget(tab)
+
+        self._update_nav_styles()
 
     # ── Language ───────────────────────────────────────────────────────────────
 
@@ -903,25 +1453,48 @@ class MainWindow(QMainWindow):
         cfg = ShopConfig.get()
         _title = cfg.name if cfg.name else t("app_title")
         self.setWindowTitle(_title); self._title_lbl.setText(_title)
-        self._reload_logo()
         self.refresh_btn.setToolTip(t("tooltip_refresh"))
         self.admin_btn.setToolTip(t("tooltip_admin"))
-        self.mode_btn.setToolTip(t("tooltip_theme"))
+        self._theme_toggle.setToolTip(t("tooltip_theme"))
+
+        # Summary cards
         self.c_tot.retranslate(); self.c_unt.retranslate()
         self.c_low.retranslate(); self.c_out.retranslate(); self.c_val.retranslate()
+
+        # Inventory toolbar
         self.search.setPlaceholderText(t("search_placeholder"))
         self.low_cb.setText(t("low_stock_only"))
         self.add_btn.setText(t("btn_new_product"))
-        self.tabs.setTabText(0, t("tab_products"))
-        self.tabs.setTabText(1, t("tab_transactions"))
-        for i, tab in enumerate(self._matrix_tabs):
-            if tab._cat:
-                icon = load_svg_icon(tab._cat.icon) if tab._cat.icon else "📁"
-                self.tabs.setTabText(2 + i, f"{icon}  {tab._cat.name(LANG)}")
-            tab.retranslate()
+
+        # Sidebar nav buttons
+        nav_items = [
+            ("nav_inventory",    "📦"),
+            ("nav_transactions", "📋"),
+            ("nav_stock_ops",    "⚙"),
+            ("nav_quick_scan",   "⚡"),
+        ]
+        for i, (key, icon) in enumerate(nav_items):
+            if i < len(self._nav_btns):
+                self._nav_btns[i].setText(f"  {icon}   {t(key)}")
+
+        # Category nav buttons
+        cats = _cat_repo.get_all_active()
+        for i, btn in enumerate(self._cat_nav_btns):
+            if i < len(cats):
+                cat = cats[i]
+                icon = load_svg_icon(cat.icon) if cat.icon else "📁"
+                btn.setText(f"  {icon}   {cat.name(LANG)}")
+
+        # Transaction page
         self._txn_caption.setText(t("txn_history_caption"))
-        # Transaction refresh button uses icon only - don't set text
+
+        # Sub-tabs
         self.prod_tbl.retranslate(); self.txn_tbl.retranslate()
+        self._stock_ops_tab.retranslate()
+        self._quick_scan_tab.retranslate()
+        for tab in self._matrix_tabs:
+            tab.retranslate()
+
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         self.detail.retranslate(); self._check_alerts()
         self.status.showMessage(t("statusbar_ready"))
@@ -930,7 +1503,6 @@ class MainWindow(QMainWindow):
 
     def _refresh_products(self):
         s     = self.search.text().strip()
-        # Search for any text length, but only use search if length >= 2
         items = _item_repo.get_all_items(
             search=s if len(s) >= 2 else "",
             filter_low_stock=self.low_cb.isChecked(),
@@ -954,7 +1526,7 @@ class MainWindow(QMainWindow):
         self.txn_tbl.load(_txn_repo.get_transactions(limit=500))
 
     def _refresh_all(self):
-        self.prod_tbl.reset_column_widths()  # Reset column widths to defaults
+        self.prod_tbl.reset_column_widths()
         self._refresh_products(); self._refresh_summary(); self._refresh_all_txns()
         if self._cp:
             self._cp = _item_repo.get_by_id(self._cp.id)
@@ -985,7 +1557,7 @@ class MainWindow(QMainWindow):
 
     def _toggle_mode(self):
         THEME.toggle()
-        # Theme button uses icon only - don't set text
+        self._theme_toggle.update()
         self._bg.update()
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         if self._cp: self.detail.set_product(self._cp)

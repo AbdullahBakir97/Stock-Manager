@@ -133,19 +133,50 @@ app_config (key TEXT PRIMARY KEY, value TEXT)
 
 ## Key Design Decisions
 
+### Sidebar Navigation (v2.1)
+Professional sidebar replaces the old tab widget:
+- Fixed 200px sidebar with logo, shop name, nav buttons
+- QStackedWidget for page switching (no QTabWidget)
+- Pages: Inventory, Transactions, Stock Ops, Quick Scan, + dynamic category pages
+- Dark/light theme toggle (custom painted ThemeToggle widget) in sidebar bottom
+- Language switcher + Admin button in sidebar bottom
+- Alert badge in sidebar
+
+### Summary Cards — Inventory Only
+Summary cards (Total Products, Units, Low Stock, Out of Stock, Value) are shown
+only on the Inventory page, not globally.
+
 ### The Generic Matrix Tab
-The central innovation of v2. `MatrixTab` takes a `CategoryConfig` and renders:
+`MatrixTab` takes a `CategoryConfig` and renders:
 - Rows = phone models (filterable by brand)
-- Column groups = part types (each with Stamm-Zahl | Best-Bung | Stock | Inventur)
+- Column groups = part types (each with Stamm-Zahl | Best-Bung | Stock | Order)
 - Double-click any cell → context-appropriate dialog
+- **Excel-like color banding**: model name column has distinct background,
+  each part type group gets a subtle tint from its accent color
 - Brand filter, Add Model button, color-coded Best-Bung
 
-This one widget replaces: `DisplaysTab`, and will drive all future category tabs.
+### Order Field (was Inventur)
+The 4th column in each part type group is now "Order" instead of "Inventur".
+The shop owner enters the amount they ordered. When delivery arrives, they
+check against this number, then clear it after verification.
 
-### Configuration-Driven Tabs
-Tabs are driven by data in the `categories` and `part_types` tables.
-To add "Batteries" tab: insert 1 row in `categories` + rows in `part_types`.
-No code changes required.
+### Quick Scan Mode
+Fast barcode scanning for high-pressure shop environments:
+- Dedicated page with large barcode input field
+- Each scan instantly takes 1 unit out of stock
+- Live feed shows scan results (success/error/warning)
+- For parts without barcodes (displays, etc.), shop can print custom barcodes
+
+### Stock Operations Tab
+Professional IN/OUT/ADJUST page with:
+- Searchable product list with barcode scanning
+- Quantity spinner + optional note
+- Recent transaction history for selected item
+
+### Configuration-Driven Categories
+Categories are driven by data in the `categories` and `part_types` tables.
+To add "Batteries": insert 1 row in `categories` + rows in `part_types`.
+No code changes required. Sidebar nav auto-updates.
 
 ### Backward Compatibility
 v1 database must be auto-migrated. Never drop columns; only ADD.

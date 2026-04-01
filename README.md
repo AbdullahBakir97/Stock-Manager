@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="files/img/logo.png" width="100" alt="Stock Manager Pro Logo" />
+  <img src="files/img/icon_logo.ico" width="100" alt="Stock Manager Pro Logo" />
 </p>
 
 <h1 align="center">Stock Manager Pro</h1>

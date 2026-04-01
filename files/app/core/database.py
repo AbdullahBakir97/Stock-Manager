@@ -422,9 +422,11 @@ def load_demo_data() -> None:
     """
     Seed the Galaxy@Phone demo data.
     Safe to call multiple times — uses INSERT OR IGNORE.
-    Call from setup wizard or Admin → Load Demo Data.
+    Display part types are brand-specific (Apple has 5 types, Samsung has 2).
     """
-    from app.core.demo_data import DEMO_CATEGORIES, DEMO_PART_TYPES, DEMO_PHONE_MODELS
+    from app.core.demo_data import (
+        DEMO_CATEGORIES, DEMO_PART_TYPES, DEMO_PHONE_MODELS, DISPLAY_BRAND_MAP,
+    )
     with get_connection() as conn:
         conn.executemany(
             """INSERT OR IGNORE INTO categories
@@ -448,19 +450,143 @@ def load_demo_data() -> None:
             "INSERT OR IGNORE INTO phone_models (brand, name, sort_order) VALUES (?,?,?)",
             DEMO_PHONE_MODELS,
         )
-        _ensure_all_entries(conn)
+
+        # Brand-aware matrix entries for displays
+        # Delete wrong brand × display combos (e.g., Samsung + JK incell)
+        displays_cat_id = cat_key_to_id.get("displays")
+        if displays_cat_id:
+            # Get all display part types with their keys
+            pt_rows = conn.execute(
+                "SELECT id, key FROM part_types WHERE category_id=?",
+                (displays_cat_id,),
+            ).fetchall()
+            pt_key_to_id = {r["key"]: r["id"] for r in pt_rows}
+
+            # Get all models with their brands
+            models = conn.execute("SELECT id, brand FROM phone_models").fetchall()
+
+            # Clean up: delete display entries where brand doesn't match
+            for model in models:
+                brand = model["brand"]
+                allowed_keys = DISPLAY_BRAND_MAP.get(brand, [])
+                disallowed_pt_ids = [pt_key_to_id[k] for k in pt_key_to_id if k not in allowed_keys]
+                if disallowed_pt_ids:
+                    placeholders = ",".join("?" * len(disallowed_pt_ids))
+                    # Only delete if stock is 0 (don't lose actual data)
+                    conn.execute(
+                        f"DELETE FROM inventory_items WHERE model_id=? AND part_type_id IN ({placeholders}) "
+                        f"AND (stock IS NULL OR stock = 0) AND (min_stock IS NULL OR min_stock = 0)",
+                        [model["id"]] + disallowed_pt_ids,
+                    )
+
+            # Create display entries only for matching brands
+            for model in models:
+                brand = model["brand"]
+                allowed_keys = DISPLAY_BRAND_MAP.get(brand, [])
+                for pt_key in allowed_keys:
+                    pt_id = pt_key_to_id.get(pt_key)
+                    if pt_id:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                            (model["id"], pt_id),
+                        )
+
+            # For non-display categories, create all model × part_type entries
+            non_display_pts = conn.execute(
+                "SELECT id FROM part_types WHERE category_id != ?",
+                (displays_cat_id,),
+            ).fetchall()
+            for model in models:
+                for pt in non_display_pts:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                        (model["id"], pt["id"]),
+                    )
+        else:
+            # No displays category — use default ensure_all
+            _ensure_all_entries(conn)
 
 
 def _ensure_all_entries(conn: sqlite3.Connection) -> None:
-    """Insert missing inventory_items rows for every model × part_type combination."""
-    models = conn.execute("SELECT id FROM phone_models").fetchall()
-    pt_ids = conn.execute("SELECT id FROM part_types").fetchall()
-    for m in models:
-        for pt in pt_ids:
+    """Insert missing inventory_items rows, respecting brand-specific display rules."""
+    try:
+        from app.core.demo_data import DISPLAY_BRAND_MAP, DISPLAY_EXCLUSIONS
+    except ImportError:
+        DISPLAY_BRAND_MAP = {}
+        DISPLAY_EXCLUSIONS = {}
+
+    models = conn.execute("SELECT id, brand, name FROM phone_models").fetchall()
+
+    # Find the displays category
+    displays_row = conn.execute(
+        "SELECT id FROM categories WHERE key='displays'"
+    ).fetchone()
+    displays_cat_id = displays_row["id"] if displays_row else None
+
+    # Build display part type key→id map
+    display_pt_map: dict[str, int] = {}
+    display_pt_ids: set[int] = set()
+    if displays_cat_id:
+        for r in conn.execute(
+            "SELECT id, key FROM part_types WHERE category_id=?",
+            (displays_cat_id,),
+        ).fetchall():
+            display_pt_map[r["key"]] = r["id"]
+            display_pt_ids.add(r["id"])
+
+    # All non-display part types
+    all_pts = conn.execute("SELECT id FROM part_types").fetchall()
+    non_display_pt_ids = [r["id"] for r in all_pts if r["id"] not in display_pt_ids]
+
+    for model in models:
+        brand = model["brand"]
+        model_name = model["name"]
+        mid = model["id"]
+
+        # Non-display part types: create for ALL models
+        for pt_id in non_display_pt_ids:
             conn.execute(
                 "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
-                (m["id"], pt["id"]),
+                (mid, pt_id),
             )
+
+        # Display part types: brand-aware + model-specific exclusions
+        if DISPLAY_BRAND_MAP and display_pt_map:
+            allowed_keys = DISPLAY_BRAND_MAP.get(brand)
+            if allowed_keys is not None:
+                for key in allowed_keys:
+                    # Check exclusions for this model
+                    excluded_models = DISPLAY_EXCLUSIONS.get(key, [])
+                    if model_name in excluded_models:
+                        # Delete if exists with zero stock
+                        pt_id = display_pt_map.get(key)
+                        if pt_id:
+                            conn.execute(
+                                "DELETE FROM inventory_items WHERE model_id=? AND part_type_id=? "
+                                "AND (stock IS NULL OR stock=0) AND (min_stock IS NULL OR min_stock=0)",
+                                (mid, pt_id),
+                            )
+                        continue
+                    pt_id = display_pt_map.get(key)
+                    if pt_id:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                            (mid, pt_id),
+                        )
+            else:
+                # Unknown brand — give all display types
+                for pt_id in display_pt_ids:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                        (mid, pt_id),
+                    )
+        else:
+            # No brand map defined — create all display entries (legacy behavior)
+            for pt_id in display_pt_ids:
+                conn.execute(
+                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                    (mid, pt_id),
+                )
 
 
 def ensure_matrix_entries() -> None:

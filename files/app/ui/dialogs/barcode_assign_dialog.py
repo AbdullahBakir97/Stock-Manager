@@ -6,10 +6,20 @@ from PyQt6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QMessageBox,
 )
 from PyQt6.QtGui import QFont
+from PyQt6.QtCore import Qt
 
 from app.core.theme import THEME
 from app.core.i18n import t
 from app.repositories.item_repo import ItemRepository
+
+
+class _BarcodeEdit(QLineEdit):
+    """QLineEdit that swallows Enter so barcode scanners don't close the dialog."""
+    def keyPressEvent(self, event):
+        if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
 _item_repo = ItemRepository()
 
@@ -34,8 +44,8 @@ class BarcodeAssignDialog(QDialog):
         hdr_row = QHBoxLayout()
         hdr = QLabel(t("barcode_assign_title"))
         hdr.setObjectName("dlg_header")
-        close_btn = QPushButton("✕")
-        close_btn.setObjectName("btn_ghost")
+        close_btn = QPushButton("×")
+        close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32)
         close_btn.clicked.connect(self.reject)
         hdr_row.addWidget(hdr)
@@ -58,7 +68,7 @@ class BarcodeAssignDialog(QDialog):
         form.addRow(t("barcode_current"), cur_lbl)
 
         # New barcode input
-        self._barcode_edit = QLineEdit()
+        self._barcode_edit = _BarcodeEdit()
         self._barcode_edit.setPlaceholderText("Scan or type barcode…")
         self._barcode_edit.setFont(QFont("JetBrains Mono", 11))
         self._barcode_edit.setMinimumHeight(40)

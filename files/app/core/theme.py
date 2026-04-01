@@ -111,6 +111,8 @@ class GradientBackground(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        from PyQt6.QtWidgets import QSizePolicy
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     def paintEvent(self, _ev):
         t = THEME.tokens
@@ -370,6 +372,19 @@ QPushButton#btn_ghost {{
 }}
 QPushButton#btn_ghost:hover {{ background: {t.card2}; color: {t.t1}; }}
 
+/* ── Close button (×) ────────────────────────────────────── */
+QPushButton#btn_close_x {{
+    background: transparent; color: {t.t3};
+    border: none; border-radius: 6px;
+    font-size: 18px; font-weight: 400;
+    min-width: 32px; max-width: 32px;
+    min-height: 32px; max-height: 32px;
+    padding: 0;
+}}
+QPushButton#btn_close_x:hover {{
+    background: {t.card2}; color: {t.t1};
+}}
+
 /* ── Alert states ─────────────────────────────────────────── */
 QPushButton#alert_ok {{
     background: {g_20}; color: {t.green};
@@ -559,34 +574,7 @@ QLineEdit, QSpinBox {{
 }}
 QLineEdit:focus, QSpinBox:focus {{ border-color: {acc}; }}
 
-/* ── SpinBox arrows ──────────────────────────────────────── */
-QSpinBox {{ padding-right: 28px; }}
-QSpinBox::up-button {{
-    subcontrol-origin: border; subcontrol-position: top right;
-    width: 24px; height: 18px;
-    border: none; border-left: 1px solid {t.border}; border-top-right-radius: 5px;
-    background: {t.card2};
-}}
-QSpinBox::up-button:hover   {{ background: {t.border}; }}
-QSpinBox::up-button:pressed {{ background: {t.border2}; }}
-QSpinBox::up-arrow {{
-    width: 8px; height: 8px;
-    border-left: 4px solid transparent; border-right: 4px solid transparent;
-    border-bottom: 5px solid {t.t2};
-}}
-QSpinBox::down-button {{
-    subcontrol-origin: border; subcontrol-position: bottom right;
-    width: 24px; height: 18px;
-    border: none; border-left: 1px solid {t.border}; border-bottom-right-radius: 5px;
-    background: {t.card2};
-}}
-QSpinBox::down-button:hover   {{ background: {t.border}; }}
-QSpinBox::down-button:pressed {{ background: {t.border2}; }}
-QSpinBox::down-arrow {{
-    width: 8px; height: 8px;
-    border-left: 4px solid transparent; border-right: 4px solid transparent;
-    border-top: 5px solid {t.t2};
-}}
+/* ── SpinBox — no custom arrows, use Qt native ───────────── */
 
 /* ── List widget ─────────────────────────────────────────── */
 QListWidget {{
@@ -612,13 +600,7 @@ QComboBox {{
     padding: 8px 12px; font-size: 13px;
 }}
 QComboBox:focus {{ border-color: {acc}; }}
-QComboBox::drop-down {{
-    border: none; width: 30px;
-}}
-QComboBox::down-arrow {{
-    border-left: 5px solid transparent; border-right: 5px solid transparent;
-    border-top: 6px solid {t.t3}; margin-right: 10px;
-}}
+/* No QComboBox::drop-down or ::down-arrow — let Qt draw native arrows */
 QComboBox QAbstractItemView {{
     background: {t.card}; border: 1px solid {t.border};
     border-radius: {br_input}; padding: 4px;

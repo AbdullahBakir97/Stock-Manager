@@ -80,10 +80,10 @@ def open_admin(parent=None) -> bool:
     """
     cfg = ShopConfig.get()
     if cfg.admin_pin:
+        from PyQt6.QtWidgets import QLineEdit
         pin, ok = QInputDialog.getText(
             parent, t("pin_title"), t("pin_prompt"),
-            echo=QInputDialog.InputMode.Password if hasattr(QInputDialog, "InputMode")
-            else __import__("PyQt6.QtWidgets", fromlist=["QLineEdit"]).QLineEdit.EchoMode.Password,
+            QLineEdit.EchoMode.Password,
         )
         if not ok:
             return False

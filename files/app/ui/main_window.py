@@ -30,6 +30,7 @@ from app.services.stock_service import StockService
 from app.services.alert_service import AlertService
 from app.models.item import InventoryItem
 from app.ui.tabs.matrix_tab import MatrixTab
+from app.ui.pages.barcode_gen_page import BarcodeGenPage
 
 from app.core import colors as clr
 from app.core.colors import PALETTE
@@ -208,6 +209,7 @@ class SummaryCard(QFrame):
     def __init__(self, key: str, parent=None):
         super().__init__(parent); self.setObjectName("summary_card")
         self._key = key
+        self.setMaximumHeight(88)
         lay = QVBoxLayout(self); lay.setContentsMargins(14, 12, 14, 12); lay.setSpacing(2)
         self.val = QLabel("—"); self.val.setObjectName("card_value")
         self.val.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -298,7 +300,7 @@ class ProductTable(QTableWidget):
     row_selected = pyqtSignal(object)
     _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
                  "col_stock", "col_min", "col_best_bung", "col_status"]
-    _WIDTHS    = [48, 260, 60, 120, 90, 70, 60, 100, 96]
+    _WIDTHS    = [40, 200, 50, 100, 70, 60, 50, 80, 80]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -652,6 +654,7 @@ class QuickScanTab(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         from app.services.scan_session_service import ScanSessionService
         self._session = ScanSessionService()
         self._build()
@@ -702,11 +705,11 @@ class QuickScanTab(QWidget):
         self._pending_tbl.setHorizontalHeaderLabels(["#", t("col_item"), t("col_barcode"), "Qty", "After", ""])
         hh = self._pending_tbl.horizontalHeader()
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self._pending_tbl.setColumnWidth(0, 40)
-        self._pending_tbl.setColumnWidth(2, 120)
-        self._pending_tbl.setColumnWidth(3, 50)
-        self._pending_tbl.setColumnWidth(4, 60)
-        self._pending_tbl.setColumnWidth(5, 40)
+        self._pending_tbl.setColumnWidth(0, 30)
+        self._pending_tbl.setColumnWidth(2, 100)
+        self._pending_tbl.setColumnWidth(3, 45)
+        self._pending_tbl.setColumnWidth(4, 55)
+        self._pending_tbl.setColumnWidth(5, 30)
         self._pending_tbl.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._pending_tbl.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._pending_tbl.verticalHeader().setVisible(False)
@@ -728,9 +731,20 @@ class QuickScanTab(QWidget):
         action.addWidget(self._btn_cancel); action.addWidget(self._btn_confirm)
         root.addLayout(action)
 
-        # Recent sessions feed (collapsible)
+        # Recent sessions feed (scrollable)
         self._recent_section = CollapsibleSection(t("qscan_recent"))
-        root.addWidget(self._recent_section)
+        recent_scroll = QScrollArea()
+        recent_scroll.setWidgetResizable(True)
+        recent_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        recent_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        recent_inner = QWidget()
+        self._recent_lay = QVBoxLayout(recent_inner)
+        self._recent_lay.setContentsMargins(0, 0, 0, 0)
+        self._recent_lay.setSpacing(4)
+        self._recent_lay.addStretch()
+        recent_scroll.setWidget(recent_inner)
+        self._recent_section.add_widget(recent_scroll)
+        root.addWidget(self._recent_section, 1)
         self._feed_items: list[QFrame] = []
 
         self._update_ui()
@@ -790,31 +804,51 @@ class QuickScanTab(QWidget):
         self._pending_tbl.setRowCount(len(items))
 
         for i, p in enumerate(items):
-            vals = [
-                str(i + 1),
-                p.item.display_name,
-                p.item.barcode or "—",
-                str(p.quantity),
-                str(p.predicted_after),
-                "✕",
-            ]
             row_color = tk.red if self._session.mode == "TAKEOUT" else tk.green
-            for j, v in enumerate(vals):
-                it = QTableWidgetItem(v)
-                it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                if j == 5:  # Remove button column
-                    it.setForeground(QColor(tk.red))
-                elif j == 3:  # Qty
-                    it.setFont(QFont("JetBrains Mono", 11, QFont.Weight.Bold))
-                    it.setForeground(QColor(row_color))
-                elif j == 4:  # After
-                    it.setFont(QFont("JetBrains Mono", 11))
-                    after_val = p.predicted_after
-                    if after_val <= 0:
-                        it.setForeground(QColor(tk.red))
-                    else:
-                        it.setForeground(QColor(tk.t2))
-                self._pending_tbl.setItem(i, j, it)
+
+            # #
+            num_it = QTableWidgetItem(str(i + 1))
+            num_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._pending_tbl.setItem(i, 0, num_it)
+
+            # Item name
+            name_it = QTableWidgetItem(p.item.display_name)
+            name_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._pending_tbl.setItem(i, 1, name_it)
+
+            # Barcode
+            bc_it = QTableWidgetItem(p.item.barcode or "—")
+            bc_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self._pending_tbl.setItem(i, 2, bc_it)
+
+            # Qty
+            qty_it = QTableWidgetItem(str(p.quantity))
+            qty_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            qty_it.setFont(QFont("JetBrains Mono", 11, QFont.Weight.Bold))
+            qty_it.setForeground(QColor(row_color))
+            self._pending_tbl.setItem(i, 3, qty_it)
+
+            # After
+            after_it = QTableWidgetItem(str(p.predicted_after))
+            after_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            after_it.setFont(QFont("JetBrains Mono", 11))
+            after_it.setForeground(QColor(tk.red) if p.predicted_after <= 0 else QColor(tk.t2))
+            self._pending_tbl.setItem(i, 4, after_it)
+
+            # Remove button — QToolButton to avoid QPushButton QSS conflicts
+            from PyQt6.QtWidgets import QToolButton
+            rm_btn = QToolButton()
+            rm_btn.setText("×")
+            rm_btn.setFixedSize(24, 24)
+            rm_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            rm_btn.setStyleSheet(
+                f"QToolButton {{ color:{tk.red}; background:transparent; border:none;"
+                f"  font-weight:700; font-size:13px; }}"
+                f"QToolButton:hover {{ background:{_rgba(tk.red, '20')}; border-radius:4px; }}"
+            )
+            rm_btn.clicked.connect(lambda _=False, idx=i: self._remove_pending(idx))
+            self._pending_tbl.setCellWidget(i, 5, rm_btn)
+
             self._pending_tbl.setRowHeight(i, 40)
 
         total_qty = self._session.pending_count
@@ -826,6 +860,12 @@ class QuickScanTab(QWidget):
         self._btn_cancel.setEnabled(has_pending or self._session.mode is not None)
         self._btn_confirm.setEnabled(has_pending)
 
+    def _remove_pending(self, index: int):
+        """Remove an item from the pending list by index."""
+        self._session.remove_pending(index)
+        self._refresh_pending()
+        self._scan_input.setFocus()
+
     def _add_feed_item(self, text: str, style: str):
         frame = QFrame()
         obj_map = {"success": "scan_feed_success", "error": "scan_feed_error", "warn": "scan_feed_warn"}
@@ -836,10 +876,12 @@ class QuickScanTab(QWidget):
         color_map = {"success": tk.green, "error": tk.red, "warn": tk.orange}
         lbl.setStyleSheet(f"color:{color_map.get(style, tk.t1)}; font-size:12px;")
         lay.addWidget(lbl)
-        self._recent_section.add_widget(frame)
+        # Insert at top of scrollable feed
+        self._recent_lay.insertWidget(0, frame)
         self._feed_items.insert(0, frame)
-        while len(self._feed_items) > 30:
+        while len(self._feed_items) > 50:
             old = self._feed_items.pop()
+            self._recent_lay.removeWidget(old)
             old.deleteLater()
 
     def retranslate(self):
@@ -889,13 +931,16 @@ class StockOpsTab(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self._selected_item: InventoryItem | None = None
         self._build()
 
     def _build(self):
+        from app.ui.dialogs.product_dialogs import QuantitySpin
+
         root = QHBoxLayout(self)
         root.setContentsMargins(12, 12, 12, 12)
-        root.setSpacing(12)
+        root.setSpacing(0)
 
         # Left — item list
         left = QVBoxLayout()
@@ -923,9 +968,9 @@ class StockOpsTab(QWidget):
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Interactive)
-        self._list.setColumnWidth(1, 120)
-        self._list.setColumnWidth(2, 70)
-        self._list.setColumnWidth(3, 80)
+        self._list.setColumnWidth(1, 100)
+        self._list.setColumnWidth(2, 60)
+        self._list.setColumnWidth(3, 70)
         self._list.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._list.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self._list.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -937,30 +982,52 @@ class StockOpsTab(QWidget):
 
         left_w = QWidget()
         left_w.setLayout(left)
-        root.addWidget(left_w, 3)
 
-        # Right — operations panel
-        right = QVBoxLayout()
+        # Right — scrollable operations panel
+        right_inner = QWidget()
+        right = QVBoxLayout(right_inner)
         right.setSpacing(12)
-        right.setContentsMargins(0, 0, 0, 0)
+        right.setContentsMargins(12, 0, 0, 0)
 
-        # Selected item card
+        # Selected item card — full product info
         self._sel_card = QFrame()
-        self._sel_card.setObjectName("stockops_selected")
+        self._sel_card.setObjectName("detail_card")
         scl = QVBoxLayout(self._sel_card)
         scl.setContentsMargins(16, 14, 16, 14)
         scl.setSpacing(6)
         self._sel_name = QLabel(t("stockops_select_prompt"))
         self._sel_name.setObjectName("detail_product_name")
         self._sel_name.setWordWrap(True)
+        scl.addWidget(self._sel_name)
+        # Color dot + color name
+        cr = QHBoxLayout(); cr.setSpacing(8)
+        self._sel_dot = QLabel(); self._sel_dot.setFixedSize(16, 16)
+        self._sel_color_name = QLabel(""); self._sel_color_name.setObjectName("detail_color_name")
+        cr.addWidget(self._sel_dot); cr.addWidget(self._sel_color_name); cr.addStretch()
+        scl.addLayout(cr)
+        # Barcode + price
+        self._sel_barcode = QLabel("")
+        self._sel_barcode.setObjectName("detail_barcode")
+        scl.addWidget(self._sel_barcode)
+        self._sel_price = QLabel("")
+        self._sel_price.setObjectName("detail_barcode")
+        scl.addWidget(self._sel_price)
+        # Stock display
         self._sel_stock = QLabel("")
         self._sel_stock.setObjectName("big_stock")
         self._sel_stock.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        scl.addWidget(self._sel_name)
         scl.addWidget(self._sel_stock)
+        # Status badge + threshold + difference
+        self._sel_badge = QLabel("")
+        self._sel_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        scl.addWidget(self._sel_badge)
+        self._sel_info = QLabel("")
+        self._sel_info.setObjectName("detail_threshold")
+        self._sel_info.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        scl.addWidget(self._sel_info)
         right.addWidget(self._sel_card)
 
-        # Operation buttons
+        # Operation card
         ops_card = QFrame()
         ops_card.setObjectName("stockops_card")
         ocl = QVBoxLayout(ops_card)
@@ -972,17 +1039,11 @@ class StockOpsTab(QWidget):
         ocl.addWidget(ops_hdr)
         self._ops_hdr = ops_hdr
 
-        # Quantity
-        qty_row = QHBoxLayout()
-        qty_row.setSpacing(8)
+        # Quantity — use QuantitySpin (proper +/− buttons)
+        qty_row = QHBoxLayout(); qty_row.setSpacing(8)
         qty_lbl = QLabel(t("stockops_qty_label"))
-        qty_lbl.setMinimumWidth(80)
         self._qty_lbl = qty_lbl
-        self._qty_spin = QSpinBox()
-        self._qty_spin.setMinimum(1)
-        self._qty_spin.setMaximum(99999)
-        self._qty_spin.setValue(1)
-        self._qty_spin.setMinimumHeight(40)
+        self._qty_spin = QuantitySpin(1, 99999, 1)
         qty_row.addWidget(qty_lbl)
         qty_row.addWidget(self._qty_spin, 1)
         ocl.addLayout(qty_row)
@@ -995,7 +1056,7 @@ class StockOpsTab(QWidget):
         self._note_edit.setPlaceholderText(t("op_note_ph"))
         ocl.addWidget(self._note_edit)
 
-        # Buttons
+        # Operation buttons
         self._btn_in = QPushButton(t("btn_stock_in"))
         self._btn_in.setObjectName("op_in")
         self._btn_in.clicked.connect(lambda: self._do_op("IN"))
@@ -1014,7 +1075,7 @@ class StockOpsTab(QWidget):
 
         right.addWidget(ops_card)
 
-        # Recent ops for selected item
+        # Recent transactions
         self._txn_hdr = QLabel(t("detail_recent_txns"))
         self._txn_hdr.setObjectName("detail_section_hdr")
         right.addWidget(self._txn_hdr)
@@ -1027,9 +1088,22 @@ class StockOpsTab(QWidget):
         txn_scroll.setWidget(self._mini_txn)
         right.addWidget(txn_scroll, 1)
 
-        right_w = QWidget()
-        right_w.setLayout(right)
-        root.addWidget(right_w, 2)
+        # Wrap right panel in scroll area
+        right_scroll = QScrollArea()
+        right_scroll.setWidgetResizable(True)
+        right_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        right_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        right_scroll.setWidget(right_inner)
+
+        # Splitter: left list + right detail (hideable by dragging)
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setHandleWidth(2)
+        splitter.addWidget(left_w)
+        splitter.addWidget(right_scroll)
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        splitter.setSizes([600, 350])
+        root.addWidget(splitter, 1)
 
         self._load_items()
 
@@ -1051,12 +1125,16 @@ class StockOpsTab(QWidget):
             stk_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             sc = _sc(item.stock, item.min_stock)
             stk_it.setForeground(sc)
-            stk_it.setFont(QFont("Segoe UI", 10, QFont.Weight.Bold))
+            stk_it.setFont(QFont("JetBrains Mono", 10, QFont.Weight.Bold))
             self._list.setItem(i, 2, stk_it)
 
             sl = _sl(item.stock, item.min_stock)
-            stat_it = QTableWidgetItem(sl)
+            sl_labels = {"OK": t("status_ok_lbl"), "LOW": t("status_low_lbl"),
+                         "CRITICAL": t("status_critical_lbl"), "OUT": t("status_out_lbl")}
+            stat_it = QTableWidgetItem(sl_labels.get(sl, sl))
             stat_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            stat_it.setForeground(sc)
+            stat_it.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
             self._list.setItem(i, 3, stat_it)
 
             self._list.setRowHeight(i, 38)
@@ -1078,11 +1156,64 @@ class StockOpsTab(QWidget):
 
     def _select_item(self, item: InventoryItem):
         self._selected_item = item
-        self._sel_name.setText(f"<b>{item.display_name}</b>")
         tk = THEME.tokens
         sc = _sc(item.stock, item.min_stock)
+        sl = _sl(item.stock, item.min_stock)
+
+        # Name
+        self._sel_name.setText(f"<b>{item.display_name}</b>")
+
+        # Color dot
+        if item.is_product and item.color:
+            hc = clr.hex_for(item.color)
+            brd = "rgba(102,102,102,153)" if clr.is_light(hc) else "transparent"
+            self._sel_dot.setStyleSheet(f"background:{hc}; border-radius:8px; border:1px solid {brd};")
+            self._sel_color_name.setText(color_t(item.color))
+        elif item.part_type_color:
+            hc = item.part_type_color
+            self._sel_dot.setStyleSheet(f"background:{hc}; border-radius:8px;")
+            self._sel_color_name.setText(item.part_type_name or "")
+        else:
+            self._sel_dot.setStyleSheet("")
+            self._sel_color_name.setText("")
+
+        # Barcode + Price
+        self._sel_barcode.setText(
+            t("detail_barcode", val=item.barcode or t("dlg_color_none"))
+        )
+        cfg = ShopConfig.get()
+        price_display = cfg.format_currency(item.sell_price) if item.sell_price else "—"
+        self._sel_price.setText(t("detail_sell_price", val=price_display))
+
+        # Stock number (big, colored)
         self._sel_stock.setText(str(item.stock))
         self._sel_stock.setStyleSheet(f"color:{sc.name()};")
+
+        # Status badge
+        badge_map = {
+            "OK":       (tk.green,  _rgba(tk.green,  "28")),
+            "LOW":      (tk.yellow, _rgba(tk.yellow, "30")),
+            "CRITICAL": (tk.orange, _rgba(tk.orange, "28")),
+            "OUT":      (tk.red,    _rgba(tk.red,    "28")),
+        }
+        badge_labels = {
+            "OK": t("badge_ok"), "LOW": t("badge_low"),
+            "CRITICAL": t("badge_critical"), "OUT": t("badge_out"),
+        }
+        fg, bg = badge_map.get(sl, (tk.t3, tk.border))
+        self._sel_badge.setText(badge_labels.get(sl, sl))
+        self._sel_badge.setStyleSheet(
+            f"color:{fg}; background:{bg}; border:1px solid {_rgba(fg, '40')};"
+            "border-radius:10px; font-weight:800; font-size:9pt; padding:5px 14px;"
+        )
+
+        # Threshold + difference
+        diff = item.stock - item.min_stock
+        diff_str = f"Δ{diff:+d}" if item.min_stock > 0 else ""
+        self._sel_info.setText(
+            f"{t('detail_alert_at', n=item.min_stock)}   {diff_str}"
+        )
+
         for b in (self._btn_in, self._btn_out, self._btn_adj):
             b.setEnabled(True)
         self._mini_txn.load(item.id)
@@ -1271,7 +1402,8 @@ class MainWindow(QMainWindow):
     _PAGE_TRANSACTIONS = 1
     _PAGE_STOCK_OPS    = 2
     _PAGE_QUICK_SCAN   = 3
-    _PAGE_MATRIX_START = 4  # dynamic matrix tabs start here
+    _PAGE_BARCODE_GEN  = 4
+    _PAGE_MATRIX_START = 5  # dynamic matrix tabs start here
 
     def __init__(self):
         super().__init__()
@@ -1284,7 +1416,8 @@ class MainWindow(QMainWindow):
             THEME.set_theme(saved_theme)
 
         _title = cfg.name if cfg.name else t("app_title")
-        self.setWindowTitle(_title); self.resize(1440, 900)
+        self.setWindowTitle(_title); self.resize(1280, 800)
+        self.setMinimumSize(800, 500)
         self._cp: InventoryItem | None = None
         self._ld: LowStockDialog | None = None
 
@@ -1320,6 +1453,7 @@ class MainWindow(QMainWindow):
         header = QFrame()
         header.setObjectName("header_bar")
         header.setFixedHeight(56)
+        header.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         hdr_lay = QHBoxLayout(header)
         hdr_lay.setContentsMargins(16, 0, 16, 0)
         hdr_lay.setSpacing(0)
@@ -1356,7 +1490,7 @@ class MainWindow(QMainWindow):
         hdr_lay.addSpacing(12)
 
         # Right actions
-        right_hdr = QHBoxLayout(); right_hdr.setSpacing(6)
+        right_hdr = QHBoxLayout(); right_hdr.setSpacing(8)
 
         # Language switcher (compact, in header)
         lang_fr = QFrame(); lang_fr.setObjectName("lang_bar")
@@ -1377,7 +1511,7 @@ class MainWindow(QMainWindow):
         self.notif_btn = QPushButton("🔔")
         self.notif_btn.setObjectName("header_icon")
         self.notif_btn.setFixedSize(34, 34)
-        self.notif_btn.setToolTip(t("tooltip_refresh"))
+        self.notif_btn.setToolTip(t("dlg_alerts_title"))
         self.notif_btn.clicked.connect(self._show_alerts)
         self._notif_badge = QLabel("0", self.notif_btn)
         self._notif_badge.setObjectName("notif_badge")
@@ -1413,7 +1547,7 @@ class MainWindow(QMainWindow):
         right_hdr.addWidget(self.admin_btn)
 
         hdr_lay.addLayout(right_hdr)
-        outer.addWidget(header)
+        outer.addWidget(header, 0)
 
         # ══════════════════════════════════════════════════════════════════════
         # BODY — Sidebar (240px) + Content
@@ -1427,6 +1561,7 @@ class MainWindow(QMainWindow):
         sidebar_frame = self._sidebar
         sidebar_frame.setObjectName("sidebar")
         sidebar_frame.setFixedWidth(240)
+        sidebar_frame.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
         sidebar_outer = QVBoxLayout(sidebar_frame)
         sidebar_outer.setContentsMargins(0, 0, 0, 0)
         sidebar_outer.setSpacing(0)
@@ -1456,6 +1591,7 @@ class MainWindow(QMainWindow):
             ("nav_transactions", "📋"),
             ("nav_stock_ops",    "⚙"),
             ("nav_quick_scan",   "⚡"),
+            ("nav_barcode_gen",  "🏷"),
         ]
         for key, icon in nav_items:
             btn = QPushButton(f"  {icon}   {t(key)}")
@@ -1530,9 +1666,11 @@ class MainWindow(QMainWindow):
         content.setSpacing(12)
 
         self._stack = QStackedWidget()
+        self._stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
 
         # Page 0: Inventory
         inv_page = QWidget()
+        inv_page.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         inv_lay = QVBoxLayout(inv_page)
         inv_lay.setContentsMargins(0, 0, 0, 0)
         inv_lay.setSpacing(12)
@@ -1558,20 +1696,23 @@ class MainWindow(QMainWindow):
         inv_lay.addLayout(tb)
 
         sp = QSplitter(Qt.Orientation.Horizontal); sp.setHandleWidth(1)
+        sp.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.prod_tbl = ProductTable()
         sp.addWidget(self.prod_tbl)
         rs = QScrollArea(); rs.setWidgetResizable(True)
-        rs.setMinimumWidth(280); rs.setMaximumWidth(340)
+        rs.setMinimumWidth(0); rs.setMaximumWidth(320)
         rs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         rs.setObjectName("detail_scroll_area")
         self.detail = ProductDetail(); rs.setWidget(self.detail)
         sp.addWidget(rs)
-        sp.setStretchFactor(0, 5); sp.setStretchFactor(1, 1)
+        sp.setStretchFactor(0, 3); sp.setStretchFactor(1, 1)
+        sp.setSizes([700, 300])
         inv_lay.addWidget(sp, 1)
         self._stack.addWidget(inv_page)
 
         # Page 1: Transactions
         txn_pg = QWidget()
+        txn_pg.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         tl = QVBoxLayout(txn_pg); tl.setContentsMargins(0, 0, 0, 0); tl.setSpacing(8)
         tbar = QHBoxLayout(); tbar.setContentsMargins(0, 0, 0, 0)
         self._txn_caption = QLabel(t("txn_history_caption"))
@@ -1595,7 +1736,11 @@ class MainWindow(QMainWindow):
         self._quick_scan_tab = QuickScanTab()
         self._stack.addWidget(self._quick_scan_tab)
 
-        # Pages 4+: Dynamic matrix tabs
+        # Page 4: Barcode Generator
+        self._barcode_gen_page = BarcodeGenPage()
+        self._stack.addWidget(self._barcode_gen_page)
+
+        # Pages 5+: Dynamic matrix tabs
         self._matrix_tabs: list[MatrixTab] = []
         for cat in _cat_repo.get_all_active():
             tab = MatrixTab(cat.key)
@@ -1605,10 +1750,12 @@ class MainWindow(QMainWindow):
         content.addWidget(self._stack, 1)
         content_w = QWidget()
         content_w.setLayout(content)
+        content_w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         body.addWidget(content_w, 1)
 
         body_w = QWidget()
         body_w.setLayout(body)
+        body_w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         outer.addWidget(body_w, 1)
 
         # ══════════════════════════════════════════════════════════════════════
@@ -1617,6 +1764,7 @@ class MainWindow(QMainWindow):
         footer = QFrame()
         footer.setObjectName("footer_bar")
         footer.setFixedHeight(32)
+        footer.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         ftr_lay = QHBoxLayout(footer)
         ftr_lay.setContentsMargins(16, 0, 16, 0)
         ftr_lay.setSpacing(0)
@@ -1637,7 +1785,7 @@ class MainWindow(QMainWindow):
         right_ftr.addWidget(self._footer_sync)
         ftr_lay.addLayout(right_ftr)
 
-        outer.addWidget(footer)
+        outer.addWidget(footer, 0)
 
         # Set initial active nav
         self._current_nav = "nav_inventory"
@@ -1648,7 +1796,7 @@ class MainWindow(QMainWindow):
     def _toggle_sidebar(self):
         vis = self._sidebar.isVisible()
         self._sidebar.setVisible(not vis)
-        self._sidebar_toggle.setText("☰" if vis else "✕")
+        self._sidebar_toggle.setText("☰" if vis else "×")
 
     def _nav_to(self, key: str):
         self._current_nav = key
@@ -1665,6 +1813,9 @@ class MainWindow(QMainWindow):
         elif key == "nav_quick_scan":
             self._stack.setCurrentIndex(self._PAGE_QUICK_SCAN)
             self._quick_scan_tab.focus_input()
+        elif key == "nav_barcode_gen":
+            self._stack.setCurrentIndex(self._PAGE_BARCODE_GEN)
+            self._barcode_gen_page.refresh()
         elif key.startswith("cat_"):
             cat_key = key[4:]
             for i, tab in enumerate(self._matrix_tabs):
@@ -1776,6 +1927,7 @@ class MainWindow(QMainWindow):
             self._retranslate()
 
     def _open_admin(self) -> None:
+        saved_nav = self._current_nav
         open_admin(self)
         ShopConfig.invalidate()
         cfg = ShopConfig.get()
@@ -1786,6 +1938,8 @@ class MainWindow(QMainWindow):
         ensure_matrix_entries()
         self._rebuild_matrix_tabs()
         self._retranslate()
+        # Restore the page the user was on before opening admin
+        self._nav_to(saved_nav)
 
     def _rebuild_matrix_tabs(self) -> None:
         # Remove old matrix tabs from stack
@@ -1854,6 +2008,7 @@ class MainWindow(QMainWindow):
             ("nav_transactions", "📋"),
             ("nav_stock_ops",    "⚙"),
             ("nav_quick_scan",   "⚡"),
+            ("nav_barcode_gen",  "🏷"),
         ]
         for i, (key, icon) in enumerate(nav_items):
             if i < len(self._nav_btns):

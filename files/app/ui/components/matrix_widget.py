@@ -16,7 +16,7 @@ from PyQt6.QtWidgets import (
     QStyledItemDelegate, QStyleOptionViewItem, QMenu,
 )
 from PyQt6.QtCore import Qt, QModelIndex, QPoint
-from PyQt6.QtGui import QColor, QFont, QPainter, QAction
+from PyQt6.QtGui import QColor, QFont, QPainter
 
 from app.core.theme import THEME
 from app.models.category import CategoryConfig
@@ -30,7 +30,7 @@ _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
 _COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
-_COL_W = {"model": 180, "stamm": 100, "bestbung": 100, "stock": 90, "inventur": 100}
+_COL_W = {"model": 150, "stamm": 80, "bestbung": 80, "stock": 70, "inventur": 80}
 _HEADER_ROW = 0
 
 # Fonts
@@ -350,28 +350,25 @@ class MatrixWidget(QTableWidget):
         dtype_lbl  = meta["dtype_lbl"]
 
         menu = QMenu(self)
+        _id = item_id
+        _mn = model_name
+        _dl = dtype_lbl
+        _ms = meta["min_stock"]
+        _st = meta["stock"]
 
-        # Stock operation
-        act_stock = QAction(f"📦  Stock IN/OUT…", self)
-        act_stock.triggered.connect(lambda: self._ctx_stock(item_id, dtype_lbl))
-        menu.addAction(act_stock)
+        act_stock = menu.addAction(f"📦  Stock IN/OUT…")
+        act_stock.triggered.connect(lambda _=False, i=_id, d=_dl: self._ctx_stock(i, d))
 
-        # Min stock
-        act_min = QAction(f"📊  Set Min Stock…", self)
-        act_min.triggered.connect(lambda: self._ctx_threshold(item_id, model_name, dtype_lbl, meta["min_stock"]))
-        menu.addAction(act_min)
+        act_min = menu.addAction(f"📊  Set Min Stock…")
+        act_min.triggered.connect(lambda _=False, i=_id, m=_mn, d=_dl, v=_ms: self._ctx_threshold(i, m, d, v))
 
-        # Order
-        act_order = QAction(f"📋  Set Order…", self)
-        act_order.triggered.connect(lambda: self._ctx_order(item_id, model_name, dtype_lbl, meta["stock"]))
-        menu.addAction(act_order)
+        act_order = menu.addAction(f"📋  Set Order…")
+        act_order.triggered.connect(lambda _=False, i=_id, m=_mn, d=_dl, s=_st: self._ctx_order(i, m, d, s))
 
         menu.addSeparator()
 
-        # Assign barcode
-        act_bc = QAction(t("barcode_ctx_assign"), self)
-        act_bc.triggered.connect(lambda: self._ctx_barcode(item_id, f"{model_name} · {dtype_lbl}"))
-        menu.addAction(act_bc)
+        act_bc = menu.addAction(f"🏷  {t('barcode_ctx_assign')}")
+        act_bc.triggered.connect(lambda _=False, i=_id, n=f"{_mn} · {_dl}": self._ctx_barcode(i, n))
 
         menu.exec(self.viewport().mapToGlobal(pos))
 
@@ -391,24 +388,27 @@ class MatrixWidget(QTableWidget):
                 QMessageBox.warning(self, t("disp_stock_err"), str(exc))
 
     def _ctx_threshold(self, item_id: int, model_name: str, dtype_lbl: str, current: int) -> None:
-        dlg = ThresholdDialog(model_name, dtype_lbl, current, self)
+        dlg = ThresholdDialog(model_name, dtype_lbl, current, self, item_id=item_id)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             _item_repo.update_min_stock(item_id, dlg.value())
             self._refresh_cb()
 
     def _ctx_order(self, item_id: int, model_name: str, dtype_lbl: str, stock: int) -> None:
-        dlg = InventurDialog(model_name, dtype_lbl, stock, self)
+        dlg = InventurDialog(model_name, dtype_lbl, stock, self, item_id=item_id)
         if dlg.exec() == QDialog.DialogCode.Accepted:
             _item_repo.update_inventur(item_id, dlg.value())
             self._refresh_cb()
 
     def _ctx_barcode(self, item_id: int, item_name: str) -> None:
-        from app.ui.dialogs.barcode_assign_dialog import BarcodeAssignDialog
-        item = _item_repo.get_by_id(item_id)
-        bc = item.barcode if item else None
-        dlg = BarcodeAssignDialog(item_id, item_name, bc, self)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            self._refresh_cb()
+        try:
+            from app.ui.dialogs.barcode_assign_dialog import BarcodeAssignDialog
+            item = _item_repo.get_by_id(item_id)
+            bc = item.barcode if item else None
+            dlg = BarcodeAssignDialog(item_id, item_name, bc, self)
+            if dlg.exec() == QDialog.DialogCode.Accepted:
+                self._refresh_cb()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", str(e))
 
     # ── Double-click handler ───────────────────────────────────────────────────
 
@@ -430,7 +430,7 @@ class MatrixWidget(QTableWidget):
         stock      = meta["stock"]
 
         if field == "stamm_zahl":
-            dlg = ThresholdDialog(model_name, dtype_lbl, min_stock, self)
+            dlg = ThresholdDialog(model_name, dtype_lbl, min_stock, self, item_id=item_id)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 _item_repo.update_min_stock(item_id, dlg.value())
                 self._refresh_cb()
@@ -454,7 +454,7 @@ class MatrixWidget(QTableWidget):
                     QMessageBox.warning(self, t("disp_stock_err"), str(exc))
 
         elif field == "inventur":
-            dlg = InventurDialog(model_name, dtype_lbl, stock, self)
+            dlg = InventurDialog(model_name, dtype_lbl, stock, self, item_id=item_id)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 _item_repo.update_inventur(item_id, dlg.value())
                 self._refresh_cb()

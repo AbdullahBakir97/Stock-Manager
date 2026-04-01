@@ -1,11 +1,10 @@
 """
 Icon utilities for loading and displaying SVG icons.
+Supports recoloring for dark/light themes.
 """
 import os
 import sys
-from PyQt6.QtGui import QIcon
-from PyQt6.QtWidgets import QApplication, QStyle
-from PyQt6.QtCore import Qt
+from PyQt6.QtGui import QIcon, QPixmap, QPainter, QColor, QImage
 
 
 def _icon_path(name: str) -> str:
@@ -15,53 +14,71 @@ def _icon_path(name: str) -> str:
 
 
 def load_svg_icon(icon_path: str, size: int = 16) -> str:
-    """
-    Load an SVG icon and return it as a Unicode character or emoji for display.
-    If the SVG cannot be loaded, returns a fallback emoji.
-    """
-    try:
-        full_path = _icon_path(icon_path)
-        if os.path.exists(full_path):
-            # For now, return a simple emoji fallback since SVG rendering in tabs is complex
-            # This can be enhanced later to properly render SVG icons
-            icon_map = {
-                "icons/chart_icon_184274.svg": "📊",
-                "icons/plus_icon_184263.svg": "🔋", 
-                "icons/edit_square_icon_184295.svg": "📱",
-                "icons/graph_icon_184279.svg": "📷",
-                "icons/refresh_paper_load_update_icon_141966.svg": "⚡",
-                "icons/close_square_icon_184289.svg": "🔲",
-                "icons/delete_icon_184291.svg": "🗑️",
-                "icons/search_icon_184335.svg": "🔍",
-                "icons/setting_icon_184259.svg": "⚙️",
-                "icons/filter_icon_184287.svg": "🔽",
-                "icons/arrow_up_icon_184240.svg": "⬆️",
-                "icons/arrow_down_icon_184268.svg": "⬇️",
-            }
-            return icon_map.get(icon_path, "📁")
-        else:
-            return "📁"
-    except Exception:
+    """Return emoji for display. If icon_path is already an emoji, return it directly."""
+    if not icon_path:
         return "📁"
+    # If it's not an SVG path (no / or .svg), it's already an emoji
+    if "/" not in icon_path and ".svg" not in icon_path:
+        return icon_path
+    icon_map = {
+        "icons/chart_icon_184274.svg": "📊",
+        "icons/plus_icon_184263.svg": "🔋",
+        "icons/edit_square_icon_184295.svg": "📱",
+        "icons/graph_icon_184279.svg": "📷",
+        "icons/refresh_paper_load_update_icon_141966.svg": "⚡",
+        "icons/close_square_icon_184289.svg": "🔲",
+        "icons/delete_icon_184291.svg": "🗑️",
+        "icons/search_icon_184335.svg": "🔍",
+        "icons/setting_icon_184259.svg": "⚙️",
+        "icons/filter_icon_184287.svg": "🔽",
+        "icons/arrow_up_icon_184240.svg": "⬆️",
+        "icons/arrow_down_icon_184268.svg": "⬇️",
+    }
+    return icon_map.get(icon_path, "📁")
+
+
+def _recolor_icon(icon: QIcon, color: QColor, size: int = 24) -> QIcon:
+    """Recolor a QIcon by painting it with the given color.
+
+    Works by converting to pixmap, then using CompositionMode_SourceIn
+    to replace all non-transparent pixels with the target color.
+    """
+    px = icon.pixmap(size, size)
+    if px.isNull():
+        return icon
+
+    # Create a colored overlay
+    img = px.toImage().convertToFormat(QImage.Format.Format_ARGB32)
+    overlay = QImage(img.size(), QImage.Format.Format_ARGB32)
+    overlay.fill(color)
+
+    # Use SourceIn composition: keep alpha from original, RGB from overlay
+    p = QPainter(img)
+    p.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+    p.drawImage(0, 0, overlay)
+    p.end()
+
+    return QIcon(QPixmap.fromImage(img))
 
 
 def get_qicon(icon_path: str) -> QIcon:
-    """Load an SVG icon as QIcon for use in buttons, menus, etc."""
+    """Load an SVG icon as QIcon."""
     try:
         full_path = _icon_path(icon_path)
         if os.path.exists(full_path):
             return QIcon(full_path)
-        else:
-            return QIcon()
+        return QIcon()
     except Exception:
         return QIcon()
 
 
 def get_button_icon(icon_name: str) -> QIcon:
-    """Get appropriate QIcon for common button types."""
+    """Get QIcon for common buttons, recolored for current theme."""
+    from app.core.theme import THEME
+
     icon_map = {
-        "refresh": "icons/refresh_paper_load_update_icon_141966.svg",
-        "edit": "icons/edit_square_icon_184295.svg", 
+        "refresh": "icons/update_sync_reload_reset_icon_229508.svg",
+        "edit": "icons/edit_square_icon_184295.svg",
         "delete": "icons/delete_icon_184291.svg",
         "search": "icons/search_icon_184335.svg",
         "settings": "icons/setting_icon_184259.svg",
@@ -71,4 +88,14 @@ def get_button_icon(icon_name: str) -> QIcon:
         "down": "icons/arrow_down_icon_184268.svg",
     }
     icon_path = icon_map.get(icon_name)
-    return get_qicon(icon_path) if icon_path else QIcon()
+    if not icon_path:
+        return QIcon()
+
+    icon = get_qicon(icon_path)
+    if icon.isNull():
+        return icon
+
+    # Recolor to theme text color so icons are visible in both dark and light
+    tk = THEME.tokens
+    color = QColor(tk.t2)  # secondary text color — visible on both themes
+    return _recolor_icon(icon, color)

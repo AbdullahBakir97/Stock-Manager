@@ -2,11 +2,15 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from PyQt6.QtWidgets import QWidget
+from PyQt6.QtWidgets import QWidget, QSizePolicy
 
 
 class BaseTab(QWidget):
     """All tab widgets must implement refresh() and retranslate()."""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
     @abstractmethod
     def refresh(self) -> None: ...

@@ -241,12 +241,70 @@ class ItemRepository(BaseRepository):
                 (value, item_id),
             )
 
+    def get_by_part_type(self, part_type_id: int) -> list[InventoryItem]:
+        """Get all inventory items for a specific part type (all models)."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                self._SELECT + " WHERE ii.part_type_id=? ORDER BY pm.name",
+                (part_type_id,),
+            ).fetchall()
+        return [self._build(r) for r in rows]
+
     def update_barcode(self, item_id: int, barcode: str | None) -> None:
         with self._conn() as conn:
             conn.execute(
                 "UPDATE inventory_items SET barcode=?, updated_at=datetime('now') WHERE id=?",
                 (barcode or None, item_id),
             )
+
+    def get_items_without_barcode(self, category_id: int | None = None,
+                                  model_ids: list[int] | None = None,
+                                  part_type_ids: list[int] | None = None) -> list[InventoryItem]:
+        """Get matrix items that have no barcode, filtered by scope."""
+        sql = self._SELECT + " WHERE ii.model_id IS NOT NULL AND (ii.barcode IS NULL OR ii.barcode = '')"
+        params: list = []
+        if category_id is not None:
+            sql += " AND pt.category_id = ?"
+            params.append(category_id)
+        if model_ids:
+            placeholders = ",".join("?" * len(model_ids))
+            sql += f" AND ii.model_id IN ({placeholders})"
+            params.extend(model_ids)
+        if part_type_ids:
+            placeholders = ",".join("?" * len(part_type_ids))
+            sql += f" AND ii.part_type_id IN ({placeholders})"
+            params.extend(part_type_ids)
+        sql += " ORDER BY pm.brand, pm.name, pt.sort_order"
+        with self._conn() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [self._build(r) for r in rows]
+
+    def get_all_matrix_items(self, category_id: int | None = None) -> list[InventoryItem]:
+        """Get all matrix items, optionally filtered by category."""
+        sql = self._SELECT + " WHERE ii.model_id IS NOT NULL"
+        params: list = []
+        if category_id is not None:
+            sql += " AND pt.category_id = ?"
+            params.append(category_id)
+        sql += " ORDER BY pm.brand, pm.name, pt.sort_order"
+        with self._conn() as conn:
+            rows = conn.execute(sql, params).fetchall()
+        return [self._build(r) for r in rows]
+
+    def bulk_update_barcodes(self, updates: list[tuple[int, str]]) -> int:
+        """Batch update [(item_id, barcode_text), ...]. Returns count."""
+        count = 0
+        with self._conn() as conn:
+            for item_id, barcode in updates:
+                try:
+                    conn.execute(
+                        "UPDATE inventory_items SET barcode=?, updated_at=datetime('now') WHERE id=?",
+                        (barcode, item_id),
+                    )
+                    count += 1
+                except Exception:
+                    pass  # skip duplicates
+        return count
 
     # ── Builder ───────────────────────────────────────────────────────────────
 

@@ -198,7 +198,7 @@ class ColorPickerDialog(ModernDialog):
         # Header with close button
         hdr_row = QHBoxLayout()
         hdr = QLabel(t("dlg_choose_color")); hdr.setObjectName("dlg_header")
-        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn = QPushButton("×"); close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
         hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
         root.addLayout(hdr_row)
@@ -292,7 +292,7 @@ class ProductDialog(ModernDialog):
         # Header with close button
         hdr_row = QHBoxLayout()
         hdr = QLabel(title); hdr.setObjectName("dlg_header")
-        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn = QPushButton("×"); close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
         hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
         root.addLayout(hdr_row)
@@ -401,7 +401,7 @@ class StockOpDialog(ModernDialog):
             "font-size:22pt; font-weight:700;"
         )
         tl = QLabel(t(title_key)); tl.setObjectName("dlg_header")
-        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn = QPushButton("×"); close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
         hr.addWidget(il); hr.addSpacing(12); hr.addWidget(tl); hr.addStretch(); hr.addWidget(close_btn)
         root.addLayout(hr)
@@ -526,18 +526,29 @@ class LowStockDialog(ModernDialog):
         # Header with close button
         hdr_row = QHBoxLayout()
         hdr = QLabel(t("dlg_alerts_header")); hdr.setObjectName("dlg_header")
-        close_btn = QPushButton("✕"); close_btn.setObjectName("btn_ghost")
+        close_btn = QPushButton("×"); close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.close)
         hdr_row.addWidget(hdr); hdr_row.addStretch(); hdr_row.addWidget(close_btn)
         root.addLayout(hdr_row)
 
         self.table = QTableWidget(); self.table.setObjectName("alert_table")
-        self.table.setColumnCount(6)
+        self.table.setColumnCount(8)
         self.table.setHorizontalHeaderLabels([
-            t("col_brand"), t("col_type"), t("col_color"),
-            t("col_barcode"), t("col_stock"), t("col_threshold"),
+            t("col_item"), t("col_barcode"),
+            t("col_stock"), t("col_min"), t("col_best_bung"), t("col_status"),
+            t("col_color"), t("col_threshold"),
         ])
-        hh = self.table.horizontalHeader(); hh.setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        hh = self.table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        for c in range(1, 8):
+            hh.setSectionResizeMode(c, QHeaderView.ResizeMode.Interactive)
+        self.table.setColumnWidth(1, 100)
+        self.table.setColumnWidth(2, 60)
+        self.table.setColumnWidth(3, 50)
+        self.table.setColumnWidth(4, 70)
+        self.table.setColumnWidth(5, 70)
+        self.table.setColumnWidth(6, 60)
+        self.table.setColumnWidth(7, 60)
         self.table.setEditTriggers(self.table.EditTrigger.NoEditTriggers)
         self.table.setSelectionBehavior(self.table.SelectionBehavior.SelectRows)
         self.table.setAlternatingRowColors(True); self.table.verticalHeader().setVisible(False)
@@ -552,31 +563,85 @@ class LowStockDialog(ModernDialog):
 
     def refresh(self):
         tk   = THEME.tokens
+        _mono = QFont("JetBrains Mono", 10, QFont.Weight.Bold)
         items = _alert_svc.get_low_stock_items()
         self.table.setRowCount(len(items)); self._ids: list[int] = []
         self._is_product: list[bool] = []
         for i, item in enumerate(items):
             self._ids.append(item.id)
             self._is_product.append(item.is_product)
-            fg = tk.red if item.stock == 0 else (
-                tk.orange if item.stock <= max(1, item.min_stock // 2) else tk.yellow
-            )
-            if item.is_product:
-                brand_or_name = item.brand
-                type_or_part  = item.name
-                color_val     = color_t(item.color)
-                barcode_val   = item.barcode or "—"
+
+            # Color based on severity
+            if item.stock == 0:
+                fg = tk.red
+                status = t("status_out_lbl")
+            elif item.stock <= max(1, item.min_stock // 2):
+                fg = tk.orange
+                status = t("status_critical_lbl")
             else:
-                brand_or_name = item.model_brand or item.model_name
-                type_or_part  = item.part_type_name
-                color_val     = item.part_type_color or "—"
-                barcode_val   = "—"
-            vals = [brand_or_name, type_or_part, color_val,
-                    barcode_val, str(item.stock), str(item.min_stock)]
-            for j, v in enumerate(vals):
-                it = QTableWidgetItem(v); it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-                it.setForeground(QColor(fg)); self.table.setItem(i, j, it)
-            self.table.setRowHeight(i, 48)
+                fg = tk.yellow
+                status = t("status_low_lbl")
+
+            if item.is_product:
+                name = item.display_name
+                barcode_val = item.barcode or "—"
+                color_val = color_t(item.color)
+            else:
+                name = f"{item.model_brand or ''} {item.model_name or ''} · {item.part_type_name or ''}"
+                barcode_val = item.barcode or "—"
+                color_val = "—"
+
+            diff = item.stock - item.min_stock
+            diff_str = f"Δ{diff:+d}"
+
+            # Item name
+            name_it = QTableWidgetItem(name.strip())
+            name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            self.table.setItem(i, 0, name_it)
+
+            # Barcode
+            bc_it = QTableWidgetItem(barcode_val)
+            bc_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            bc_it.setFont(QFont("JetBrains Mono", 9))
+            self.table.setItem(i, 1, bc_it)
+
+            # Stock (colored)
+            stk_it = QTableWidgetItem(str(item.stock))
+            stk_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            stk_it.setForeground(QColor(fg))
+            stk_it.setFont(_mono)
+            self.table.setItem(i, 2, stk_it)
+
+            # Min
+            min_it = QTableWidgetItem(str(item.min_stock))
+            min_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(i, 3, min_it)
+
+            # Δ Difference (colored)
+            diff_it = QTableWidgetItem(diff_str)
+            diff_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            diff_it.setForeground(QColor(fg))
+            diff_it.setFont(_mono)
+            self.table.setItem(i, 4, diff_it)
+
+            # Status (colored label)
+            stat_it = QTableWidgetItem(status)
+            stat_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            stat_it.setForeground(QColor(fg))
+            stat_it.setFont(QFont("Segoe UI", 9, QFont.Weight.DemiBold))
+            self.table.setItem(i, 5, stat_it)
+
+            # Color
+            clr_it = QTableWidgetItem(color_val)
+            clr_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(i, 6, clr_it)
+
+            # Threshold
+            thr_it = QTableWidgetItem(str(item.min_stock))
+            thr_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.table.setItem(i, 7, thr_it)
+
+            self.table.setRowHeight(i, 44)
 
     def _dbl(self, idx):
         r = idx.row()

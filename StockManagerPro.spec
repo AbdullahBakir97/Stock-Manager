@@ -2,24 +2,37 @@
 # PyInstaller spec for Stock Manager Pro v2
 # Build: cd src && pyinstaller StockManagerPro.spec --noconfirm
 
-from PyInstaller.utils.hooks import collect_dynamic_libs
+import glob, os
+from PyInstaller.utils.hooks import collect_dynamic_libs, collect_all, collect_submodules
+
+pil_datas, pil_binaries, pil_hiddenimports = collect_all('PIL')
+barcode_datas, barcode_binaries, barcode_hiddenimports = collect_all('barcode')
+fpdf_datas, fpdf_binaries, fpdf_hiddenimports = collect_all('fpdf')
+
+# Force-collect PIL .pyd files (Python 3.14 suffix confuses PyInstaller)
+import PIL
+pil_dir = os.path.dirname(PIL.__file__)
+pil_pyd_files = [(f, 'PIL') for f in glob.glob(os.path.join(pil_dir, '*.pyd'))]
+pil_binaries = pil_binaries + pil_pyd_files
 
 block_cipher = None
 
 a = Analysis(
     ['files/main.py'],
     pathex=['files'],
-    binaries=collect_dynamic_libs('PyQt6'),
+    binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries,
     datas=[
         ('files/img/icon_logo.ico', 'img'),
         ('files/img/logo.png',      'img'),
         ('files/img/icons',         'img/icons'),
-    ],
+    ] + pil_datas + barcode_datas + fpdf_datas,
     hiddenimports=[
         # PyQt6
         'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 'PyQt6.QtSql',
         # stdlib
         'sqlite3', '_sqlite3',
+        # barcode + PDF (collected automatically)
+    ] + pil_hiddenimports + barcode_hiddenimports + fpdf_hiddenimports + [
         # app.core
         'app.core.colors', 'app.core.config', 'app.core.database',
         'app.core.demo_data', 'app.core.i18n', 'app.core.icon_utils',

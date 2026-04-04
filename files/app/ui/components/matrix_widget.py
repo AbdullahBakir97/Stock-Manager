@@ -198,93 +198,201 @@ class MatrixWidget(QTableWidget):
             it.setFont(_FONT_HEADER)
             self.setItem(_HEADER_ROW, b, it)
 
-        # Model rows
-        for ri, model in enumerate(models):
+        # Build row list: model rows + color sub-rows
+        row_data: list[dict] = []  # [{type: "model"/"color", model, color, ...}]
+        for model in models:
+            # Check if this model has any colored items
+            model_colors: dict[str, list[str]] = {}  # pt_key → [color1, color2, ...]
+            for (mid, pt_key, color) in item_map.keys():
+                if mid == model.id and color:
+                    model_colors.setdefault(pt_key, []).append(color)
+
+            row_data.append({"type": "model", "model": model, "colors": model_colors})
+
+            # Add color sub-rows if any part type has colors
+            if model_colors:
+                all_colors = sorted(set(c for colors in model_colors.values() for c in colors))
+                for color in all_colors:
+                    row_data.append({"type": "color", "model": model, "color": color})
+
+        self.setRowCount(1 + len(row_data))
+
+        _FONT_COLOR = QFont("Segoe UI", 9)
+        _FONT_COLOR_ITALIC = QFont("Segoe UI", 9)
+        _FONT_COLOR_ITALIC.setItalic(True)
+
+        for ri, rd in enumerate(row_data):
             r = ri + 1
-            self.setRowHeight(r, 48)
+            model = rd["model"]
 
-            # Model name cell — strong distinct background, always white text
-            name_it = self._ro(f"  {model.name}")
-            name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-            name_it.setFont(_FONT_MODEL)
-            name_it.setForeground(QColor("#FFFFFF"))
-            name_it.setBackground(model_bg)
-            self.setItem(r, 0, name_it)
+            if rd["type"] == "model":
+                self.setRowHeight(r, 48)
+                # Model name cell
+                name_it = self._ro(f"  {model.name}")
+                name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                name_it.setFont(_FONT_MODEL)
+                name_it.setForeground(QColor("#FFFFFF"))
+                name_it.setBackground(model_bg)
+                self.setItem(r, 0, name_it)
 
-            for ti, pt in enumerate(cat.part_types):
-                b    = _base(ti)
-                item = item_map.get((model.id, pt.key))
-                bg   = type_bgs[ti]
+                for ti, pt in enumerate(cat.part_types):
+                    b  = _base(ti)
+                    bg = type_bgs[ti]
 
-                if not item:
-                    for c in range(_COLS_PER_TYPE):
-                        cell = self._ro("—")
-                        cell.setBackground(bg)
-                        cell.setForeground(QColor(tk.t4))
-                        self.setItem(r, b + c, cell)
-                    continue
+                    # For colored part types, show aggregate; for colorless, show direct
+                    has_colors = pt.key in rd.get("colors", {})
+                    if has_colors:
+                        # Aggregate: sum stock/min_stock across all colors
+                        colors = rd["colors"][pt.key]
+                        total_stock = 0
+                        total_min = 0
+                        total_inv = 0
+                        any_item = None
+                        for color in colors:
+                            item = item_map.get((model.id, pt.key, color))
+                            if item:
+                                total_stock += item.stock
+                                total_min += item.min_stock
+                                total_inv += (item.inventur or 0)
+                                any_item = item
 
-                min_stock = item.min_stock
-                stock     = item.stock
-                inventur  = item.inventur
-                best      = item.best_bung
+                        if not any_item:
+                            for c in range(_COLS_PER_TYPE):
+                                cell = self._ro("—")
+                                cell.setBackground(bg)
+                                self.setItem(r, b + c, cell)
+                            continue
 
-                meta = {
-                    "item_id":    item.id,
-                    "model_name": model.name,
-                    "dtype_lbl":  pt.name,
-                    "min_stock":  min_stock,
-                    "stock":      stock,
+                        best = total_stock - total_min
+                        meta = {
+                            "item_id": any_item.id,
+                            "model_name": model.name,
+                            "dtype_lbl": pt.name,
+                            "min_stock": total_min,
+                            "stock": total_stock,
+                        }
+                    else:
+                        # Colorless item — direct lookup
+                        item = item_map.get((model.id, pt.key, ""))
+                        if not item:
+                            for c in range(_COLS_PER_TYPE):
+                                cell = self._ro("—")
+                                cell.setBackground(bg)
+                                cell.setForeground(QColor(tk.t4))
+                                self.setItem(r, b + c, cell)
+                            continue
+
+                        total_min = item.min_stock
+                        total_stock = item.stock
+                        total_inv = item.inventur or 0
+                        best = item.best_bung
+                        meta = {
+                            "item_id": item.id,
+                            "model_name": model.name,
+                            "dtype_lbl": pt.name,
+                            "min_stock": total_min,
+                            "stock": total_stock,
+                        }
+
+                    self._render_data_cells(r, b, bg, tk, meta, total_min, total_stock, best, total_inv, has_colors)
+
+            elif rd["type"] == "color":
+                color = rd["color"]
+                self.setRowHeight(r, 36)
+
+                # Map color names to hex values
+                _CLR_HEX = {
+                    "Black": "#444444", "Blue": "#2563EB", "Silver": "#B0B0BC",
+                    "Gold": "#D4A520", "Green": "#10B981", "Purple": "#8B5CF6",
+                    "White": "#E0E0E0", "Red": "#EF4444", "Pink": "#EC4899",
+                    "Yellow": "#F59E0B", "Orange": "#F97316",
                 }
+                clr_hex = _CLR_HEX.get(color, tk.t2)
 
-                # Min-Stock (Stamm-Zahl)
-                st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
-                st.setForeground(QColor(tk.t2))
-                st.setFont(_FONT_DATA)
-                st.setBackground(bg)
-                st.setToolTip(t("disp_tip_stamm"))
-                self.setItem(r, b, st)
+                # Color sub-row: colored dot + name
+                color_bg = QColor(model_bg)
+                color_bg.setAlpha(180)
+                name_it = self._ro(f"      ● {color}")
+                name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+                name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+                name_it.setFont(_FONT_COLOR)
+                name_it.setForeground(QColor(clr_hex))
+                name_it.setBackground(color_bg)
+                self.setItem(r, 0, name_it)
 
-                # Best-Bung
-                if best == 0:
-                    bb_txt, bb_col, bb_tip = "0",        tk.yellow, t("disp_tip_bb_zero")
-                elif best < 0:
-                    bb_txt = str(best)
-                    bb_col = tk.red
-                    bb_tip = t("disp_tip_bb_neg", n=abs(best))
-                else:
-                    bb_txt = f"+{best}"
-                    bb_col = tk.green
-                    bb_tip = t("disp_tip_bb_pos", n=best)
-                bb = self._cell(bb_txt, meta | {"field": "best_bung"})
-                bb.setForeground(QColor(bb_col))
-                bb.setFont(_FONT_MONO)
-                bb.setBackground(bg)
-                bb.setToolTip(bb_tip)
-                self.setItem(r, b + 1, bb)
+                for ti, pt in enumerate(cat.part_types):
+                    b  = _base(ti)
+                    bg = type_bgs[ti]
+                    item = item_map.get((model.id, pt.key, color))
 
-                # Stock — monospace, bold, color-coded
-                stk = self._cell(str(stock), meta | {"field": "stock"})
-                if stock == 0:
-                    stk.setForeground(QColor(tk.red))
-                elif item.is_low:
-                    stk.setForeground(QColor(tk.yellow))
-                else:
-                    stk.setForeground(QColor(tk.green))
-                stk.setFont(_FONT_MONO)
-                stk.setBackground(bg)
-                stk.setToolTip(t("disp_tip_stock"))
-                self.setItem(r, b + 2, stk)
+                    if not item:
+                        for c in range(_COLS_PER_TYPE):
+                            cell = self._ro("")
+                            cell.setBackground(bg)
+                            self.setItem(r, b + c, cell)
+                        continue
 
-                # Order (was Inventur)
-                inv_txt = str(inventur) if inventur is not None else "—"
-                inv = self._cell(inv_txt, meta | {"field": "inventur"})
-                inv.setForeground(QColor(tk.t3))
-                inv.setFont(_FONT_DATA)
-                inv.setBackground(bg)
-                inv.setToolTip(t("disp_tip_inv"))
-                self.setItem(r, b + 3, inv)
+                    meta = {
+                        "item_id": item.id,
+                        "model_name": model.name,
+                        "dtype_lbl": f"{pt.name} ({color})",
+                        "min_stock": item.min_stock,
+                        "stock": item.stock,
+                    }
+                    self._render_data_cells(r, b, bg, tk, meta, item.min_stock, item.stock, item.best_bung, item.inventur)
+
+    def _render_data_cells(self, r: int, b: int, bg: QColor, tk,
+                           meta: dict, min_stock: int, stock: int,
+                           best: int, inventur, has_colors: bool = False):
+        """Render the 4 data cells (MinStock, BestBung, Stock, Order) for a row."""
+        # Min-Stock
+        st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
+        st.setForeground(QColor(tk.t2))
+        st.setFont(_FONT_DATA)
+        st.setBackground(bg)
+        st.setToolTip(t("disp_tip_stamm"))
+        self.setItem(r, b, st)
+
+        # Best-Bung
+        if best == 0:
+            bb_txt, bb_col, bb_tip = "0", tk.yellow, t("disp_tip_bb_zero")
+        elif best < 0:
+            bb_txt, bb_col = str(best), tk.red
+            bb_tip = t("disp_tip_bb_neg", n=abs(best))
+        else:
+            bb_txt, bb_col = f"+{best}", tk.green
+            bb_tip = t("disp_tip_bb_pos", n=best)
+        bb = self._cell(bb_txt, meta | {"field": "best_bung"})
+        bb.setForeground(QColor(bb_col))
+        bb.setFont(_FONT_MONO)
+        bb.setBackground(bg)
+        bb.setToolTip(bb_tip)
+        self.setItem(r, b + 1, bb)
+
+        # Stock
+        stk = self._cell(str(stock), meta | {"field": "stock"})
+        if stock == 0:
+            stk.setForeground(QColor(tk.red))
+        elif min_stock > 0 and stock <= min_stock:
+            stk.setForeground(QColor(tk.yellow))
+        else:
+            stk.setForeground(QColor(tk.green))
+        stk.setFont(_FONT_MONO)
+        stk.setBackground(bg)
+        stk.setToolTip(t("disp_tip_stock"))
+        if has_colors:
+            stk.setToolTip("Total across all colors")
+        self.setItem(r, b + 2, stk)
+
+        # Order
+        inv_txt = str(inventur) if inventur is not None else "—"
+        inv = self._cell(inv_txt, meta | {"field": "inventur"})
+        inv.setForeground(QColor(tk.t3))
+        inv.setFont(_FONT_DATA)
+        inv.setBackground(bg)
+        inv.setToolTip(t("disp_tip_inv"))
+        self.setItem(r, b + 3, inv)
 
     def retranslate(self) -> None:
         if not self._cat:

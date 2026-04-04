@@ -55,6 +55,9 @@ class InventoryItem:
     @property
     def display_name(self) -> str:
         if not self.is_product:
-            return f"{self.model_name}  ·  {self.part_type_name}"
+            parts = [self.model_name, self.part_type_name]
+            if self.color:
+                parts.append(self.color)
+            return "  ·  ".join(p for p in parts if p)
         parts = " ".join(p for p in (self.brand, self.name, self.color) if p)
         return parts or f"Item #{self.id}"

@@ -80,7 +80,30 @@ DISPLAY_EXCLUSIONS: dict[str, list[str]] = {
         "12 mini", "12 / 12 Pro", "12 Pro max",
         "13", "13 mini",
         "14", "14 Plus",
-        "15", "15 Plus", "16",
+        "15 Plus",  "16 Plus",
+    ],
+}
+
+# Colors available per part type (only for Samsung display types)
+# part_type_key → [(color_name, barcode_code, sort_order), ...]
+DEMO_PART_TYPE_COLORS: dict[str, list[tuple[str, str, int]]] = {
+    "SM_ORG_SERVICE": [
+        ("Black",  "BLK", 1),
+        ("Blue",   "BLU", 2),
+        ("Silver", "SLV", 3),
+        ("Gold",   "GLD", 4),
+        ("Green",  "GRN", 5),
+        ("Purple", "PRP", 6),
+        ("White",  "WHT", 7),
+    ],
+    "SM_OLED": [
+        ("Black",  "BLK", 1),
+        ("Blue",   "BLU", 2),
+        ("Silver", "SLV", 3),
+        ("Gold",   "GLD", 4),
+        ("Green",  "GRN", 5),
+        ("Purple", "PRP", 6),
+        ("White",  "WHT", 7),
     ],
 }
 
@@ -170,7 +193,8 @@ DEMO_PHONE_MODELS: list[tuple] = [
     ("Samsung", "Galaxy S24 Ultra",   216),
     ("Samsung", "Galaxy S25",         217),
     ("Samsung", "Galaxy S25 Ultra",   218),
-    ("Samsung", "Galaxy Note20 Ultra", 219),
+    ("Samsung", "Galaxy Note10+",     219),
+    ("Samsung", "Galaxy Note20 Ultra", 220),
     # ── Xiaomi / Redmi ───────────────────────────────────────────────────────
     ("Xiaomi", "Redmi A5",              301),
     ("Xiaomi", "Redmi 13C",             302),

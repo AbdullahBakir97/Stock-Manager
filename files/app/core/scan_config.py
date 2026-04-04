@@ -1,8 +1,20 @@
-"""app/core/scan_config.py — Command barcode configuration for Quick Scan."""
+"""app/core/scan_config.py — Command + color barcode configuration for Quick Scan."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from app.core.database import get_connection
+
+
+# Default color barcodes
+_DEFAULT_COLORS = {
+    "Black":  "CLR-BLACK",
+    "Blue":   "CLR-BLUE",
+    "Silver": "CLR-SILVER",
+    "Gold":   "CLR-GOLD",
+    "Green":  "CLR-GREEN",
+    "Purple": "CLR-PURPLE",
+    "White":  "CLR-WHITE",
+}
 
 
 @dataclass
@@ -10,6 +22,8 @@ class ScanConfig:
     cmd_takeout: str = "CMD-TAKEOUT"
     cmd_insert:  str = "CMD-INSERT"
     cmd_confirm: str = "CMD-CONFIRM"
+    # Color barcodes: color_name → barcode_text
+    color_barcodes: dict[str, str] = field(default_factory=lambda: dict(_DEFAULT_COLORS))
 
     _KEYS = ("scan_cmd_takeout", "scan_cmd_insert", "scan_cmd_confirm")
     _FIELDS = ("cmd_takeout", "cmd_insert", "cmd_confirm")
@@ -32,24 +46,33 @@ class ScanConfig:
         try:
             with get_connection() as conn:
                 rows = conn.execute(
-                    "SELECT key, value FROM app_config WHERE key IN (?,?,?)",
-                    cls._KEYS,
+                    "SELECT key, value FROM app_config WHERE key LIKE 'scan_%'",
                 ).fetchall()
                 key_map = dict(zip(cls._KEYS, cls._FIELDS))
                 for r in rows:
-                    field = key_map.get(r["key"])
-                    if field and r["value"]:
-                        setattr(cfg, field, r["value"])
+                    field_name = key_map.get(r["key"])
+                    if field_name and r["value"]:
+                        setattr(cfg, field_name, r["value"])
+                    elif r["key"].startswith("scan_clr_") and r["value"]:
+                        # Color barcode: scan_clr_Black → CLR-BLACK
+                        color_name = r["key"][9:]  # strip "scan_clr_"
+                        cfg.color_barcodes[color_name] = r["value"]
         except Exception:
             pass
         return cfg
 
     def save(self) -> None:
         with get_connection() as conn:
-            for db_key, field in zip(self._KEYS, self._FIELDS):
+            for db_key, field_name in zip(self._KEYS, self._FIELDS):
                 conn.execute(
                     "INSERT OR REPLACE INTO app_config (key, value) VALUES (?,?)",
-                    (db_key, getattr(self, field)),
+                    (db_key, getattr(self, field_name)),
+                )
+            # Save color barcodes
+            for color_name, barcode in self.color_barcodes.items():
+                conn.execute(
+                    "INSERT OR REPLACE INTO app_config (key, value) VALUES (?,?)",
+                    (f"scan_clr_{color_name}", barcode),
                 )
         ScanConfig.invalidate()
 
@@ -60,4 +83,15 @@ class ScanConfig:
         if barcode == self.cmd_takeout: return "TAKEOUT"
         if barcode == self.cmd_insert:  return "INSERT"
         if barcode == self.cmd_confirm: return "CONFIRM"
+        return None
+
+    def is_color_barcode(self, barcode: str) -> bool:
+        """Check if barcode matches any configured color."""
+        return barcode in self.color_barcodes.values()
+
+    def color_name(self, barcode: str) -> Optional[str]:
+        """Return the color name for a color barcode, or None."""
+        for name, bc in self.color_barcodes.items():
+            if bc == barcode:
+                return name
         return None

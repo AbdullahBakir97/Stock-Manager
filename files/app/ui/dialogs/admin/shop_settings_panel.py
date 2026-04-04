@@ -24,7 +24,17 @@ class ShopSettingsPanel(QWidget):
         self._load()
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        from PyQt6.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        inner = QWidget()
+        scroll.setWidget(inner)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
+
+        outer = QVBoxLayout(inner)
         outer.setContentsMargins(24, 20, 24, 20)
         outer.setSpacing(16)
 

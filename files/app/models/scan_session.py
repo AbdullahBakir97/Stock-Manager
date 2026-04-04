@@ -18,6 +18,8 @@ class ScanEventType(Enum):
     NO_MODE = "no_mode"
     INSUFFICIENT_STOCK = "insufficient_stock"
     SESSION_ACTIVE = "session_active"
+    WAITING_COLOR = "waiting_color"        # item scanned, now scan color barcode
+    COLOR_APPLIED = "color_applied"        # color barcode scanned, item resolved
 
 
 @dataclass

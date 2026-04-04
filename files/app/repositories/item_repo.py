@@ -118,18 +118,32 @@ class ItemRepository(BaseRepository):
 
     def get_matrix_items(
         self, category_id: int, brand: Optional[str] = None
-    ) -> dict[tuple[int, str], InventoryItem]:
-        """Returns {(model_id, part_type_key): InventoryItem} for a category."""
+    ) -> dict[tuple[int, str, str], InventoryItem]:
+        """Returns {(model_id, part_type_key, color): InventoryItem} for a category.
+
+        Excludes colorless parent rows when colored siblings exist
+        (the parent is only for barcode scanning, not for stock display).
+        """
         sql = (self._SELECT +
                " WHERE pt.category_id=? AND ii.model_id IS NOT NULL")
         params: list = [category_id]
         if brand:
             sql += " AND pm.brand=?"
             params.append(brand)
-        sql += " ORDER BY pm.sort_order, pt.sort_order"
+        sql += " ORDER BY pm.sort_order, pt.sort_order, ii.color"
         with self._conn() as conn:
             rows = conn.execute(sql, params).fetchall()
-            return {(r["model_id"], r["pt_key"]): self._build(r) for r in rows}
+            all_items = {(r["model_id"], r["pt_key"], r["color"] or ""): self._build(r) for r in rows}
+
+            # Find which (model_id, pt_key) combos have colors
+            has_colors: set[tuple[int, str]] = set()
+            for (mid, ptk, clr) in all_items:
+                if clr:  # non-empty color
+                    has_colors.add((mid, ptk))
+
+            # Exclude colorless parent rows when colors exist
+            return {k: v for k, v in all_items.items()
+                    if k[2] or (k[0], k[1]) not in has_colors}
 
     def get_summary_for_category(self, category_id: int) -> dict:
         with self._conn() as conn:
@@ -249,6 +263,20 @@ class ItemRepository(BaseRepository):
                 (part_type_id,),
             ).fetchall()
         return [self._build(r) for r in rows]
+
+    def get_colored_siblings(self, model_id: int, part_type_id: int) -> list[InventoryItem]:
+        """Get all colored variants of a model×part_type combination."""
+        sql = self._SELECT + " WHERE ii.model_id=? AND ii.part_type_id=? AND ii.color != '' ORDER BY ii.color"
+        with self._conn() as conn:
+            rows = conn.execute(sql, (model_id, part_type_id)).fetchall()
+        return [self._build(r) for r in rows]
+
+    def get_by_model_parttype_color(self, model_id: int, part_type_id: int, color: str) -> InventoryItem | None:
+        """Get a specific colored item."""
+        sql = self._SELECT + " WHERE ii.model_id=? AND ii.part_type_id=? AND ii.color=?"
+        with self._conn() as conn:
+            row = conn.execute(sql, (model_id, part_type_id, color)).fetchone()
+        return self._build(row) if row else None
 
     def update_barcode(self, item_id: int, barcode: str | None) -> None:
         with self._conn() as conn:

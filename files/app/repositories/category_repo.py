@@ -136,6 +136,35 @@ class CategoryRepository(BaseRepository):
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
+    # ── Part Type Colors ────────────────────────────────────────────────────
+
+    def get_pt_colors(self, part_type_id: int) -> list[dict]:
+        """Get colors for a part type. Returns [{id, color_name, color_code, sort_order}]."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT * FROM part_type_colors WHERE part_type_id=? ORDER BY sort_order",
+                (part_type_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def add_pt_color(self, part_type_id: int, color_name: str, color_code: str = "") -> int:
+        """Add a color to a part type."""
+        with self._conn() as conn:
+            max_order = conn.execute(
+                "SELECT COALESCE(MAX(sort_order),0) FROM part_type_colors WHERE part_type_id=?",
+                (part_type_id,),
+            ).fetchone()[0]
+            cur = conn.execute(
+                "INSERT OR IGNORE INTO part_type_colors (part_type_id, color_name, color_code, sort_order) VALUES (?,?,?,?)",
+                (part_type_id, color_name, color_code, max_order + 1),
+            )
+            return cur.lastrowid or 0
+
+    def remove_pt_color(self, color_id: int) -> None:
+        """Remove a color from a part type."""
+        with self._conn() as conn:
+            conn.execute("DELETE FROM part_type_colors WHERE id=?", (color_id,))
+
     def _pt(self, row) -> PartTypeConfig:
         return PartTypeConfig(
             id=row["id"], category_id=row["category_id"],

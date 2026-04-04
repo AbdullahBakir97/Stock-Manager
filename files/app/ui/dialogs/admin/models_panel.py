@@ -29,7 +29,17 @@ class ModelsPanel(QWidget):
         self._refresh()
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        from PyQt6.QtWidgets import QScrollArea, QWidget as _W
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        inner = _W()
+        scroll.setWidget(inner)
+        root_lay = QVBoxLayout(self)
+        root_lay.setContentsMargins(0, 0, 0, 0)
+        root_lay.addWidget(scroll)
+
+        outer = QVBoxLayout(inner)
         outer.setContentsMargins(12, 12, 12, 12); outer.setSpacing(8)
 
         # Top toolbar: brand filter + search

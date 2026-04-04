@@ -23,7 +23,17 @@ class ScanSettingsPanel(QWidget):
         self._load()
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        from PyQt6.QtWidgets import QScrollArea, QWidget as _W
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        inner = _W()
+        scroll.setWidget(inner)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
+
+        outer = QVBoxLayout(inner)
         outer.setContentsMargins(24, 20, 24, 20)
         outer.setSpacing(16)
 
@@ -60,6 +70,29 @@ class ScanSettingsPanel(QWidget):
         form.addRow(t("scan_cfg_confirm"), self._confirm)
 
         outer.addLayout(form)
+
+        # Color barcodes section
+        clr_hdr = QLabel(t("clr_barcodes_hdr"))
+        clr_hdr.setObjectName("detail_section_hdr")
+        outer.addWidget(clr_hdr)
+
+        clr_hint = QLabel(t("clr_barcodes_hint"))
+        clr_hint.setObjectName("section_caption")
+        clr_hint.setWordWrap(True)
+        outer.addWidget(clr_hint)
+
+        clr_form = QFormLayout()
+        clr_form.setSpacing(8)
+        self._color_edits: dict[str, QLineEdit] = {}
+        default_colors = ["Black", "Blue", "Silver", "Gold", "Green", "Purple", "White"]
+        for color in default_colors:
+            edit = QLineEdit()
+            edit.setFont(mono)
+            edit.setMinimumHeight(32)
+            clr_form.addRow(f"{color}:", edit)
+            self._color_edits[color] = edit
+        outer.addLayout(clr_form)
+
         outer.addStretch()
 
         # Save
@@ -79,12 +112,16 @@ class ScanSettingsPanel(QWidget):
         self._takeout.setText(cfg.cmd_takeout)
         self._insert.setText(cfg.cmd_insert)
         self._confirm.setText(cfg.cmd_confirm)
+        for color_name, edit in self._color_edits.items():
+            edit.setText(cfg.color_barcodes.get(color_name, f"CLR-{color_name.upper()}"))
 
     def _save(self) -> None:
         cfg = ScanConfig()
         cfg.cmd_takeout = self._takeout.text().strip() or "CMD-TAKEOUT"
         cfg.cmd_insert  = self._insert.text().strip() or "CMD-INSERT"
         cfg.cmd_confirm = self._confirm.text().strip() or "CMD-CONFIRM"
+        for color_name, edit in self._color_edits.items():
+            cfg.color_barcodes[color_name] = edit.text().strip() or f"CLR-{color_name.upper()}"
         cfg.save()
         self._feedback.setText(t("scan_cfg_saved"))
         self.settings_saved.emit()

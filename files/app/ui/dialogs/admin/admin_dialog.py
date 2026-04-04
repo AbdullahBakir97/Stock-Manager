@@ -31,7 +31,7 @@ class AdminDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(t("admin_title"))
         self.setModal(True)
-        self.resize(720, 540)
+        self.resize(800, 650)
         THEME.apply(self)
         self._build_ui()
 

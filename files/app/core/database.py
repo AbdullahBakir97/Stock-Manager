@@ -77,6 +77,16 @@ _DDL = """
         UNIQUE(category_id, key)
     );
 
+    -- Colors available for a part type (e.g., ORG Service Pack → Black, Blue, Silver)
+    CREATE TABLE IF NOT EXISTS part_type_colors (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        part_type_id INTEGER NOT NULL REFERENCES part_types(id) ON DELETE CASCADE,
+        color_name   TEXT NOT NULL,
+        color_code   TEXT NOT NULL DEFAULT '',
+        sort_order   INTEGER NOT NULL DEFAULT 0,
+        UNIQUE(part_type_id, color_name)
+    );
+
     -- Phone models (shared across all categories)
     CREATE TABLE IF NOT EXISTS phone_models (
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -136,6 +146,7 @@ _DDL = """
     );
 
     -- Unified inventory (replaces products + stock_entries in V4)
+    -- color is part of unique key: model × part_type × color
     CREATE TABLE IF NOT EXISTS inventory_items (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         brand        TEXT    NOT NULL DEFAULT '',
@@ -152,7 +163,7 @@ _DDL = """
         is_active    INTEGER NOT NULL DEFAULT 1,
         created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
         updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
-        UNIQUE(model_id, part_type_id)
+        UNIQUE(model_id, part_type_id, color)
     );
 
     -- Unified audit log (replaces product_transactions + stock_transactions in V4)
@@ -181,7 +192,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_inv_txn_time           ON inventory_transactions(timestamp);
 """
 
-_SCHEMA_VERSION = "5"
+_SCHEMA_VERSION = "6"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -202,6 +213,56 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
 
 
 # ── V3 → V4 migration ────────────────────────────────────────────────────────
+
+def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
+    """Add part_type_colors table and change inventory_items unique constraint to include color."""
+    # Create part_type_colors table
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS part_type_colors (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            part_type_id INTEGER NOT NULL REFERENCES part_types(id) ON DELETE CASCADE,
+            color_name   TEXT NOT NULL,
+            color_code   TEXT NOT NULL DEFAULT '',
+            sort_order   INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(part_type_id, color_name)
+        )
+    """)
+
+    # Recreate inventory_items with UNIQUE(model_id, part_type_id, color) instead of UNIQUE(model_id, part_type_id)
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS inventory_items_new (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            brand        TEXT    NOT NULL DEFAULT '',
+            name         TEXT    NOT NULL DEFAULT '',
+            color        TEXT    NOT NULL DEFAULT '',
+            sku          TEXT,
+            barcode      TEXT    UNIQUE,
+            sell_price   REAL,
+            stock        INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0),
+            min_stock    INTEGER NOT NULL DEFAULT 0,
+            inventur     INTEGER,
+            model_id     INTEGER REFERENCES phone_models(id) ON DELETE CASCADE,
+            part_type_id INTEGER REFERENCES part_types(id)   ON DELETE CASCADE,
+            is_active    INTEGER NOT NULL DEFAULT 1,
+            created_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+            updated_at   TEXT    NOT NULL DEFAULT (datetime('now')),
+            UNIQUE(model_id, part_type_id, color)
+        )
+    """)
+    conn.execute("""
+        INSERT OR IGNORE INTO inventory_items_new
+            (id, brand, name, color, sku, barcode, sell_price, stock, min_stock,
+             inventur, model_id, part_type_id, is_active, created_at, updated_at)
+        SELECT id, brand, name, color, sku, barcode, sell_price, stock, min_stock,
+               inventur, model_id, part_type_id, is_active, created_at, updated_at
+        FROM inventory_items
+    """)
+    conn.execute("DROP TABLE inventory_items")
+    conn.execute("ALTER TABLE inventory_items_new RENAME TO inventory_items")
+    # Recreate indexes
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_inv_items_model ON inventory_items(model_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_inv_items_barcode ON inventory_items(barcode)")
+
 
 def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
     """Seed default command barcodes for Quick Scan."""
@@ -408,6 +469,10 @@ def init_db() -> None:
                 _migrate_v4_to_v5(conn)
                 current = "5"
 
+            if current == "5":
+                _migrate_v5_to_v6(conn)
+                current = "6"
+
             if current != _SCHEMA_VERSION:
                 conn.execute(
                     "INSERT OR REPLACE INTO app_config (key, value) VALUES ('schema_version', ?)",
@@ -426,6 +491,7 @@ def load_demo_data() -> None:
     """
     from app.core.demo_data import (
         DEMO_CATEGORIES, DEMO_PART_TYPES, DEMO_PHONE_MODELS, DISPLAY_BRAND_MAP,
+        DEMO_PART_TYPE_COLORS,
     )
     with get_connection() as conn:
         conn.executemany(
@@ -450,6 +516,18 @@ def load_demo_data() -> None:
             "INSERT OR IGNORE INTO phone_models (brand, name, sort_order) VALUES (?,?,?)",
             DEMO_PHONE_MODELS,
         )
+
+        # Seed part type colors
+        pt_rows_all = conn.execute("SELECT id, key FROM part_types").fetchall()
+        pt_key_to_id_all = {r["key"]: r["id"] for r in pt_rows_all}
+        for pt_key, colors in DEMO_PART_TYPE_COLORS.items():
+            pt_id = pt_key_to_id_all.get(pt_key)
+            if pt_id:
+                for color_name, color_code, sort_order in colors:
+                    conn.execute(
+                        "INSERT OR IGNORE INTO part_type_colors (part_type_id, color_name, color_code, sort_order) VALUES (?,?,?,?)",
+                        (pt_id, color_name, color_code, sort_order),
+                    )
 
         # Brand-aware matrix entries for displays
         # Delete wrong brand × display combos (e.g., Samsung + JK incell)
@@ -534,6 +612,35 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
             display_pt_map[r["key"]] = r["id"]
             display_pt_ids.add(r["id"])
 
+    # Load colors per part type from part_type_colors table
+    pt_colors: dict[int, list[str]] = {}  # pt_id → [color_name, ...]
+    try:
+        for r in conn.execute("SELECT part_type_id, color_name FROM part_type_colors ORDER BY sort_order").fetchall():
+            pt_colors.setdefault(r["part_type_id"], []).append(r["color_name"])
+    except Exception:
+        pass  # table might not exist yet during initial schema creation
+
+    def _insert_item(mid: int, pt_id: int):
+        """Insert inventory items — colored rows for stock + colorless parent for barcode."""
+        colors = pt_colors.get(pt_id, [])
+        if colors:
+            # Create colored rows (for individual stock tracking)
+            for color in colors:
+                conn.execute(
+                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,?)",
+                    (mid, pt_id, color),
+                )
+            # Also create colorless parent row (this gets the barcode for scanning)
+            conn.execute(
+                "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
+                (mid, pt_id),
+            )
+        else:
+            conn.execute(
+                "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
+                (mid, pt_id),
+            )
+
     # All non-display part types
     all_pts = conn.execute("SELECT id FROM part_types").fetchall()
     non_display_pt_ids = [r["id"] for r in all_pts if r["id"] not in display_pt_ids]
@@ -545,20 +652,15 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
 
         # Non-display part types: create for ALL models
         for pt_id in non_display_pt_ids:
-            conn.execute(
-                "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
-                (mid, pt_id),
-            )
+            _insert_item(mid, pt_id)
 
         # Display part types: brand-aware + model-specific exclusions
         if DISPLAY_BRAND_MAP and display_pt_map:
             allowed_keys = DISPLAY_BRAND_MAP.get(brand)
             if allowed_keys is not None:
                 for key in allowed_keys:
-                    # Check exclusions for this model
                     excluded_models = DISPLAY_EXCLUSIONS.get(key, [])
                     if model_name in excluded_models:
-                        # Delete if exists with zero stock
                         pt_id = display_pt_map.get(key)
                         if pt_id:
                             conn.execute(
@@ -569,22 +671,14 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
                         continue
                     pt_id = display_pt_map.get(key)
                     if pt_id:
-                        conn.execute(
-                            "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
-                            (mid, pt_id),
-                        )
+                        _insert_item(mid, pt_id)
             else:
-                # Unknown brand — give all display types
                 for pt_id in display_pt_ids:
-                    conn.execute(
-                        "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
-                        (mid, pt_id),
-                    )
+                    _insert_item(mid, pt_id)
         else:
-            # No brand map defined — create all display entries (legacy behavior)
             for pt_id in display_pt_ids:
                 conn.execute(
-                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id) VALUES (?,?)",
+                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
                     (mid, pt_id),
                 )
 

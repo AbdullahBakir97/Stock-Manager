@@ -75,7 +75,7 @@ class _IconPickerDialog(QDialog):
 
     def __init__(self, current: str = "", parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Choose Icon")
+        self.setWindowTitle(t("icon_choose_title"))
         self.setModal(True)
         self.setMinimumWidth(420)
         THEME.apply(self)
@@ -87,7 +87,7 @@ class _IconPickerDialog(QDialog):
 
         # Header
         hdr_row = QHBoxLayout()
-        hdr = QLabel("Choose Category Icon")
+        hdr = QLabel(t("icon_choose_hdr"))
         hdr.setObjectName("dlg_header")
         close_btn = QPushButton("×"); close_btn.setObjectName("btn_close_x")
         close_btn.setFixedSize(32, 32); close_btn.clicked.connect(self.reject)
@@ -159,7 +159,17 @@ class CategoriesPanel(QWidget):
         self._refresh()
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        from PyQt6.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        inner = QWidget()
+        scroll.setWidget(inner)
+        root = QVBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.addWidget(scroll)
+
+        outer = QVBoxLayout(inner)
         outer.setContentsMargins(12, 12, 12, 12)
         outer.setSpacing(8)
 

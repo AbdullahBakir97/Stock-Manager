@@ -660,7 +660,16 @@ class QuickScanTab(QWidget):
         self._build()
 
     def _build(self):
-        root = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        _scroll = QScrollArea()
+        _scroll.setWidgetResizable(True)
+        _scroll.setFrameShape(QFrame.Shape.NoFrame)
+        _inner = QWidget()
+        _scroll.setWidget(_inner)
+        outer.addWidget(_scroll)
+
+        root = QVBoxLayout(_inner)
         root.setContentsMargins(16, 16, 16, 16)
         root.setSpacing(12)
 
@@ -758,7 +767,18 @@ class QuickScanTab(QWidget):
         mode = self._session.mode
         tk = THEME.tokens
 
-        if mode == "TAKEOUT":
+        # Check if waiting for color scan
+        if self._session.waiting_for_color:
+            self._mode_bar.setObjectName("scan_mode_insert")  # yellow/highlight
+            self._mode_icon.setText("🎨")
+            self._mode_icon.setStyleSheet(f"color:{tk.orange}; font-size:18px;")
+            colors = ", ".join(self._session.available_colors)
+            self._mode_label.setText(
+                f"{t('qscan_waiting_color')} — {self._session.waiting_item_name}\n{colors}"
+            )
+            self._mode_label.setStyleSheet(f"color:{tk.orange}; font-weight:600; font-size:12px;")
+            self._cancel_session_btn.show()
+        elif mode == "TAKEOUT":
             self._mode_bar.setObjectName("scan_mode_takeout")
             self._mode_icon.setText("↓")
             self._mode_icon.setStyleSheet(f"color:{tk.red}; font-size:18px; font-weight:700;")
@@ -900,7 +920,7 @@ class QuickScanTab(QWidget):
         if event.event_type == ScanEventType.MODE_CHANGED:
             self._update_ui()
         elif event.event_type in (ScanEventType.ITEM_ADDED, ScanEventType.ITEM_INCREMENTED):
-            self._refresh_pending()
+            self._update_ui()
         elif event.event_type == ScanEventType.BATCH_COMMITTED:
             self._add_feed_item(event.message, "success")
             self._update_ui()
@@ -914,6 +934,11 @@ class QuickScanTab(QWidget):
             self._add_feed_item(event.message, "warn")
         elif event.event_type == ScanEventType.SESSION_ACTIVE:
             self._add_feed_item(event.message, "warn")
+        elif event.event_type == ScanEventType.WAITING_COLOR:
+            self._add_feed_item(event.message, "warn")
+            self._update_ui()
+        elif event.event_type == ScanEventType.COLOR_APPLIED:
+            self._update_ui()
 
         # Keep focus on scan input
         self._scan_input.clear()
@@ -1780,7 +1805,7 @@ class MainWindow(QMainWindow):
         ftr_lay.addStretch()
 
         right_ftr = QHBoxLayout(); right_ftr.setSpacing(8)
-        self._footer_sync = QLabel("●  Connected")
+        self._footer_sync = QLabel(f"●  {t('footer_connected')}")
         self._footer_sync.setObjectName("footer_sync")
         right_ftr.addWidget(self._footer_sync)
         ftr_lay.addLayout(right_ftr)

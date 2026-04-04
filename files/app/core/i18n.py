@@ -875,6 +875,9 @@ _TR: dict[str, dict[str, str]] = {
     "qscan_item_added":   {"EN": "Added: {name} (qty: {qty})",    "DE": "Hinzugefügt: {name} (Menge: {qty})", "AR": "أضيف: {name} (الكمية: {qty})"},
     "qscan_item_incremented": {"EN": "{name} qty → {qty}",        "DE": "{name} Menge → {qty}",           "AR": "{name} الكمية → {qty}"},
     "qscan_no_mode":      {"EN": "Scan a TAKEOUT or INSERT command first", "DE": "Zuerst Befehlsbarcode scannen", "AR": "امسح باركود الأمر أولاً"},
+    "qscan_scan_color":   {"EN": "Scan color barcode for: {name}\nAvailable: {colors}", "DE": "Farb-Barcode scannen fuer: {name}\nVerfuegbar: {colors}", "AR": "امسح باركود اللون لـ: {name}\nالمتاح: {colors}"},
+    "qscan_color_not_found": {"EN": "Color '{color}' not available for this item", "DE": "Farbe '{color}' nicht verfuegbar", "AR": "اللون '{color}' غير متاح لهذا المنتج"},
+    "qscan_waiting_color": {"EN": "Scan COLOR barcode", "DE": "FARB-Barcode scannen", "AR": "امسح باركود اللون"},
     "qscan_session_active": {"EN": "A {mode} session is active. Confirm or cancel first.", "DE": "Eine {mode}-Sitzung ist aktiv. Zuerst bestätigen oder abbrechen.", "AR": "جلسة {mode} نشطة. قم بالتأكيد أو الإلغاء أولاً."},
     "qscan_not_found":    {"EN": "✕  Barcode not found: {bc}",    "DE": "✕  Barcode nicht gefunden: {bc}", "AR": "✕  الباركود غير موجود: {bc}"},
     "qscan_out_of_stock": {"EN": "⚠  Out of stock: {name}",       "DE": "⚠  Ausverkauft: {name}",          "AR": "⚠  نفد المخزون: {name}"},
@@ -998,6 +1001,21 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Bestand kann nicht negativ sein",
         "AR": "لا يمكن أن يكون المخزون سالباً",
     },
+    # ── Colors ────────────────────────────────────────────────────────────────
+    "clr_title":          {"EN": "COLORS",                       "DE": "FARBEN",                      "AR": "الألوان"},
+    "clr_add":            {"EN": "+ Add Color",                  "DE": "+ Farbe hinzufuegen",          "AR": "+ إضافة لون"},
+    "clr_hint":           {"EN": "Select a part type to manage colors", "DE": "Teiletyp waehlen um Farben zu verwalten", "AR": "اختر نوع القطعة لإدارة الألوان"},
+    "clr_select_title":   {"EN": "Select Color",                "DE": "Farbe waehlen",                "AR": "اختر لون"},
+    "clr_select_hdr":     {"EN": "Select Colors to Add",        "DE": "Farben zum Hinzufuegen waehlen", "AR": "اختر الألوان للإضافة"},
+    "clr_select_all":     {"EN": "Select All",                  "DE": "Alle waehlen",                 "AR": "تحديد الكل"},
+    "clr_add_selected":   {"EN": "Add Selected",                "DE": "Ausgewaehlte hinzufuegen",     "AR": "إضافة المحدد"},
+    "clr_all_added":      {"EN": "All colors already added",    "DE": "Alle Farben bereits hinzugefuegt", "AR": "تمت إضافة جميع الألوان"},
+    "clr_none":           {"EN": "No colors defined",           "DE": "Keine Farben definiert",       "AR": "لا ألوان محددة"},
+    "clr_barcodes_hdr":   {"EN": "Color Barcodes",              "DE": "Farb-Barcodes",                "AR": "باركودات الألوان"},
+    "clr_barcodes_hint":  {"EN": "Scan these after a model barcode to select color variant", "DE": "Nach dem Modell-Barcode scannen um Farbvariante auszuwaehlen", "AR": "امسح هذه بعد باركود الطراز لاختيار لون"},
+    "icon_choose_title":  {"EN": "Choose Icon",                 "DE": "Symbol waehlen",               "AR": "اختر رمز"},
+    "icon_choose_hdr":    {"EN": "Choose Category Icon",        "DE": "Kategorie-Symbol waehlen",     "AR": "اختر رمز الفئة"},
+    "footer_connected":   {"EN": "Connected",                   "DE": "Verbunden",                    "AR": "متصل"},
 }
 
 

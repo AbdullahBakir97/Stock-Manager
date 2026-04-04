@@ -7,8 +7,8 @@ import re
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QFormLayout, QSplitter,
     QTableWidget, QTableWidgetItem, QHeaderView,
-    QComboBox, QLineEdit, QPushButton, QLabel,
-    QDialog, QMessageBox,
+    QComboBox, QLineEdit, QPushButton, QLabel, QFrame,
+    QDialog, QMessageBox, QToolButton,
 )
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont, QColor
@@ -105,7 +105,17 @@ class PartTypesPanel(QWidget):
         self._load_categories()
 
     def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
+        from PyQt6.QtWidgets import QScrollArea
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        inner = QWidget()
+        scroll.setWidget(inner)
+        root_lay = QVBoxLayout(self)
+        root_lay.setContentsMargins(0, 0, 0, 0)
+        root_lay.addWidget(scroll)
+
+        outer = QVBoxLayout(inner)
         outer.setContentsMargins(16, 16, 16, 16); outer.setSpacing(12)
 
         # Category selector
@@ -161,6 +171,38 @@ class PartTypesPanel(QWidget):
         top_lay.addLayout(btn_row)
         splitter.addWidget(top_w)
 
+        # ── Middle: Colors for selected part type ──
+        color_w = QWidget()
+        color_lay = QVBoxLayout(color_w)
+        color_lay.setContentsMargins(0, 0, 0, 0); color_lay.setSpacing(6)
+
+        clr_hdr_row = QHBoxLayout()
+        self._clr_hdr = QLabel(t("clr_title"))
+        self._clr_hdr.setObjectName("detail_section_hdr")
+        clr_hdr_row.addWidget(self._clr_hdr); clr_hdr_row.addStretch()
+
+        self._clr_add_btn = QPushButton(t("clr_add"))
+        self._clr_add_btn.setObjectName("btn_primary")
+        self._clr_add_btn.setFixedHeight(28)
+        self._clr_add_btn.clicked.connect(self._add_color)
+        clr_hdr_row.addWidget(self._clr_add_btn)
+        color_lay.addLayout(clr_hdr_row)
+
+        self._clr_hint = QLabel(t("clr_hint"))
+        self._clr_hint.setObjectName("section_caption")
+        color_lay.addWidget(self._clr_hint)
+
+        # Color chips (horizontal flow)
+        self._clr_container = QWidget()
+        self._clr_flow = QHBoxLayout(self._clr_container)
+        self._clr_flow.setContentsMargins(0, 0, 0, 0)
+        self._clr_flow.setSpacing(6)
+        self._clr_flow.addStretch()
+        color_lay.addWidget(self._clr_container)
+
+        self._clr_data: list[dict] = []
+        splitter.addWidget(color_w)
+
         # ── Bottom: Barcodes for selected part type ──
         btm_w = QWidget()
         btm_lay = QVBoxLayout(btm_w)
@@ -181,7 +223,6 @@ class PartTypesPanel(QWidget):
         self._bc_hint.setObjectName("section_caption")
         btm_lay.addWidget(self._bc_hint)
 
-        # Barcode table: Model | Barcode (editable)
         self._bc_table = QTableWidget(0, 2)
         self._bc_table.setHorizontalHeaderLabels([t("mdl_col_model"), t("dlg_lbl_barcode")])
         bh = self._bc_table.horizontalHeader()
@@ -189,7 +230,6 @@ class PartTypesPanel(QWidget):
         bh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self._bc_table.verticalHeader().setVisible(False)
         self._bc_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        # Allow editing on barcode column
         self._bc_table.setEditTriggers(
             QTableWidget.EditTrigger.DoubleClicked | QTableWidget.EditTrigger.SelectedClicked
         )
@@ -200,7 +240,8 @@ class PartTypesPanel(QWidget):
         splitter.addWidget(btm_w)
 
         splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(1, 1)
+        splitter.setStretchFactor(2, 2)
         outer.addWidget(splitter, 1)
 
     # ── Category handling ─────────────────────────────────────────────────────
@@ -223,6 +264,7 @@ class PartTypesPanel(QWidget):
 
     def _on_pt_select(self) -> None:
         pt = self._current_pt()
+        self._refresh_colors(pt)
         self._refresh_barcodes(pt)
 
     # ── Part types table ──────────────────────────────────────────────────────
@@ -255,7 +297,9 @@ class PartTypesPanel(QWidget):
             return
 
         self._bc_hdr.setText(f"{t('barcode_assign_title')}  —  {pt.name}")
-        items = _item_repo.get_by_part_type(pt.id)
+        all_items = _item_repo.get_by_part_type(pt.id)
+        # Only show colorless items (they carry the barcode — colors use 2-step scan)
+        items = [i for i in all_items if not i.color]
         if not items:
             self._bc_hint.setText(t("barcode_none"))
             self._bc_hint.show()
@@ -319,6 +363,195 @@ class PartTypesPanel(QWidget):
         else:
             self._bc_hint.setText(t("barcode_saved"))
             self._bc_hint.show()
+
+    # ── Color management ──────────────────────────────────────────────────────
+
+    def _refresh_colors(self, pt: PartTypeConfig | None) -> None:
+        """Refresh the color chips for the selected part type."""
+        # Clear existing chips
+        while self._clr_flow.count() > 1:  # keep the stretch
+            item = self._clr_flow.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+
+        self._clr_data.clear()
+        if not pt:
+            self._clr_hdr.setText("COLORS")
+            self._clr_hint.setText("Select a part type to manage colors")
+            self._clr_hint.show()
+            return
+
+        colors = _cat_repo.get_pt_colors(pt.id)
+        self._clr_data = colors
+        self._clr_hdr.setText(f"{t('clr_title')} — {pt.name}")
+
+        if not colors:
+            self._clr_hint.setText(t("clr_none"))
+            self._clr_hint.show()
+        else:
+            self._clr_hint.hide()
+
+        tk = THEME.tokens
+
+        for clr in colors:
+            hex_color = self._ALL_COLORS.get(clr["color_name"], "#888888")
+            is_light = QColor(hex_color).lightness() > 180
+
+            chip = QFrame()
+            chip_lay = QHBoxLayout(chip)
+            chip_lay.setContentsMargins(6, 4, 4, 4)
+            chip_lay.setSpacing(4)
+
+            # Color swatch
+            swatch = QLabel()
+            swatch.setFixedSize(20, 20)
+            border = "#666" if is_light else "transparent"
+            swatch.setStyleSheet(
+                f"background:{hex_color}; border-radius:4px; border:1px solid {border};"
+            )
+            chip_lay.addWidget(swatch)
+
+            # Color name
+            name_lbl = QLabel(clr["color_name"])
+            name_lbl.setStyleSheet(f"font-size:11px; font-weight:600; color:{tk.t1};")
+            chip_lay.addWidget(name_lbl)
+
+            # Remove button
+            rm_btn = QToolButton()
+            rm_btn.setText("×")
+            rm_btn.setFixedSize(18, 18)
+            rm_btn.setStyleSheet(
+                f"QToolButton {{ color:{tk.red}; background:transparent; border:none; font-size:13px; }}"
+                f"QToolButton:hover {{ background:{tk.card2}; border-radius:3px; }}"
+            )
+            rm_btn.clicked.connect(lambda _=False, cid=clr["id"]: self._remove_color(cid))
+            chip_lay.addWidget(rm_btn)
+
+            chip.setStyleSheet(
+                f"QFrame {{ background:{tk.card2}; border:1px solid {tk.border}; border-radius:6px; }}"
+            )
+            self._clr_flow.insertWidget(self._clr_flow.count() - 1, chip)
+
+    _ALL_COLORS = {
+        "Black":  "#333333",
+        "Blue":   "#2563EB",
+        "Silver": "#A0A0B0",
+        "Gold":   "#D4A520",
+        "Green":  "#10B981",
+        "Purple": "#8B5CF6",
+        "White":  "#E0E0E0",
+    }
+
+    def _add_color(self) -> None:
+        """Show color picker dialog with visual colored buttons."""
+        pt = self._current_pt()
+        if not pt:
+            QMessageBox.information(self, "Colors", t("pt_no_selection"))
+            return
+
+        existing = {c["color_name"] for c in self._clr_data}
+        available = {k: v for k, v in self._ALL_COLORS.items() if k not in existing}
+        if not available:
+            QMessageBox.information(self, "Colors", t("clr_all_added"))
+            return
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(t("clr_select_title"))
+        dlg.setMinimumWidth(320)
+        from app.core.theme import THEME as _T
+        _T.apply(dlg)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(20, 20, 20, 16)
+        lay.setSpacing(12)
+
+        hdr = QLabel(t("clr_select_hdr"))
+        hdr.setObjectName("dlg_header")
+        lay.addWidget(hdr)
+
+        grid = QHBoxLayout()
+        grid.setSpacing(8)
+        selected: dict[str, bool] = {}
+        btn_map: dict[str, QPushButton] = {}
+
+        for color_name, hex_val in available.items():
+            btn = QPushButton()
+            btn.setFixedSize(44, 44)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setToolTip(color_name)
+            is_light = QColor(hex_val).lightness() > 180
+            border = "#666" if is_light else "transparent"
+            selected[color_name] = False
+            btn_map[color_name] = btn
+
+            def _toggle(_, c=color_name, b=btn, h=hex_val, il=is_light):
+                selected[c] = not selected[c]
+                brd = "#666" if il else "transparent"
+                if selected[c]:
+                    b.setStyleSheet(
+                        f"QPushButton {{ background:{h}; border:3px solid {_T.tokens.green}; border-radius:8px; }}"
+                    )
+                else:
+                    b.setStyleSheet(
+                        f"QPushButton {{ background:{h}; border:2px solid {brd}; border-radius:8px; }}"
+                        f"QPushButton:hover {{ border:3px solid {_T.tokens.green}; }}"
+                    )
+
+            btn.setStyleSheet(
+                f"QPushButton {{ background:{hex_val}; border:2px solid {border}; border-radius:8px; }}"
+                f"QPushButton:hover {{ border:3px solid {_T.tokens.green}; }}"
+            )
+            btn.clicked.connect(_toggle)
+            grid.addWidget(btn)
+
+        grid.addStretch()
+        lay.addLayout(grid)
+
+        # Select All / Confirm buttons
+        btn_row = QHBoxLayout(); btn_row.setSpacing(8)
+        sel_all = QPushButton(t("clr_select_all"))
+        sel_all.setObjectName("btn_ghost")
+        sel_all.setFixedHeight(32)
+        def _select_all():
+            for c in selected:
+                selected[c] = True
+                b = btn_map[c]
+                h = available[c]
+                b.setStyleSheet(
+                    f"QPushButton {{ background:{h}; border:3px solid {_T.tokens.green}; border-radius:8px; }}"
+                )
+        sel_all.clicked.connect(_select_all)
+        btn_row.addWidget(sel_all)
+
+        btn_row.addStretch()
+        cancel = QPushButton(t("op_cancel"))
+        cancel.setObjectName("btn_ghost")
+        cancel.setFixedHeight(32)
+        cancel.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel)
+
+        confirm = QPushButton(t("clr_add_selected"))
+        confirm.setObjectName("btn_primary")
+        confirm.setFixedHeight(32)
+        confirm.clicked.connect(dlg.accept)
+        btn_row.addWidget(confirm)
+        lay.addLayout(btn_row)
+
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            added = [c for c, v in selected.items() if v]
+            if added:
+                for color in added:
+                    _cat_repo.add_pt_color(pt.id, color, color[:3].upper())
+                from app.core.database import ensure_matrix_entries
+                ensure_matrix_entries()
+                self._refresh_colors(pt)
+
+    def _remove_color(self, color_id: int) -> None:
+        """Remove a color from the selected part type."""
+        pt = self._current_pt()
+        _cat_repo.remove_pt_color(color_id)
+        if pt:
+            self._refresh_colors(pt)
 
     # ── CRUD ──────────────────────────────────────────────────────────────────
 

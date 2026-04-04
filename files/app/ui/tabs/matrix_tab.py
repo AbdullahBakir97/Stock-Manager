@@ -144,7 +144,30 @@ class MatrixTab(BaseTab):
         brand    = self._selected_brand()
         models   = _model_repo.get_all(brand=brand)
         item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
-        self._table.load(self._cat, models, item_map)
+
+        # Filter part types to only those that have inventory items for selected brand
+        if brand:
+            used_pt_ids = set()
+            for key in item_map.keys():
+                pt_key = key[1]  # (model_id, pt_key, color)
+                for pt in self._cat.part_types:
+                    if pt.key == pt_key:
+                        used_pt_ids.add(pt.id)
+            from app.models.category import CategoryConfig
+            filtered_cat = CategoryConfig(
+                id=self._cat.id,
+                key=self._cat.key,
+                name_en=self._cat.name_en,
+                name_de=self._cat.name_de,
+                name_ar=self._cat.name_ar,
+                sort_order=self._cat.sort_order,
+                icon=self._cat.icon,
+                is_active=self._cat.is_active,
+                part_types=[pt for pt in self._cat.part_types if pt.id in used_pt_ids],
+            )
+            self._table.load(filtered_cat, models, item_map)
+        else:
+            self._table.load(self._cat, models, item_map)
 
     def retranslate(self) -> None:
         self._brand_lbl.setText(t("disp_filter_brand"))

@@ -41,16 +41,17 @@ jobs:
         run: pyinstaller StockManagerPro.spec --noconfirm --clean
 
       # ── 6. Inno Setup installer ───────────────────────────────────────────────
-      - name: Install Inno Setup 7
+      - name: Install Inno Setup
         shell: powershell
-        run: choco install innosetup --version=7.0.0 -y
+        run: choco install innosetup -y --no-progress
 
       - name: Compile installer
         working-directory: stock-manager/src
         shell: powershell
         run: |
-          $iscc = "C:\Program Files (x86)\Inno Setup 7\ISCC.exe"
-          if (-not (Test-Path $iscc)) { $iscc = "C:\Program Files\Inno Setup 7\ISCC.exe" }
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $iscc) { throw "ISCC.exe not found" }
+          Write-Host "Using ISCC: $iscc"
           & $iscc installer\StockManagerPro.iss /DAppVersion="${{ steps.version.outputs.VERSION }}"
 
       # ── 7. Upload unsigned installer for SignPath ────────────────────────────

@@ -67,6 +67,37 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Lagerwert",
         "AR": "قيمة المخزون",
     },
+    # ── Dashboard ─────────────────────────────────────────────────────────────
+    "dash_inventory_value": {
+        "EN": "Inventory Value",
+        "DE": "Inventarwert",
+        "AR": "قيمة المخزون",
+    },
+    "dash_quick_actions": {
+        "EN": "Quick Actions",
+        "DE": "Schnellaktionen",
+        "AR": "إجراءات سريعة",
+    },
+    "dash_new_product": {
+        "EN": "New Product",
+        "DE": "Neues Produkt",
+        "AR": "منتج جديد",
+    },
+    "dash_stock_in": {
+        "EN": "Stock In",
+        "DE": "Eingang",
+        "AR": "إدخال مخزون",
+    },
+    "dash_stock_out": {
+        "EN": "Stock Out",
+        "DE": "Ausgang",
+        "AR": "إخراج مخزون",
+    },
+    "dash_export_csv": {
+        "EN": "Export CSV",
+        "DE": "CSV Export",
+        "AR": "تصدير CSV",
+    },
     # ── Toolbar ────────────────────────────────────────────────────────────────
     "search_placeholder": {
         "EN": "  Search or scan barcode…",
@@ -875,15 +906,30 @@ _TR: dict[str, dict[str, str]] = {
     "qscan_item_added":   {"EN": "Added: {name} (qty: {qty})",    "DE": "Hinzugefügt: {name} (Menge: {qty})", "AR": "أضيف: {name} (الكمية: {qty})"},
     "qscan_item_incremented": {"EN": "{name} qty → {qty}",        "DE": "{name} Menge → {qty}",           "AR": "{name} الكمية → {qty}"},
     "qscan_no_mode":      {"EN": "Scan a TAKEOUT or INSERT command first", "DE": "Zuerst Befehlsbarcode scannen", "AR": "امسح باركود الأمر أولاً"},
-    "qscan_scan_color":   {"EN": "Scan color barcode for: {name}\nAvailable: {colors}", "DE": "Farb-Barcode scannen fuer: {name}\nVerfuegbar: {colors}", "AR": "امسح باركود اللون لـ: {name}\nالمتاح: {colors}"},
-    "qscan_color_not_found": {"EN": "Color '{color}' not available for this item", "DE": "Farbe '{color}' nicht verfuegbar", "AR": "اللون '{color}' غير متاح لهذا المنتج"},
-    "qscan_waiting_color": {"EN": "Scan COLOR barcode", "DE": "FARB-Barcode scannen", "AR": "امسح باركود اللون"},
     "qscan_session_active": {"EN": "A {mode} session is active. Confirm or cancel first.", "DE": "Eine {mode}-Sitzung ist aktiv. Zuerst bestätigen oder abbrechen.", "AR": "جلسة {mode} نشطة. قم بالتأكيد أو الإلغاء أولاً."},
     "qscan_not_found":    {"EN": "✕  Barcode not found: {bc}",    "DE": "✕  Barcode nicht gefunden: {bc}", "AR": "✕  الباركود غير موجود: {bc}"},
     "qscan_out_of_stock": {"EN": "⚠  Out of stock: {name}",       "DE": "⚠  Ausverkauft: {name}",          "AR": "⚠  نفد المخزون: {name}"},
     "qscan_recent":       {"EN": "RECENT SESSIONS",               "DE": "LETZTE SITZUNGEN",               "AR": "الجلسات الأخيرة"},
     "qscan_nav_mode":     {"EN": "Entered {mode} mode",                    "DE": "{mode}-Modus gestartet",              "AR": "تم الدخول في وضع {mode}"},
     "qscan_settings_btn": {"EN": "Scan Settings",                 "DE": "Scan-Einstellungen",             "AR": "إعدادات المسح"},
+    "qscan_scan_color":      {"EN": "Scan color barcode for: {name}\nAvailable: {colors}", "DE": "Farb-Barcode scannen fuer: {name}\nVerfuegbar: {colors}", "AR": "امسح باركود اللون لـ: {name}\nالمتاح: {colors}"},
+    "qscan_color_not_found": {"EN": "Color '{color}' not available for this item", "DE": "Farbe '{color}' nicht verfuegbar", "AR": "اللون '{color}' غير متاح لهذا المنتج"},
+    "qscan_waiting_color":   {"EN": "Scan COLOR barcode", "DE": "FARB-Barcode scannen", "AR": "امسح باركود اللون"},
+    # ── Colors ─────────────────────────────────────────────────────────────────
+    "clr_title":          {"EN": "COLORS",                            "DE": "FARBEN",                                   "AR": "الألوان"},
+    "clr_add":            {"EN": "+ Add Color",                       "DE": "+ Farbe hinzufuegen",                       "AR": "+ إضافة لون"},
+    "clr_hint":           {"EN": "Select a part type to manage colors","DE": "Teiletyp waehlen um Farben zu verwalten",  "AR": "اختر نوع القطعة لإدارة الألوان"},
+    "clr_select_title":   {"EN": "Select Color",                      "DE": "Farbe waehlen",                            "AR": "اختر لون"},
+    "clr_select_hdr":     {"EN": "Select Colors to Add",              "DE": "Farben zum Hinzufuegen waehlen",           "AR": "اختر الألوان للإضافة"},
+    "clr_select_all":     {"EN": "Select All",                        "DE": "Alle waehlen",                             "AR": "تحديد الكل"},
+    "clr_add_selected":   {"EN": "Add Selected",                      "DE": "Ausgewaehlte hinzufuegen",                 "AR": "إضافة المحدد"},
+    "clr_all_added":      {"EN": "All colors already added",          "DE": "Alle Farben bereits hinzugefuegt",         "AR": "تمت إضافة جميع الألوان"},
+    "clr_none":           {"EN": "No colors defined",                 "DE": "Keine Farben definiert",                   "AR": "لا ألوان محددة"},
+    "clr_barcodes_hdr":   {"EN": "Color Barcodes",                    "DE": "Farb-Barcodes",                            "AR": "باركودات الألوان"},
+    "clr_barcodes_hint":  {"EN": "Scan these after a model barcode to select color variant", "DE": "Nach dem Modell-Barcode scannen um Farbvariante auszuwaehlen", "AR": "امسح هذه بعد باركود الطراز لاختيار لون"},
+    "icon_choose_title":  {"EN": "Choose Icon",                       "DE": "Symbol waehlen",                           "AR": "اختر رمز"},
+    "icon_choose_hdr":    {"EN": "Choose Category Icon",              "DE": "Kategorie-Symbol waehlen",                 "AR": "اختر رمز الفئة"},
+    "footer_connected":   {"EN": "Connected",                         "DE": "Verbunden",                                "AR": "متصل"},
     # ── Barcode assignment ────────────────────────────────────────────────────
     "barcode_assign_title":  {"EN": "Assign Barcode",              "DE": "Barcode zuweisen",               "AR": "تعيين الباركود"},
     "barcode_current":       {"EN": "Current Barcode:",            "DE": "Aktueller Barcode:",             "AR": "الباركود الحالي:"},
@@ -1001,21 +1047,556 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Bestand kann nicht negativ sein",
         "AR": "لا يمكن أن يكون المخزون سالباً",
     },
-    # ── Colors ────────────────────────────────────────────────────────────────
-    "clr_title":          {"EN": "COLORS",                       "DE": "FARBEN",                      "AR": "الألوان"},
-    "clr_add":            {"EN": "+ Add Color",                  "DE": "+ Farbe hinzufuegen",          "AR": "+ إضافة لون"},
-    "clr_hint":           {"EN": "Select a part type to manage colors", "DE": "Teiletyp waehlen um Farben zu verwalten", "AR": "اختر نوع القطعة لإدارة الألوان"},
-    "clr_select_title":   {"EN": "Select Color",                "DE": "Farbe waehlen",                "AR": "اختر لون"},
-    "clr_select_hdr":     {"EN": "Select Colors to Add",        "DE": "Farben zum Hinzufuegen waehlen", "AR": "اختر الألوان للإضافة"},
-    "clr_select_all":     {"EN": "Select All",                  "DE": "Alle waehlen",                 "AR": "تحديد الكل"},
-    "clr_add_selected":   {"EN": "Add Selected",                "DE": "Ausgewaehlte hinzufuegen",     "AR": "إضافة المحدد"},
-    "clr_all_added":      {"EN": "All colors already added",    "DE": "Alle Farben bereits hinzugefuegt", "AR": "تمت إضافة جميع الألوان"},
-    "clr_none":           {"EN": "No colors defined",           "DE": "Keine Farben definiert",       "AR": "لا ألوان محددة"},
-    "clr_barcodes_hdr":   {"EN": "Color Barcodes",              "DE": "Farb-Barcodes",                "AR": "باركودات الألوان"},
-    "clr_barcodes_hint":  {"EN": "Scan these after a model barcode to select color variant", "DE": "Nach dem Modell-Barcode scannen um Farbvariante auszuwaehlen", "AR": "امسح هذه بعد باركود الطراز لاختيار لون"},
-    "icon_choose_title":  {"EN": "Choose Icon",                 "DE": "Symbol waehlen",               "AR": "اختر رمز"},
-    "icon_choose_hdr":    {"EN": "Choose Category Icon",        "DE": "Kategorie-Symbol waehlen",     "AR": "اختر رمز الفئة"},
-    "footer_connected":   {"EN": "Connected",                   "DE": "Verbunden",                    "AR": "متصل"},
+    # ── Backup & Restore ────────────────────────────────────────────────────────
+    "backup_tab_title": {"EN": "Backup & Restore", "DE": "Sicherung & Wiederherstellung", "AR": "النسخ الاحتياطي والاستعادة"},
+    "backup_create": {"EN": "Create Backup", "DE": "Sicherung erstellen", "AR": "إنشاء نسخة احتياطية"},
+    "backup_restore": {"EN": "Restore Backup", "DE": "Sicherung wiederherstellen", "AR": "استعادة نسخة احتياطية"},
+    "backup_delete": {"EN": "Delete Backup", "DE": "Sicherung löschen", "AR": "حذف النسخة الاحتياطية"},
+    "backup_created_ok": {"EN": "Backup created successfully", "DE": "Sicherung erfolgreich erstellt", "AR": "تم إنشاء النسخة الاحتياطية بنجاح"},
+    "backup_restored_ok": {"EN": "Backup restored. Restart the app.", "DE": "Sicherung wiederhergestellt. App neu starten.", "AR": "تم استعادة النسخة. أعد تشغيل التطبيق."},
+    "backup_confirm_restore": {"EN": "This will replace ALL current data. Continue?", "DE": "Alle aktuellen Daten werden ersetzt. Fortfahren?", "AR": "سيتم استبدال جميع البيانات الحالية. متابعة؟"},
+    "backup_confirm_delete": {"EN": "Delete this backup permanently?", "DE": "Diese Sicherung endgültig löschen?", "AR": "حذف هذه النسخة نهائياً؟"},
+    "backup_none": {"EN": "No backups found", "DE": "Keine Sicherungen gefunden", "AR": "لا توجد نسخ احتياطية"},
+    "backup_location": {"EN": "Backup Location", "DE": "Speicherort", "AR": "موقع النسخ الاحتياطي"},
+    "backup_open_folder": {"EN": "Open Folder", "DE": "Ordner öffnen", "AR": "فتح المجلد"},
+    "backup_col_date": {"EN": "Date", "DE": "Datum", "AR": "التاريخ"},
+    "backup_col_size": {"EN": "Size", "DE": "Größe", "AR": "الحجم"},
+    "backup_col_file": {"EN": "File", "DE": "Datei", "AR": "الملف"},
+    # ── Import / Export ──────────────────────────────────────────────────────────
+    "export_title": {
+        "EN": "Export Data",
+        "DE": "Daten exportieren",
+        "AR": "تصدير البيانات",
+    },
+    "export_inventory": {
+        "EN": "Export Inventory",
+        "DE": "Inventar exportieren",
+        "AR": "تصدير المخزون",
+    },
+    "export_transactions": {
+        "EN": "Export Transactions",
+        "DE": "Transaktionen exportieren",
+        "AR": "تصدير المعاملات",
+    },
+    "export_low_stock": {
+        "EN": "Export Low Stock",
+        "DE": "Niedrigen Bestand exportieren",
+        "AR": "تصدير المخزون المنخفض",
+    },
+    "export_success": {
+        "EN": "Export saved to {path}",
+        "DE": "Export gespeichert unter {path}",
+        "AR": "تم حفظ التصدير في {path}",
+    },
+    "export_error": {
+        "EN": "Export failed: {err}",
+        "DE": "Export fehlgeschlagen: {err}",
+        "AR": "فشل التصدير: {err}",
+    },
+    "import_title": {
+        "EN": "Import Data",
+        "DE": "Daten importieren",
+        "AR": "استيراد البيانات",
+    },
+    "import_success": {
+        "EN": "Imported {count} items",
+        "DE": "{count} Einträge importiert",
+        "AR": "تم استيراد {count} عنصر",
+    },
+    "import_error": {
+        "EN": "Import failed: {err}",
+        "DE": "Import fehlgeschlagen: {err}",
+        "AR": "فشل الاستيراد: {err}",
+    },
+    "import_preview": {
+        "EN": "Preview ({count} rows)",
+        "DE": "Vorschau ({count} Zeilen)",
+        "AR": "معاينة ({count} صف)",
+    },
+    "import_col_mapping": {
+        "EN": "Column Mapping",
+        "DE": "Spaltenzuordnung",
+        "AR": "تعيين الأعمدة",
+    },
+    "import_skip_first": {
+        "EN": "Skip header row",
+        "DE": "Kopfzeile überspringen",
+        "AR": "تخطي صف العنوان",
+    },
+
+    # ── Backup & Restore Tab ──
+    "admin_tab_backup": {
+        "EN": "Backup & Restore",
+        "DE": "Sichern & Wiederherstellen",
+        "AR": "النسخة الاحتياطية والاستعادة",
+    },
+    "backup_title": {
+        "EN": "Backup & Restore",
+        "DE": "Sichern & Wiederherstellen",
+        "AR": "النسخة الاحتياطية والاستعادة",
+    },
+    "backup_desc": {
+        "EN": "Create and manage database backups. Backups are stored in a backups/ folder next to the database.",
+        "DE": "Erstellen und verwalten Sie Datenbanksicherungen. Sicherungen werden in einem backups/-Ordner neben der Datenbank gespeichert.",
+        "AR": "إنشاء وإدارة النسخ الاحتياطية للقاعدة البيانات. يتم تخزين النسخ الاحتياطية في مجلد النسخ الاحتياطية بجانب قاعدة البيانات.",
+    },
+    "backup_create_btn": {
+        "EN": "Create Backup Now",
+        "DE": "Sicherung jetzt erstellen",
+        "AR": "إنشاء نسخة احتياطية الآن",
+    },
+    "backup_list_label": {
+        "EN": "Available Backups",
+        "DE": "Verfügbare Sicherungen",
+        "AR": "النسخ الاحتياطية المتاحة",
+    },
+    "backup_col_date": {
+        "EN": "Date",
+        "DE": "Datum",
+        "AR": "التاريخ",
+    },
+    "backup_col_size": {
+        "EN": "Size",
+        "DE": "Größe",
+        "AR": "الحجم",
+    },
+    "backup_col_file": {
+        "EN": "File",
+        "DE": "Datei",
+        "AR": "الملف",
+    },
+    "backup_restore_btn": {
+        "EN": "Restore Selected",
+        "DE": "Ausgewählte wiederherstellen",
+        "AR": "استعادة المحدد",
+    },
+    "backup_delete_btn": {
+        "EN": "Delete Selected",
+        "DE": "Ausgewählte löschen",
+        "AR": "حذف المحدد",
+    },
+    "backup_open_folder_btn": {
+        "EN": "Open Folder",
+        "DE": "Ordner öffnen",
+        "AR": "فتح المجلد",
+    },
+    "backup_created": {
+        "EN": "Backup created: {path}",
+        "DE": "Sicherung erstellt: {path}",
+        "AR": "تم إنشاء النسخة الاحتياطية: {path}",
+    },
+    "backup_error_title": {
+        "EN": "Error",
+        "DE": "Fehler",
+        "AR": "خطأ",
+    },
+    "backup_error_create": {
+        "EN": "Failed to create backup: {error}",
+        "DE": "Fehler beim Erstellen der Sicherung: {error}",
+        "AR": "فشل إنشاء النسخة الاحتياطية: {error}",
+    },
+    "backup_warning_title": {
+        "EN": "Warning",
+        "DE": "Warnung",
+        "AR": "تحذير",
+    },
+    "backup_select_to_restore": {
+        "EN": "Please select a backup to restore",
+        "DE": "Bitte wählen Sie eine Sicherung zum Wiederherstellen",
+        "AR": "يرجى تحديد نسخة احتياطية لاستعادتها",
+    },
+    "backup_confirm_restore_title": {
+        "EN": "Confirm Restore",
+        "DE": "Wiederherstellung bestätigen",
+        "AR": "تأكيد الاستعادة",
+    },
+    "backup_confirm_restore_msg": {
+        "EN": "Restore database from backup '{filename}'? This will replace the current database.",
+        "DE": "Datenbank aus der Sicherung '{filename}' wiederherstellen? Dies ersetzt die aktuelle Datenbank.",
+        "AR": "استعادة قاعدة البيانات من النسخة الاحتياطية '{filename}'؟ سيؤدي هذا إلى استبدال قاعدة البيانات الحالية.",
+    },
+    "backup_restored_msg": {
+        "EN": "Database restored successfully",
+        "DE": "Datenbank erfolgreich wiederhergestellt",
+        "AR": "تم استعادة قاعدة البيانات بنجاح",
+    },
+    "backup_success_title": {
+        "EN": "Success",
+        "DE": "Erfolg",
+        "AR": "نجح",
+    },
+    "backup_restored_success": {
+        "EN": "Database restored from '{filename}'. The application may need to be restarted.",
+        "DE": "Datenbank aus '{filename}' wiederhergestellt. Die Anwendung muss möglicherweise neu gestartet werden.",
+        "AR": "تم استعادة قاعدة البيانات من '{filename}'. قد يكون من الضروري إعادة تشغيل التطبيق.",
+    },
+    "backup_error_restore": {
+        "EN": "Failed to restore backup: {error}",
+        "DE": "Fehler beim Wiederherstellen der Sicherung: {error}",
+        "AR": "فشلت استعادة النسخة الاحتياطية: {error}",
+    },
+    "backup_select_to_delete": {
+        "EN": "Please select a backup to delete",
+        "DE": "Bitte wählen Sie eine Sicherung zum Löschen",
+        "AR": "يرجى تحديد نسخة احتياطية لحذفها",
+    },
+    "backup_confirm_delete_title": {
+        "EN": "Confirm Delete",
+        "DE": "Löschung bestätigen",
+        "AR": "تأكيد الحذف",
+    },
+    "backup_confirm_delete_msg": {
+        "EN": "Delete backup '{filename}'? This action cannot be undone.",
+        "DE": "Sicherung '{filename}' löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+        "AR": "حذف النسخة الاحتياطية '{filename}'؟ لا يمكن التراجع عن هذا الإجراء.",
+    },
+    "backup_deleted_msg": {
+        "EN": "Backup deleted",
+        "DE": "Sicherung gelöscht",
+        "AR": "تم حذف النسخة الاحتياطية",
+    },
+    "backup_error_delete": {
+        "EN": "Failed to delete backup: {error}",
+        "DE": "Fehler beim Löschen der Sicherung: {error}",
+        "AR": "فشل حذف النسخة الاحتياطية: {error}",
+    },
+
+    # ── Import/Export Tab ──
+    "admin_tab_import_export": {
+        "EN": "Import/Export",
+        "DE": "Importieren/Exportieren",
+        "AR": "الاستيراد/التصدير",
+    },
+    "import_export_title": {
+        "EN": "Import & Export",
+        "DE": "Importieren & Exportieren",
+        "AR": "الاستيراد والتصدير",
+    },
+    "export_section_label": {
+        "EN": "Export Data",
+        "DE": "Daten exportieren",
+        "AR": "تصدير البيانات",
+    },
+    "export_inventory_btn": {
+        "EN": "Export Inventory CSV",
+        "DE": "Bestand CSV exportieren",
+        "AR": "تصدير المخزون CSV",
+    },
+    "export_transactions_btn": {
+        "EN": "Export Transactions CSV",
+        "DE": "Transaktionen CSV exportieren",
+        "AR": "تصدير المعاملات CSV",
+    },
+    "export_low_stock_btn": {
+        "EN": "Export Low Stock CSV",
+        "DE": "Niedriger Bestand CSV exportieren",
+        "AR": "تصدير المخزون المنخفض CSV",
+    },
+    "export_inventory_dialog": {
+        "EN": "Export Inventory",
+        "DE": "Bestand exportieren",
+        "AR": "تصدير المخزون",
+    },
+    "export_transactions_dialog": {
+        "EN": "Export Transactions",
+        "DE": "Transaktionen exportieren",
+        "AR": "تصدير المعاملات",
+    },
+    "export_low_stock_dialog": {
+        "EN": "Export Low Stock Items",
+        "DE": "Artikel mit niedrigem Bestand exportieren",
+        "AR": "تصدير العناصر ذات المخزون المنخفض",
+    },
+    "export_success": {
+        "EN": "Exported: {filename}",
+        "DE": "Exportiert: {filename}",
+        "AR": "تم التصدير: {filename}",
+    },
+    "export_success_title": {
+        "EN": "Export Successful",
+        "DE": "Export erfolgreich",
+        "AR": "نجح التصدير",
+    },
+    "export_file_saved": {
+        "EN": "File saved to: {path}",
+        "DE": "Datei gespeichert in: {path}",
+        "AR": "تم حفظ الملف في: {path}",
+    },
+    "export_error": {
+        "EN": "Export failed",
+        "DE": "Export fehlgeschlagen",
+        "AR": "فشل التصدير",
+    },
+    "export_error_title": {
+        "EN": "Export Error",
+        "DE": "Exportfehler",
+        "AR": "خطأ في التصدير",
+    },
+    "export_error_msg": {
+        "EN": "Export error: {error}",
+        "DE": "Exportfehler: {error}",
+        "AR": "خطأ في التصدير: {error}",
+    },
+    "import_section_label": {
+        "EN": "Import Products",
+        "DE": "Produkte importieren",
+        "AR": "استيراد المنتجات",
+    },
+    "import_select_file_btn": {
+        "EN": "Select CSV File",
+        "DE": "CSV-Datei auswählen",
+        "AR": "اختر ملف CSV",
+    },
+    "import_select_file_dialog": {
+        "EN": "Select CSV to Import",
+        "DE": "CSV zum Importieren auswählen",
+        "AR": "اختر CSV للاستيراد",
+    },
+    "import_no_file": {
+        "EN": "No file selected",
+        "DE": "Keine Datei ausgewählt",
+        "AR": "لم يتم تحديد ملف",
+    },
+    "import_preview_label": {
+        "EN": "Preview (first 10 rows)",
+        "DE": "Vorschau (erste 10 Zeilen)",
+        "AR": "معاينة (أول 10 صفوف)",
+    },
+    "import_column_mapping_label": {
+        "EN": "Column Mapping",
+        "DE": "Spaltenzuordnung",
+        "AR": "تعيين الأعمدة",
+    },
+    "import_col_brand": {
+        "EN": "Brand",
+        "DE": "Marke",
+        "AR": "الماركة",
+    },
+    "import_col_name": {
+        "EN": "Name",
+        "DE": "Name",
+        "AR": "الاسم",
+    },
+    "import_col_color": {
+        "EN": "Color",
+        "DE": "Farbe",
+        "AR": "اللون",
+    },
+    "import_col_barcode": {
+        "EN": "Barcode",
+        "DE": "Barcode",
+        "AR": "الباركود",
+    },
+    "import_col_stock": {
+        "EN": "Stock",
+        "DE": "Bestand",
+        "AR": "المخزون",
+    },
+    "import_col_min_stock": {
+        "EN": "Min Stock",
+        "DE": "Mindestbestand",
+        "AR": "الحد الأدنى",
+    },
+    "import_col_price": {
+        "EN": "Price",
+        "DE": "Preis",
+        "AR": "السعر",
+    },
+    "import_skip_header_cb": {
+        "EN": "Skip header row",
+        "DE": "Kopfzeile überspringen",
+        "AR": "تخطي صف العنوان",
+    },
+    "import_execute_btn": {
+        "EN": "Import Products",
+        "DE": "Produkte importieren",
+        "AR": "استيراد المنتجات",
+    },
+    "import_warning_title": {
+        "EN": "Warning",
+        "DE": "Warnung",
+        "AR": "تحذير",
+    },
+    "import_select_file_first": {
+        "EN": "Please select a CSV file first",
+        "DE": "Bitte wählen Sie zuerst eine CSV-Datei",
+        "AR": "يرجى تحديد ملف CSV أولاً",
+    },
+    "import_missing_required_cols": {
+        "EN": "Brand and Name columns are required",
+        "DE": "Spalten Marke und Name sind erforderlich",
+        "AR": "أعمدة الماركة والاسم مطلوبة",
+    },
+    "import_result_summary": {
+        "EN": "Imported: {imported}, Skipped: {skipped}, Errors: {errors}",
+        "DE": "Importiert: {imported}, Übersprungen: {skipped}, Fehler: {errors}",
+        "AR": "تم الاستيراد: {imported}، تم التخطي: {skipped}، أخطاء: {errors}",
+    },
+    "import_partial_title": {
+        "EN": "Import Completed with Errors",
+        "DE": "Import mit Fehlern abgeschlossen",
+        "AR": "اكتمل الاستيراد مع أخطاء",
+    },
+    "import_partial_msg": {
+        "EN": "Successfully imported {imported} products, but {errors} rows had errors",
+        "DE": "Es wurden {imported} Produkte erfolgreich importiert, aber {errors} Zeilen hatten Fehler",
+        "AR": "تم استيراد {imported} منتج بنجاح، لكن {errors} صف بها أخطاء",
+    },
+    "import_success_title": {
+        "EN": "Import Successful",
+        "DE": "Import erfolgreich",
+        "AR": "نجح الاستيراد",
+    },
+    "import_success_msg": {
+        "EN": "Successfully imported {count} products",
+        "DE": "{count} Produkte erfolgreich importiert",
+        "AR": "تم استيراد {count} منتج بنجاح",
+    },
+    "import_error_title": {
+        "EN": "Import Error",
+        "DE": "Importfehler",
+        "AR": "خطأ في الاستيراد",
+    },
+    "import_error_msg": {
+        "EN": "Import error: {error}",
+        "DE": "Importfehler: {error}",
+        "AR": "خطأ في الاستيراد: {error}",
+    },
+
+    # ── Database Tools Tab ────────────────────────────────────────────────────────
+    "admin_tab_db_tools": {
+        "EN": "Database Tools",
+        "DE": "Datenbank-Tools",
+        "AR": "أدوات قاعدة البيانات",
+    },
+    "db_tools_info_title": {
+        "EN": "Database Information",
+        "DE": "Datenbank-Informationen",
+        "AR": "معلومات قاعدة البيانات",
+    },
+    "db_tools_file_path": {
+        "EN": "File Path",
+        "DE": "Dateipfad",
+        "AR": "مسار الملف",
+    },
+    "db_tools_file_size": {
+        "EN": "File Size",
+        "DE": "Dateigröße",
+        "AR": "حجم الملف",
+    },
+    "db_tools_schema_ver": {
+        "EN": "Schema Version",
+        "DE": "Schema-Version",
+        "AR": "إصدار المخطط",
+    },
+    "db_tools_optimize": {
+        "EN": "Optimize Database",
+        "DE": "Datenbank optimieren",
+        "AR": "تحسين قاعدة البيانات",
+    },
+    "db_tools_optimize_desc": {
+        "EN": "Run SQLite optimizer and reclaim unused space",
+        "DE": "SQLite-Optimierer ausführen und ungenutzten Speicher freigeben",
+        "AR": "تشغيل محسن SQLite واستعادة المساحة غير المستخدمة",
+    },
+    "db_tools_integrity": {
+        "EN": "Integrity Check",
+        "DE": "Integritätsprüfung",
+        "AR": "فحص السلامة",
+    },
+    "db_tools_integrity_desc": {
+        "EN": "Verify database structure is intact",
+        "DE": "Datenbankstruktur auf Integrität prüfen",
+        "AR": "التحقق من سلامة هيكل قاعدة البيانات",
+    },
+    "db_tools_result_ok": {
+        "EN": "Database is healthy",
+        "DE": "Datenbank ist in Ordnung",
+        "AR": "قاعدة البيانات سليمة",
+    },
+    "db_tools_result_optimized": {
+        "EN": "Database optimized successfully",
+        "DE": "Datenbank erfolgreich optimiert",
+        "AR": "تم تحسين قاعدة البيانات بنجاح",
+    },
+
+    # ── Filters ───────────────────────────────────────────────────────────────────
+    "filter_search_placeholder": {
+        "EN": "Search by name, barcode, brand...",
+        "DE": "Suche nach Name, Barcode, Marke...",
+        "AR": "بحث بالاسم، الباركود، العلامة...",
+    },
+    "filter_all_status": {
+        "EN": "All Status",
+        "DE": "Alle Status",
+        "AR": "جميع الحالات",
+    },
+    "filter_reset": {
+        "EN": "Reset",
+        "DE": "Zurücksetzen",
+        "AR": "إعادة تعيين",
+    },
+    "filter_active": {
+        "EN": "{n} filter(s) active",
+        "DE": "{n} Filter aktiv",
+        "AR": "{n} فلتر نشط",
+    },
+    # ── Reports ───────────────────────────────────────────────────────────────────
+    "report_inventory_title": {
+        "EN": "Inventory Report",
+        "DE": "Inventarbericht",
+        "AR": "تقرير المخزون",
+    },
+    "report_low_stock_title": {
+        "EN": "Low Stock Report",
+        "DE": "Niedriger Bestand Bericht",
+        "AR": "تقرير المخزون المنخفض",
+    },
+    "report_txn_title": {
+        "EN": "Transaction Report",
+        "DE": "Transaktionsbericht",
+        "AR": "تقرير المعاملات",
+    },
+    "report_summary_title": {
+        "EN": "Summary Report",
+        "DE": "Zusammenfassungsbericht",
+        "AR": "تقرير موجز",
+    },
+    "report_generated_at": {
+        "EN": "Generated: {date}",
+        "DE": "Erzeugt: {date}",
+        "AR": "تم الإنشاء: {date}",
+    },
+    "report_page": {
+        "EN": "Page {current} of {total}",
+        "DE": "Seite {current} von {total}",
+        "AR": "الصفحة {current} من {total}",
+    },
+    "status_exported": {
+        "EN": "Report exported: {path}",
+        "DE": "Bericht exportiert: {path}",
+        "AR": "تم تصدير التقرير: {path}",
+    },
+    "msg_export_title": {
+        "EN": "Export Successful",
+        "DE": "Export erfolgreich",
+        "AR": "نجح التصدير",
+    },
+    "msg_export_body": {
+        "EN": "Report saved to:\n{path}",
+        "DE": "Bericht gespeichert unter:\n{path}",
+        "AR": "تم حفظ التقرير في:\n{path}",
+    },
+    "msg_export_failed": {
+        "EN": "Export Failed",
+        "DE": "Export fehlgeschlagen",
+        "AR": "فشل التصدير",
+    },
+    "msg_no_low_stock_items": {
+        "EN": "No items with low stock",
+        "DE": "Keine Artikel mit niedrigem Bestand",
+        "AR": "لا توجد عناصر بمخزون منخفض",
+    },
 }
 
 

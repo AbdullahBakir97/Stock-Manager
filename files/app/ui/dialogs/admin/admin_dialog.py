@@ -14,14 +14,17 @@ from app.ui.dialogs.admin.categories_panel     import CategoriesPanel
 from app.ui.dialogs.admin.part_types_panel     import PartTypesPanel
 from app.ui.dialogs.admin.models_panel         import ModelsPanel
 from app.ui.dialogs.admin.scan_settings_panel  import ScanSettingsPanel
+from app.ui.dialogs.admin.backup_panel         import BackupPanel
+from app.ui.dialogs.admin.import_export_panel  import ImportExportPanel
+from app.ui.dialogs.admin.db_tools_panel       import DatabaseToolsPanel
 from app.core.theme import THEME
 from app.core.i18n import t
 
 
 class AdminDialog(QDialog):
     """
-    Modal admin dialog with four tabs:
-    Shop Settings | Categories | Part Types | Models
+    Modal admin dialog with eight tabs:
+    Shop Settings | Categories | Part Types | Models | Scan Settings | Backup | Import/Export | Database Tools
     Emits settings_changed when anything is saved.
     """
 
@@ -45,12 +48,18 @@ class AdminDialog(QDialog):
         self._pt_panel    = PartTypesPanel()
         self._mdl_panel   = ModelsPanel()
         self._scan_panel  = ScanSettingsPanel()
+        self._backup_panel = BackupPanel()
+        self._import_export_panel = ImportExportPanel()
+        self._db_tools_panel = DatabaseToolsPanel()
 
         self._tabs.addTab(self._shop_panel,  t("admin_tab_shop"))
         self._tabs.addTab(self._cat_panel,   t("admin_tab_categories"))
         self._tabs.addTab(self._pt_panel,    t("admin_tab_part_types"))
         self._tabs.addTab(self._mdl_panel,   t("admin_tab_models"))
         self._tabs.addTab(self._scan_panel,  t("admin_tab_scan"))
+        self._tabs.addTab(self._backup_panel, t("admin_tab_backup"))
+        self._tabs.addTab(self._import_export_panel, t("admin_tab_import_export"))
+        self._tabs.addTab(self._db_tools_panel, t("admin_tab_db_tools"))
 
         lay.addWidget(self._tabs)
 

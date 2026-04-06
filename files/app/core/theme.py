@@ -508,21 +508,38 @@ QCheckBox::indicator:checked {{ background: {acc}; border-color: {acc}; }}
 
 /* ── Tabs ─────────────────────────────────────────────────── */
 QTabWidget::pane {{
-    background: {t.card};
-    border: 1px solid {t.border}; border-radius: {br_tab}; top: -1px;
+    border: 1px solid {t.border};
+    border-radius: {br_tab};
+    background: transparent;
+    top: -1px;
 }}
 QTabWidget#main_tabs::pane {{
-    background: {t.card};
-    border: 1px solid {t.border}; border-radius: {br_tab}; top: -1px;
+    border: 1px solid {t.border};
+    border-radius: {br_tab};
+    background: transparent;
+    top: -1px;
 }}
-QTabBar {{ background: transparent; }}
+QTabBar {{
+    background: transparent;
+}}
 QTabBar::tab {{
-    background: transparent; color: {t.t3};
-    padding: 12px 20px; font-weight: 500; font-size: 13px;
-    border: none; border-bottom: 2px solid transparent; margin-right: 4px;
+    background: transparent;
+    color: {t.t2};
+    padding: 8px 16px;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 12px;
+    font-weight: 500;
 }}
-QTabBar::tab:selected {{ color: {acc}; border-bottom-color: {acc}; }}
-QTabBar::tab:hover    {{ color: {t.t1}; background: {t.card2}; }}
+QTabBar::tab:selected {{
+    color: {acc};
+    border-bottom: 2px solid {acc};
+    font-weight: 600;
+}}
+QTabBar::tab:hover:!selected {{
+    color: {t.t1};
+    background: {_rgba(acc, '10')};
+}}
 
 /* ── Tables ───────────────────────────────────────────────── */
 QTableWidget {{
@@ -598,13 +615,19 @@ QComboBox {{
     background: {inp_bg}; color: {t.t1};
     border: 1px solid {t.border}; border-radius: {br_input};
     padding: 8px 12px; font-size: 13px;
+    min-height: 36px;
 }}
 QComboBox:focus {{ border-color: {acc}; }}
 /* No QComboBox::drop-down or ::down-arrow — let Qt draw native arrows */
 QComboBox QAbstractItemView {{
-    background: {t.card}; border: 1px solid {t.border};
-    border-radius: {br_input}; padding: 4px;
-    selection-background-color: {acc}; selection-color: #FFFFFF;
+    background: {t.card};
+    color: {t.t1};
+    border: 1px solid {t.border};
+    border-radius: {br_input};
+    outline: none;
+    padding: 4px;
+    selection-background-color: {_rgba(acc, '30')};
+    selection-color: {t.t1};
 }}
 
 /* ── GroupBox ─────────────────────────────────────────────── */
@@ -892,22 +915,53 @@ QStatusBar::item {{ border: none; }}
 
 /* ── Tooltips ─────────────────────────────────────────────── */
 QToolTip {{
-    background: {t.card2}; color: {t.t1};
-    border: 1px solid {t.border}; border-radius: 6px;
-    padding: 8px 12px; font-size: 12px;
+    background: {t.card};
+    color: {t.t1};
+    border: 1px solid {t.border};
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
 }}
 
 /* ── Scrollbars ───────────────────────────────────────────── */
-QScrollBar:vertical   {{ width: 8px; background: transparent; margin: 0; }}
-QScrollBar::handle:vertical   {{ background: {scr}; border-radius: 4px; min-height: 30px; }}
-QScrollBar::handle:vertical:hover {{ background: {t.t3}; }}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{ background: none; }}
-QScrollBar:horizontal {{ height: 8px; background: transparent; }}
-QScrollBar::handle:horizontal {{ background: {scr}; border-radius: 4px; min-width: 30px; }}
-QScrollBar::handle:horizontal:hover {{ background: {t.t3}; }}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{ background: none; }}
+QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 0;
+}}
+QScrollBar::handle:vertical {{
+    background: {_rgba(t.t3, '60')};
+    border-radius: 4px;
+    min-height: 30px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: {_rgba(t.t3, '99')};
+}}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
+QScrollBar:horizontal {{
+    background: transparent;
+    height: 8px;
+    margin: 0;
+}}
+QScrollBar::handle:horizontal {{
+    background: {_rgba(t.t3, '60')};
+    border-radius: 4px;
+    min-width: 30px;
+}}
+QScrollBar::handle:horizontal:hover {{
+    background: {_rgba(t.t3, '99')};
+}}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+    width: 0;
+}}
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {{
+    background: transparent;
+}}
 """
 
 

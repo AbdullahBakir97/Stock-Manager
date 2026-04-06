@@ -39,6 +39,8 @@ from app.core.theme import THEME, GradientBackground, qc, _rgba
 from app.core.i18n import t, set_lang, LANG, color_t, note_t
 from app.ui.delegates import AlternatingRowDelegate
 from app.core.icon_utils import load_svg_icon, get_button_icon
+from app.ui.components.filter_bar import FilterBar
+from app.ui.components.dashboard_widget import DashboardWidget
 
 # ── Module-level singletons ───────────────────────────────────────────────────
 _cat_repo   = CategoryRepository()
@@ -1700,25 +1702,14 @@ class MainWindow(QMainWindow):
         inv_lay.setContentsMargins(0, 0, 0, 0)
         inv_lay.setSpacing(12)
 
-        cr = QHBoxLayout(); cr.setSpacing(12)
-        self.c_tot = SummaryCard("card_total_products")
-        self.c_unt = SummaryCard("card_total_units")
-        self.c_low = SummaryCard("card_low_stock")
-        self.c_out = SummaryCard("card_out_of_stock")
-        self.c_val = SummaryCard("card_inventory_value")
-        for c in (self.c_tot, self.c_unt, self.c_low, self.c_out, self.c_val):
-            cr.addWidget(c)
-        inv_lay.addLayout(cr)
+        # Dashboard with summary cards + quick actions
+        self._dashboard = DashboardWidget()
+        inv_lay.addWidget(self._dashboard)
 
-        tb = QHBoxLayout(); tb.setSpacing(8)
-        self.low_cb = QCheckBox(t("low_stock_only"))
-        self.low_cb.stateChanged.connect(self._refresh_products)
-        self.add_btn = QPushButton(t("btn_new_product"))
-        self.add_btn.setObjectName("btn_primary")
-        self.add_btn.setMaximumHeight(36)
-        self.add_btn.clicked.connect(self._add_product)
-        tb.addWidget(self.low_cb); tb.addStretch(); tb.addWidget(self.add_btn)
-        inv_lay.addLayout(tb)
+        # Professional filter bar
+        self._filter_bar = FilterBar()
+        self._filter_bar.filters_changed.connect(self._on_filters_changed)
+        inv_lay.addWidget(self._filter_bar)
 
         sp = QSplitter(Qt.Orientation.Horizontal); sp.setHandleWidth(1)
         sp.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
@@ -1872,11 +1863,20 @@ class MainWindow(QMainWindow):
         self.detail.request_edit.connect(self._edit)
         self.detail.request_del.connect(self._delete)
 
+        # Dashboard quick actions
+        self._dashboard.action_new_product.connect(self._add_product)
+        self._dashboard.action_stock_in.connect(lambda: self._stock_op("IN"))
+        self._dashboard.action_stock_out.connect(lambda: self._stock_op("OUT"))
+        self._dashboard.action_export.connect(self._export_csv)
+
         QShortcut(QKeySequence("Ctrl+N"), self).activated.connect(self._add_product)
         QShortcut(QKeySequence("F5"),     self).activated.connect(self._refresh_all)
         QShortcut(QKeySequence("Ctrl+I"), self).activated.connect(lambda: self._stock_op("IN"))
         QShortcut(QKeySequence("Ctrl+O"), self).activated.connect(lambda: self._stock_op("OUT"))
-        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(self._toggle_sidebar)
+        QShortcut(QKeySequence("Ctrl+J"), self).activated.connect(lambda: self._stock_op("ADJUST"))
+        QShortcut(QKeySequence("Ctrl+B"), self).activated.connect(lambda: self._nav_to("nav_barcode_gen"))
+        QShortcut(QKeySequence("Ctrl+Alt+A"), self).activated.connect(self._open_admin)
+        QShortcut(QKeySequence("Ctrl+P"), self).activated.connect(self._export_csv)
 
         # Global barcode capture — catches scanner input even when no field is focused
         self._global_bc_buf: list[str] = []
@@ -2018,14 +2018,12 @@ class MainWindow(QMainWindow):
         self.admin_btn.setToolTip(t("tooltip_admin"))
         self._theme_toggle.setToolTip(t("tooltip_theme"))
 
-        # Summary cards
-        self.c_tot.retranslate(); self.c_unt.retranslate()
-        self.c_low.retranslate(); self.c_out.retranslate(); self.c_val.retranslate()
+        # Dashboard and filter bar
+        self._dashboard.retranslate()
+        self._filter_bar.retranslate()
 
-        # Inventory toolbar
+        # Header search
         self.search.setPlaceholderText(t("search_placeholder"))
-        self.low_cb.setText(t("low_stock_only"))
-        self.add_btn.setText(t("btn_new_product"))
 
         # Sidebar nav buttons
         nav_items = [
@@ -2079,25 +2077,19 @@ class MainWindow(QMainWindow):
     # ── Refresh ────────────────────────────────────────────────────────────────
 
     def _refresh_products(self):
-        s     = self.search.text().strip()
-        items = _item_repo.get_all_items(
-            search=s if len(s) >= 2 else "",
-            filter_low_stock=self.low_cb.isChecked(),
-        )
-        self.prod_tbl.load(items)
-        self._show_status(t("status_n_products", n=len(items)), 3000)
+        # Use filter bar if available, otherwise header search
+        if hasattr(self, '_filter_bar'):
+            filters = self._filter_bar.get_filters()
+            self._on_filters_changed(filters)
+        else:
+            s = self.search.text().strip()
+            items = _item_repo.get_all_items(search=s if len(s) >= 2 else "")
+            self.prod_tbl.load(items)
+            self._show_status(t("status_n_products", n=len(items)), 3000)
 
     def _refresh_summary(self):
-        s = _item_repo.get_summary(); tk = THEME.tokens
-        self.c_tot.set(s.get("total_products") or 0)
-        self.c_unt.set(s.get("total_units") or 0, tk.green)
-        low = s.get("low_stock_count") or 0
-        out = s.get("out_of_stock_count") or 0
-        self.c_low.set(low, tk.orange if low > 0 else tk.green)
-        self.c_out.set(out, tk.red   if out > 0 else tk.green)
-        val = s.get("inventory_value") or 0.0
-        cfg = ShopConfig.get()
-        self.c_val.set(cfg.format_currency(val), tk.blue)
+        s = _item_repo.get_summary()
+        self._dashboard.update_data(s)
 
     def _refresh_all_txns(self):
         self.txn_tbl.load(_txn_repo.get_transactions(limit=500))
@@ -2110,6 +2102,58 @@ class MainWindow(QMainWindow):
             self.detail.set_product(self._cp)
         self._check_alerts()
         self._show_status(t("status_refreshed"), 2000)
+
+    def _on_filters_changed(self, filters: dict) -> None:
+        """Handle filter bar changes — search, status, sort."""
+        search = filters.get("search", "")
+        status = filters.get("status", "all")
+        sort_by = filters.get("sort_by", "name_asc")
+
+        # Get items with search
+        items = _item_repo.get_all_items(search=search if len(search) >= 2 else "")
+
+        # Filter by status
+        if status == "ok":
+            items = [i for i in items if i.stock > i.min_stock]
+        elif status == "low":
+            items = [i for i in items if 0 < i.stock <= i.min_stock]
+        elif status == "critical":
+            items = [i for i in items if i.stock <= max(1, i.min_stock // 4)]
+        elif status == "out":
+            items = [i for i in items if i.stock == 0]
+
+        # Sort
+        sort_map = {
+            "name_asc": lambda x: (x.display_name.lower(),),
+            "name_desc": lambda x: (x.display_name.lower(),),
+            "stock_asc": lambda x: (x.stock,),
+            "stock_desc": lambda x: (-x.stock,),
+            "price_asc": lambda x: (x.sell_price or 0,),
+            "price_desc": lambda x: (-(x.sell_price or 0),),
+            "updated_desc": lambda x: (x.updated_at or "",),
+        }
+        key_fn = sort_map.get(sort_by, sort_map["name_asc"])
+        reverse = sort_by in ("name_desc", "updated_desc")
+        items.sort(key=key_fn, reverse=reverse)
+
+        self.prod_tbl.load(items)
+        self._show_status(t("status_n_products", n=len(items)), 3000)
+
+    def _export_csv(self) -> None:
+        """Quick export inventory to CSV via dashboard button."""
+        try:
+            from app.services.export_service import ExportService
+            import os
+            svc = ExportService()
+            path = svc.export_inventory_csv()
+            if path and os.path.exists(path):
+                self._show_status(t("status_exported", path=path), 5000)
+                QMessageBox.information(self, t("msg_export_title"),
+                                       t("msg_export_body", path=path))
+            else:
+                self._show_status(t("msg_export_failed"), 3000)
+        except Exception as e:
+            QMessageBox.critical(self, t("msg_error"), str(e))
 
     # ── Events ─────────────────────────────────────────────────────────────────
 
@@ -2161,6 +2205,8 @@ class MainWindow(QMainWindow):
         self._refresh_products(); self._refresh_all_txns(); self._refresh_summary()
         if self._cp: self.detail.set_product(self._cp)
         self.prod_tbl.viewport().update(); self.txn_tbl.viewport().update()
+        if hasattr(self, '_dashboard'):
+            self._dashboard.apply_theme()
 
     # ── CRUD ───────────────────────────────────────────────────────────────────
 

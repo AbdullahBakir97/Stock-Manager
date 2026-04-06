@@ -1,4 +1,9 @@
-"""app/models/product.py — Product value object."""
+"""app/models/product.py — Product value object.
+
+DEPRECATED: Phase C refactoring complete. This model is preserved for backward
+compatibility only. All new code should use InventoryItem from app.models.inventory_item
+instead. The Product and legacy stock_entries tables are being phased out.
+"""
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional

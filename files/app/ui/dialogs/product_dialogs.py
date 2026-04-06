@@ -23,13 +23,11 @@ from PyQt6.QtGui import (
 )
 
 from app.core import colors as clr
-from app.repositories.product_repo import ProductRepository
 from app.services.alert_service import AlertService
 from app.core.theme import THEME, _rgba
 from app.core.i18n import t, color_t
 from app.core.config import ShopConfig
 
-_prod_repo = ProductRepository()
 _alert_svc = AlertService()
 
 # ── Typography constants ──────────────────────────────────────────────────────

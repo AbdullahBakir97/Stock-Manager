@@ -10,6 +10,9 @@ import os
 import sys
 import sqlite3
 from typing import Optional
+from app.core.logger import get_logger
+
+_log = get_logger(__name__)
 
 
 # ── DB path resolution ────────────────────────────────────────────────────────
@@ -26,10 +29,14 @@ def _db_path() -> str:
                 "StockPro", "StockManagerPro",
             )
         os.makedirs(base, exist_ok=True)
-        return os.path.join(base, "stock_manager.db")
+        db_path = os.path.join(base, "stock_manager.db")
+        _log.info(f"DB path (production): {db_path}")
+        return db_path
     # Development: DB next to source files (two levels up from app/core/)
     root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(root, "stock_manager.db")
+    db_path = os.path.join(root, "stock_manager.db")
+    _log.debug(f"DB path (development): {db_path}")
+    return db_path
 
 
 DB_PATH: str = _db_path()
@@ -96,7 +103,7 @@ _DDL = """
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Generic stock entries: one row per (model × part_type)
+    -- LEGACY: Generic stock entries (kept for migration in V3→V4, dropped in V6)
     CREATE TABLE IF NOT EXISTS stock_entries (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         model_id     INTEGER NOT NULL REFERENCES phone_models(id) ON DELETE CASCADE,
@@ -108,7 +115,7 @@ _DDL = """
         UNIQUE(model_id, part_type_id)
     );
 
-    -- Audit log for matrix stock movements
+    -- LEGACY: Audit log for matrix stock movements (kept for migration in V3→V4, dropped in V6)
     CREATE TABLE IF NOT EXISTS stock_transactions (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         entry_id     INTEGER NOT NULL REFERENCES stock_entries(id) ON DELETE CASCADE,
@@ -120,7 +127,7 @@ _DDL = """
         timestamp    TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- General products (generic inventory — unchanged from v1)
+    -- LEGACY: General products (kept for migration in V3→V4, dropped in V6)
     CREATE TABLE IF NOT EXISTS products (
         id                  INTEGER PRIMARY KEY AUTOINCREMENT,
         brand               TEXT    NOT NULL,
@@ -133,7 +140,7 @@ _DDL = """
         updated_at          TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Audit log for product stock movements
+    -- LEGACY: Audit log for product stock movements (kept for migration in V3→V4, dropped in V6)
     CREATE TABLE IF NOT EXISTS product_transactions (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         product_id   INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
@@ -199,6 +206,7 @@ _SCHEMA_VERSION = "6"
 
 def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
     """V3 adds new ShopConfig keys and setup_complete flag. No new tables."""
+    _log.info("Migrating database schema from V2 to V3")
     defaults = {
         "currency_position": "prefix",
         "logo_path":         "",
@@ -210,6 +218,7 @@ def _migrate_v2_to_v3(conn: sqlite3.Connection) -> None:
         conn.execute(
             "INSERT OR IGNORE INTO app_config (key, value) VALUES (?,?)", (k, v)
         )
+    _log.info("V2 to V3 migration completed")
 
 
 # ── V3 → V4 migration ────────────────────────────────────────────────────────
@@ -266,6 +275,7 @@ def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
 
 def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
     """Seed default command barcodes for Quick Scan."""
+    _log.info("Migrating database schema from V4 to V5")
     defaults = [
         ("scan_cmd_takeout", "CMD-TAKEOUT"),
         ("scan_cmd_insert",  "CMD-INSERT"),
@@ -276,10 +286,40 @@ def _migrate_v4_to_v5(conn: sqlite3.Connection) -> None:
             "INSERT OR IGNORE INTO app_config (key, value) VALUES (?,?)",
             (key, val),
         )
+    _log.info("V4 to V5 migration completed")
+
+
+def _migrate_v5_to_v6(conn: sqlite3.Connection) -> None:
+    """V6: Drop legacy tables now that data is fully in inventory_items."""
+    _log.info("Migrating database schema from V5 to V6 (drop legacy tables)")
+
+    # Safety: verify inventory_items has data before dropping
+    count = conn.execute("SELECT COUNT(*) FROM inventory_items").fetchone()[0]
+    if count == 0:
+        # Don't drop if unified table is empty — data might not be migrated
+        _log.warning("V5 to V6: Skipping legacy table drop — inventory_items is empty")
+        return
+
+    # Drop legacy tables that are no longer used
+    conn.execute("DROP TABLE IF EXISTS product_transactions")
+    conn.execute("DROP TABLE IF EXISTS stock_transactions")
+    conn.execute("DROP TABLE IF EXISTS products")
+    conn.execute("DROP TABLE IF EXISTS stock_entries")
+
+    # Drop legacy indexes
+    conn.execute("DROP INDEX IF EXISTS idx_products_barcode")
+    conn.execute("DROP INDEX IF EXISTS idx_product_txn_product")
+    conn.execute("DROP INDEX IF EXISTS idx_product_txn_time")
+    conn.execute("DROP INDEX IF EXISTS idx_stock_entries_model")
+    conn.execute("DROP INDEX IF EXISTS idx_stock_entries_part")
+    conn.execute("DROP INDEX IF EXISTS idx_stock_txn_entry")
+
+    _log.info("V5 to V6 migration completed")
 
 
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
+    _log.info("Migrating database schema from V3 to V4 (consolidate products + stock_entries)")
     # 1. Products → inventory_items (preserve IDs so product_id refs stay valid)
     conn.execute("""
         INSERT OR IGNORE INTO inventory_items
@@ -288,6 +328,7 @@ def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
                created_at, updated_at
         FROM products
     """)
+    _log.debug("V3->V4: Migrated products to inventory_items")
 
     # 2. stock_entries → inventory_items (new IDs, build a mapping for transaction migration)
     conn.execute("CREATE TEMP TABLE _se_map (old_id INTEGER, new_id INTEGER)")
@@ -329,6 +370,7 @@ def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
                   tx["stock_before"], tx["stock_after"], tx["note"], tx["timestamp"]))
 
     conn.execute("DROP TABLE _se_map")
+    _log.info("V3 to V4 migration completed")
 
 
 # ── V1 → V2 migration helpers ─────────────────────────────────────────────────
@@ -394,6 +436,7 @@ def _migrate_v1_transactions(conn: sqlite3.Connection) -> None:
 
 def init_db() -> None:
     """Create schema, run migrations, seed reference data."""
+    _log.info("Initializing database")
     with get_connection() as conn:
         conn.executescript(_DDL)
 
@@ -404,6 +447,7 @@ def init_db() -> None:
         is_fresh = version is None
 
         if is_fresh:
+            _log.info("Database is fresh, initializing new schema")
             # Check if this is a v1 upgrade or truly fresh
             is_v1_upgrade = _has_table(conn, "display_stock")
 
@@ -456,6 +500,7 @@ def init_db() -> None:
                 "SELECT value FROM app_config WHERE key='schema_version'"
             ).fetchone()
             current = ver_row["value"] if ver_row else "1"
+            _log.info(f"Current schema version: {current}, target: {_SCHEMA_VERSION}")
 
             if current == "2":
                 _migrate_v2_to_v3(conn)
@@ -474,6 +519,7 @@ def init_db() -> None:
                 current = "6"
 
             if current != _SCHEMA_VERSION:
+                _log.info(f"Updating schema version to {_SCHEMA_VERSION}")
                 conn.execute(
                     "INSERT OR REPLACE INTO app_config (key, value) VALUES ('schema_version', ?)",
                     (_SCHEMA_VERSION,),
@@ -481,6 +527,7 @@ def init_db() -> None:
 
         # Ensure all (model × part_type) entries exist so matrix is fully populated
         _ensure_all_entries(conn)
+        _log.info("Database initialization complete")
 
 
 def load_demo_data() -> None:

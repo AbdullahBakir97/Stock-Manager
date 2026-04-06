@@ -5,6 +5,10 @@ from PyQt6.QtWidgets import QApplication
 from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt
 from app.ui.main_window import MainWindow
+from app.core.logger import get_logger
+from app.core.database import DB_PATH
+
+_log = get_logger(__name__)
 
 
 def _icon_path(name: str) -> str:
@@ -13,7 +17,24 @@ def _icon_path(name: str) -> str:
     return os.path.join(base, "img", name)
 
 
+def _handle_exception(exc_type, exc_value, exc_traceback):
+    """Global exception handler that logs unhandled exceptions."""
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+    _log.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
+
+
 def main():
+    # ── Initialize logging ──────────────────────────────────────────────────────
+    frozen = getattr(sys, "frozen", False)
+    _log.info(f"Stock Manager Pro starting (frozen={frozen})")
+    _log.info(f"Python version: {sys.version}")
+    _log.info(f"Database path: {DB_PATH}")
+
+    # Set up global exception handler
+    sys.excepthook = _handle_exception
+
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -34,6 +55,7 @@ def main():
     window = MainWindow()
     window.setWindowIcon(icon)
     window.show()
+    _log.info("Main window displayed successfully")
     sys.exit(app.exec())
 
 

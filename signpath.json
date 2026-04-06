@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "1.0",
+  "artifactConfigurations": [
+    {
+      "id": "installer",
+      "fileSet": {
+        "include": [
+          {
+            "path": "StockManagerPro-*-setup.exe",
+            "signers": [ "inno-setup-installer" ]
+          }
+        ]
+      },
+      "signingPolicies": [
+        {
+          "id": "release-signing",
+          "certificateId": "ev-certificate"
+        }
+      ]
+    }
+  ]
+}

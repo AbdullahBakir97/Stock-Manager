@@ -62,25 +62,12 @@ jobs:
           name: unsigned-installer
           path: stock-manager/src/installer/Output/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
 
-      # ── 8. Submit to SignPath for signing ────────────────────────────────────
-      - name: Sign installer via SignPath
-        uses: SignPath/github-action-submit-signing-request@v1
-        with:
-          api-token:            '${{ secrets.SIGNPATH_API_TOKEN }}'
-          organization-id:      '9d35403b-323c-44c2-9736-13e2d8660444'
-          project-slug:         'Stock_Manager_Pro'
-          signing-policy-slug:  'test-signing'
-          artifact-configuration-slug: 'initial-version'
-          github-artifact-id:   '${{ steps.upload_artifact.outputs.artifact-id }}'
-          wait-for-completion:  true
-          output-artifact-directory: stock-manager/src/installer/Output/signed
-
-      # ── 9. Compute SHA256 of signed installer ────────────────────────────────
+      # ── 9. Compute SHA256 of installer ───────────────────────────────────────
       - name: Compute SHA256
         id: sha256
         shell: powershell
         run: |
-          $hash = (Get-FileHash "stock-manager\src\installer\Output\signed\StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe" -Algorithm SHA256).Hash
+          $hash = (Get-FileHash "stock-manager\src\installer\Output\StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe" -Algorithm SHA256).Hash
           echo "HASH=$hash" >> $env:GITHUB_OUTPUT
 
       # ── 10. Update update_manifest.json ──────────────────────────────────────
@@ -126,6 +113,6 @@ jobs:
             ### What's new
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           files: |
-            stock-manager/src/installer/Output/signed/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
+            stock-manager/src/installer/Output/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
           draft: false
           prerelease: false

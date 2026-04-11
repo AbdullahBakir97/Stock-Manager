@@ -3,18 +3,20 @@ name: Build, Sign & Release
 on:
   push:
     tags:
-      - 'v*.*.*'   # triggers on: git tag v2.3.0 && git push --tags
+      - 'v*.*.*'   # triggers on: git tag v2.3.x && git push --tags
 
 jobs:
   build-and-sign:
     runs-on: windows-latest
     permissions:
-      contents: write   # required to create GitHub Releases and push manifest
+      contents: write   # required to create GitHub Releases and push back to repo
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history needed for changelog extraction
 
       # ── 2. Set up Python ─────────────────────────────────────────────────────
       - name: Set up Python 3.11
@@ -37,12 +39,89 @@ jobs:
         shell: bash
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
 
-      # ── 5. PyInstaller build ─────────────────────────────────────────────────
+      # ── 5. Extract changelog for this version ────────────────────────────────
+      - name: Extract changelog entry
+        id: changelog
+        shell: python
+        run: |
+          import re, os, sys
+
+          version = "${{ steps.version.outputs.VERSION }}"
+          changelog_path = "CHANGELOG.md"
+
+          try:
+              with open(changelog_path, encoding="utf-8") as f:
+                  content = f.read()
+          except FileNotFoundError:
+              print(f"WARNING: {changelog_path} not found — using default notes")
+              notes = f"Release v{version}"
+              short = notes
+          else:
+              # Match the block between ## [VERSION] and the next ## heading
+              pattern = rf"## \[{re.escape(version)}\].*?\n(.*?)(?=\n## \[|\Z)"
+              match = re.search(pattern, content, re.DOTALL)
+              if match:
+                  notes = match.group(1).strip()
+              else:
+                  notes = f"See full changelog at https://github.com/${{{{ github.repository }}}}/blob/main/CHANGELOG.md"
+
+              # Short version for the in-app banner (first 2 bullet points)
+              bullets = [l.strip() for l in notes.splitlines() if l.strip().startswith("-")]
+              short = "; ".join(b.lstrip("- ") for b in bullets[:3])
+              if not short:
+                  short = f"v{version} — see changelog for details"
+
+          # Write to GITHUB_OUTPUT (multiline safe)
+          delimiter = "EOF_NOTES"
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"NOTES<<{delimiter}\n{notes}\n{delimiter}\n")
+              out.write(f"SHORT={short}\n")
+
+      # ── 6. Stamp CHANGELOG — move [Unreleased] → [VERSION] ───────────────────
+      - name: Stamp changelog
+        shell: python
+        run: |
+          from datetime import date
+          import re
+
+          version  = "${{ steps.version.outputs.VERSION }}"
+          today    = date.today().isoformat()
+          path     = "CHANGELOG.md"
+
+          with open(path, encoding="utf-8") as f:
+              content = f.read()
+
+          # Replace ## [Unreleased] with versioned heading + new empty Unreleased block
+          unreleased_block = (
+              "## [Unreleased]\n\n"
+              "> Add your next changes here before tagging a release.\n\n---\n\n"
+          )
+          versioned_heading = f"## [{version}] - {today}\n"
+
+          if "## [Unreleased]" in content:
+              # Keep an empty [Unreleased] at the top, stamp the old one
+              content = content.replace(
+                  "## [Unreleased]",
+                  f"{unreleased_block}{versioned_heading}",
+                  1,
+              )
+              # Remove the placeholder text that was under [Unreleased]
+              content = re.sub(
+                  r"> Add your next changes here before tagging a release\.\n\n---\n\n"
+                  + re.escape(versioned_heading),
+                  versioned_heading,
+                  content,
+              )
+
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(content)
+
+      # ── 7. PyInstaller build ─────────────────────────────────────────────────
       - name: Build with PyInstaller
         working-directory: stock-manager/src
         run: pyinstaller StockManagerPro.spec --noconfirm --clean
 
-      # ── 6. Inno Setup installer ───────────────────────────────────────────────
+      # ── 8. Inno Setup — compile installer ────────────────────────────────────
       - name: Install Inno Setup
         shell: powershell
         run: choco install innosetup -y --no-progress
@@ -51,69 +130,88 @@ jobs:
         working-directory: stock-manager/src
         shell: powershell
         run: |
-          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" `
+                    -ErrorAction SilentlyContinue |
+                  Select-Object -First 1 -ExpandProperty FullName
           if (-not $iscc) { throw "ISCC.exe not found" }
           Write-Host "Using ISCC: $iscc"
           & $iscc installer\StockManagerPro.iss /DAppVersion="${{ steps.version.outputs.VERSION }}"
 
-      # ── 7. Upload unsigned installer for SignPath ────────────────────────────
-      - name: Upload unsigned installer
-        id: upload_artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: unsigned-installer
-          path: stock-manager/src/installer/Output/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
-
-      # ── 9. Compute SHA256 of installer ───────────────────────────────────────
+      # ── 9. Compute SHA256 ────────────────────────────────────────────────────
       - name: Compute SHA256
         id: sha256
         shell: powershell
         run: |
-          $hash = (Get-FileHash "stock-manager\src\installer\Output\StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe" -Algorithm SHA256).Hash
+          $exe = "stock-manager\src\installer\Output\StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
           echo "HASH=$hash" >> $env:GITHUB_OUTPUT
 
       # ── 10. Update update_manifest.json ──────────────────────────────────────
       - name: Update update_manifest.json
         shell: python
         run: |
-          import json, os
+          import json
+          from datetime import date
+
           version = "${{ steps.version.outputs.VERSION }}"
           sha256  = "${{ steps.sha256.outputs.HASH }}"
+          short   = "${{ steps.changelog.outputs.SHORT }}"
           repo    = "${{ github.repository }}"
-          manifest = {
-            "version": version,
-            "download_url": f"https://github.com/{repo}/releases/download/v{version}/StockManagerPro-{version}-setup.exe",
-            "release_notes": f"See https://github.com/{repo}/releases/tag/v{version}",
-            "release_date": os.popen("date /t").read().strip(),
-            "checksum_sha256": sha256.lower()
-          }
-          with open("stock-manager/update_manifest.json", "w") as f:
-            json.dump(manifest, f, indent=2)
 
-      - name: Commit updated manifest
+          manifest = {
+              "version": version,
+              "download_url": (
+                  f"https://github.com/{repo}/releases/download/"
+                  f"v{version}/StockManagerPro-{version}-setup.exe"
+              ),
+              "release_notes": short or f"v{version} released {date.today().isoformat()}",
+              "release_date": date.today().isoformat(),
+              "checksum_sha256": sha256,
+          }
+
+          with open("stock-manager/update_manifest.json", "w", encoding="utf-8") as f:
+              json.dump(manifest, f, indent=2)
+              f.write("\n")
+
+      # ── 11. Commit changelog + manifest back to main ──────────────────────────
+      - name: Commit release artifacts
         shell: bash
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add stock-manager/update_manifest.json
-          git commit -m "chore: update manifest for ${{ github.ref_name }}" || echo "No changes"
-          git push origin HEAD:main || echo "Push skipped"
+          git add CHANGELOG.md stock-manager/update_manifest.json
+          git diff --cached --quiet && echo "Nothing to commit" && exit 0
+          git commit -m "chore: release v${{ steps.version.outputs.VERSION }} — stamp changelog & manifest"
+          git push origin HEAD:main
 
-      # ── 11. Create GitHub Release ─────────────────────────────────────────────
+      # ── 12. Upload installer artifact ─────────────────────────────────────────
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: StockManagerPro-${{ steps.version.outputs.VERSION }}-setup
+          path: stock-manager/src/installer/Output/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
+
+      # ── 13. Create GitHub Release ─────────────────────────────────────────────
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           name: "Stock Manager Pro v${{ steps.version.outputs.VERSION }}"
           body: |
-            ## Stock Manager Pro v${{ steps.version.outputs.VERSION }}
+            ## What's new in v${{ steps.version.outputs.VERSION }}
+
+            ${{ steps.changelog.outputs.NOTES }}
+
+            ---
 
             ### Installation
-            Download `StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe` below and run it.
+            1. Download `StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe` below
+            2. Run the installer — existing data is preserved automatically
+            3. If you already have the app installed, it will prompt you to update on next launch
 
             **SHA256:** `${{ steps.sha256.outputs.HASH }}`
 
-            ### What's new
-            See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
+            ### Full changelog
+            See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
           files: |
             stock-manager/src/installer/Output/StockManagerPro-${{ steps.version.outputs.VERSION }}-setup.exe
           draft: false

@@ -16,5 +16,5 @@ APP_VERSION = "2.3.1"
 # UpdateService fetches this JSON on startup to check for new versions.
 # Set to "" to disable update checks (e.g. air-gapped enterprise deployments).
 UPDATE_MANIFEST_URL: str = (
-    "https://raw.githubusercontent.com/AbdullahBakir97/Stock-Manager/main/update_manifest.json"
+    "https://raw.githubusercontent.com/AbdullahBakir97/Stock-Manager/main/stock-manager/update_manifest.json"
 )

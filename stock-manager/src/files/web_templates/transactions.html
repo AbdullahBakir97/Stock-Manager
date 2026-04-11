@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Transactions — Stock Pro{% endblock %}
+{% block page_title %}Transaction Log{% endblock %}
+
+{% block content %}
+
+<!-- Summary Strip (async) -->
+<div class="row g-2 mb-3">
+  <div class="col-6">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num" id="kpi-total-txn">{{ txns|length }}</div>
+      <div class="kpi-lbl">Showing</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card" style="border-left: 3px solid var(--muted);">
+      <div class="kpi-num" id="kpi-net" style="font-size:1.1rem;">—</div>
+      <div class="kpi-lbl">Net Units</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-num" id="kpi-in">—</div>
+      <div class="kpi-lbl">Total IN</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-red">
+      <div class="kpi-num" id="kpi-out">—</div>
+      <div class="kpi-lbl">Total OUT</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="card-dark" style="padding:12px 14px; margin-bottom:10px;">
+  <form method="GET" id="txnForm" style="display:flex; flex-direction:column; gap:8px;">
+    <div style="position:relative;">
+      <i class="bi bi-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+      <input type="text" name="q" class="search-box" style="padding-left:42px;" value="{{ search }}"
+             placeholder="Search item name, brand, note...">
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="date" name="from" value="{{ date_from|default('') }}"
+             class="input-dark" style="flex:1; min-width:130px;">
+      <input type="date" name="to" value="{{ date_to|default('') }}"
+             class="input-dark" style="flex:1; min-width:130px;">
+    </div>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <!-- Op type pills -->
+      <div style="display:flex; gap:5px; flex:1; overflow-x:auto;">
+        {% for op_opt, op_label, op_color in [('', 'All', 'var(--text)'), ('IN', 'IN', 'var(--emerald)'), ('OUT', 'OUT', 'var(--red)'), ('ADJUST', 'ADJ', 'var(--orange)')] %}
+        <a href="/transactions?op={{ op_opt }}{% if search %}&q={{ search }}{% endif %}{% if date_from %}&from={{ date_from }}{% endif %}{% if date_to %}&to={{ date_to }}{% endif %}"
+           style="display:inline-flex; align-items:center; padding:6px 12px; border-radius:20px; font-size:.8rem; font-weight:600;
+                  text-decoration:none; white-space:nowrap;
+                  {% if op_filter == op_opt %}background:var(--card2); border:1px solid {{ op_color }}; color:{{ op_color }}{% else %}background:var(--card2); border:1px solid var(--border); color:var(--muted){% endif %}">
+          {{ op_label }}
+        </a>
+        {% endfor %}
+      </div>
+      <select name="limit" class="input-dark" style="width:80px; padding:7px 10px; font-size:.82rem;"
+              onchange="document.getElementById('txnForm').submit()">
+        <option value="50" {% if limit==50 %}selected{% endif %}>50</option>
+        <option value="100" {% if limit==100 %}selected{% endif %}>100</option>
+        <option value="250" {% if limit==250 %}selected{% endif %}>250</option>
+        <option value="500" {% if limit==500 %}selected{% endif %}>500</option>
+      </select>
+    </div>
+    <button type="submit" class="btn-sm-dark">Apply Filters</button>
+  </form>
+</div>
+
+<!-- Toolbar -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+  <div style="font-size:.8rem; color:var(--muted);">{{ txns|length }} transaction{{ 's' if txns|length != 1 }}</div>
+  <a href="/export/transactions.csv{% if date_from %}?from={{ date_from }}&to={{ date_to }}{% endif %}"
+     style="font-size:.8rem; color:var(--emerald); text-decoration:none;">
+    <i class="bi bi-download"></i> Export CSV
+  </a>
+</div>
+
+<!-- Transaction List -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if txns %}
+    {% for t in txns %}
+    {% set op_color = 'var(--emerald)' if t.operation == 'IN' else ('var(--red)' if t.operation == 'OUT' else 'var(--orange)') %}
+    {% set op_bg = 'rgba(16,185,129,.1)' if t.operation == 'IN' else ('rgba(239,68,68,.1)' if t.operation == 'OUT' else 'rgba(245,158,11,.1)') %}
+    <a href="/item/{{ t.item_id }}" class="item-row">
+      <div class="item-icon" style="background:{{ op_bg }}; color:{{ op_color }}; font-weight:700; font-size:.78rem; letter-spacing:.5px;">
+        {{ t.operation }}
+      </div>
+      <div class="item-info">
+        <div class="name">
+          {{ t.brand ~ ' ' if t.brand else '' }}{{ t.name }}{% if t.color %} — {{ t.color }}{% endif %}
+        </div>
+        <div class="sub">
+          {{ t.timestamp[:16] if t.timestamp else "" }}{% if t.note %} · {{ t.note }}{% endif %}
+        </div>
+      </div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-weight:700; color:{{ op_color }}; font-size:1rem;">
+          {{ '+' if t.operation == 'IN' else ('−' if t.operation == 'OUT' else '±') }}{{ t.quantity }}
+        </div>
+        <div style="font-size:.7rem; color:var(--muted);">
+          {{ t.stock_before or 0 }} → {{ t.stock_after or 0 }}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+
+    {% if txns|length >= limit %}
+    <div style="text-align:center; padding:14px 0; border-top:1px solid var(--border);">
+      <a href="/transactions?limit={{ limit * 2 }}{% if op_filter %}&op={{ op_filter }}{% endif %}{% if search %}&q={{ search }}{% endif %}{% if date_from %}&from={{ date_from }}&to={{ date_to }}{% endif %}"
+         style="font-size:.82rem; color:var(--emerald); text-decoration:none;">
+        Load more <i class="bi bi-chevron-down"></i>
+      </a>
+    </div>
+    {% endif %}
+
+  {% else %}
+    <div style="padding:40px 0; text-align:center; color:var(--muted);">
+      <i class="bi bi-list-ul" style="font-size:2.5rem; display:block; margin-bottom:10px;"></i>
+      No transactions found
+      {% if search or op_filter or date_from %}
+      <div style="margin-top:8px;">
+        <a href="/transactions" style="color:var(--emerald); font-size:.85rem;">Clear filters</a>
+      </div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Compute IN/OUT/net from visible transactions
+(function() {
+  let totalIn = 0, totalOut = 0;
+  const rows = document.querySelectorAll('.item-row');
+  rows.forEach(row => {
+    const qty = row.querySelector('[style*="font-size:1rem"]');
+    if (!qty) return;
+    const text = qty.textContent.trim();
+    const n = parseInt(text.replace(/[^0-9]/g, ''));
+    if (text.startsWith('+')) totalIn += n;
+    else if (text.startsWith('−')) totalOut += n;
+  });
+  document.getElementById('kpi-in').textContent = totalIn.toLocaleString();
+  document.getElementById('kpi-out').textContent = totalOut.toLocaleString();
+  const net = totalIn - totalOut;
+  const el = document.getElementById('kpi-net');
+  el.textContent = (net >= 0 ? '+' : '') + net.toLocaleString();
+  el.style.color = net >= 0 ? 'var(--emerald)' : 'var(--red)';
+})();
+</script>
+{% endblock %}

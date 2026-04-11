@@ -12252,3 +12252,286 @@ AttributeError: 'MainWindow' object has no attribute '_alert_ctrl'
 [2026-04-06 20:41:55] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
 [2026-04-06 20:41:56] [INFO ] [__main__] Main window displayed successfully
 [2026-04-06 20:42:27] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)
+[2026-04-07 01:48:39] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 01:49:03] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 01:50:17] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 01:50:17] [INFO ] [werkzeug] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.43.100:5000
+[2026-04-07 01:50:17] [INFO ] [werkzeug] [33mPress CTRL+C to quit[0m
+[2026-04-07 01:50:22] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:50:22] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[2026-04-07 01:50:22] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:50:22] "GET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+[2026-04-07 01:50:22] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:50:22] "GET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+[2026-04-07 01:50:23] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:50:23] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:50:23] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:50:23] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+[2026-04-07 01:53:49] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:53:49] "[35m[1mGET / HTTP/1.1[0m" 500 -
+[2026-04-07 01:53:49] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:53:49] "[36mGET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+[2026-04-07 01:53:49] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:53:49] "[36mGET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+[2026-04-07 01:53:49] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:53:49] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:53:50] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:53:50] "[36mGET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1[0m" 304 -
+[2026-04-07 01:54:01] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 01:54:01] [INFO ] [werkzeug] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.43.100:5000
+[2026-04-07 01:54:01] [INFO ] [werkzeug] [33mPress CTRL+C to quit[0m
+[2026-04-07 01:54:04] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:04] "GET / HTTP/1.1" 200 -
+[2026-04-07 01:54:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:05] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:05] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:08] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:08] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 01:54:10] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:10] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:24] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:24] "GET /scan HTTP/1.1" 200 -
+[2026-04-07 01:54:25] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:25] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:37] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:37] "GET /inventory?low=1 HTTP/1.1" 200 -
+[2026-04-07 01:54:37] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:37] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:38] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:38] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 01:54:39] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:39] "GET /item/34774 HTTP/1.1" 200 -
+[2026-04-07 01:54:41] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:41] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:51] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:51] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 01:54:53] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:53] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 01:54:58] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:58] "GET / HTTP/1.1" 200 -
+[2026-04-07 01:54:59] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 01:54:59] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:09:00] [DEBUG] [app.core.database] DB path (development): /sessions/gracious-quirky-noether/mnt/stock-manager/src/stock-manager/src/files/stock_manager.db
+[2026-04-07 02:10:00] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 02:10:00] [INFO ] [werkzeug] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.43.100:5000
+[2026-04-07 02:10:00] [INFO ] [werkzeug] [33mPress CTRL+C to quit[0m
+[2026-04-07 02:10:04] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:04] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:10:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:05] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:10:16] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:16] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:10:17] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:17] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:10:18] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:18] "GET /item/34774 HTTP/1.1" 200 -
+[2026-04-07 02:10:19] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:19] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:10:37] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:37] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:10:39] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:39] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:10:41] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:41] "GET /inventory/add HTTP/1.1" 200 -
+[2026-04-07 02:10:42] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:42] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:10:57] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:57] "GET /alerts HTTP/1.1" 200 -
+[2026-04-07 02:10:59] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:10:59] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:01] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:01] "GET /barcodes HTTP/1.1" 200 -
+[2026-04-07 02:11:03] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:03] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:16] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:16] "GET /item/337/edit HTTP/1.1" 200 -
+[2026-04-07 02:11:17] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:17] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:23] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:23] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:25] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:25] "GET /barcodes HTTP/1.1" 200 -
+[2026-04-07 02:11:27] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:27] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:27] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:27] "GET /scan HTTP/1.1" 200 -
+[2026-04-07 02:11:28] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:28] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:31] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:31] "GET /sales HTTP/1.1" 200 -
+[2026-04-07 02:11:32] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:32] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:34] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:34] "GET /sales/2 HTTP/1.1" 200 -
+[2026-04-07 02:11:35] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:35] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:39] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:39] "GET /sales/new HTTP/1.1" 200 -
+[2026-04-07 02:11:40] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:40] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:53] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:53] "GET /customers HTTP/1.1" 200 -
+[2026-04-07 02:11:54] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:54] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:57] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:57] "GET /returns HTTP/1.1" 200 -
+[2026-04-07 02:11:57] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:57] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:11:59] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:11:59] "GET /returns/new HTTP/1.1" 200 -
+[2026-04-07 02:12:00] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:00] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:05] "GET /purchase-orders HTTP/1.1" 200 -
+[2026-04-07 02:12:06] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:06] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:07] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:07] "GET /purchase-orders/new HTTP/1.1" 200 -
+[2026-04-07 02:12:08] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:08] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:11] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:11] "GET /suppliers HTTP/1.1" 200 -
+[2026-04-07 02:12:11] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:11] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:13] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:13] "GET /suppliers/new HTTP/1.1" 200 -
+[2026-04-07 02:12:14] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:14] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:17] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:17] "GET /transactions HTTP/1.1" 200 -
+[2026-04-07 02:12:18] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:18] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:21] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:21] "GET /transactions?op=ADJUST HTTP/1.1" 200 -
+[2026-04-07 02:12:22] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:22] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:24] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:24] "GET /reports HTTP/1.1" 200 -
+[2026-04-07 02:12:25] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:25] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:12:49] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:49] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:12:50] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:12:50] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:15] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:15] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:13:16] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:16] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:19] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:19] "GET /purchase-orders HTTP/1.1" 200 -
+[2026-04-07 02:13:20] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:20] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:21] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:21] "GET /reports HTTP/1.1" 200 -
+[2026-04-07 02:13:21] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:21] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:23] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:23] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:13:24] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:24] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:26] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:26] "GET /item/34774 HTTP/1.1" 200 -
+[2026-04-07 02:13:26] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:26] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:31] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:31] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:13:32] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:32] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:13:36] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:36] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:13:36] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:13:36] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:16:53] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:16:53] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:16:54] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:16:54] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:26:52] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 02:26:52] [INFO ] [werkzeug] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.43.100:5000
+[2026-04-07 02:26:52] [INFO ] [werkzeug] [33mPress CTRL+C to quit[0m
+[2026-04-07 02:26:54] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:26:54] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:26:55] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:26:55] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:26:56] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:26:56] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:26:57] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:26:57] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:05] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:27:05] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:05] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:27:06] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:06] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:08] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:08] "GET /item/34774 HTTP/1.1" 200 -
+[2026-04-07 02:27:09] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:09] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:13] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:13] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:27:14] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:14] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:27:15] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:15] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:25] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:25] "GET /inventory?q=&status=&cat=displays&sort=name HTTP/1.1" 200 -
+[2026-04-07 02:27:25] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:25] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:27:26] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:26] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:31] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:31] "GET /sales HTTP/1.1" 200 -
+[2026-04-07 02:27:31] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:31] "GET /api/analytics HTTP/1.1" 200 -
+[2026-04-07 02:27:32] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:32] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:33] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:33] "GET /sales/new HTTP/1.1" 200 -
+[2026-04-07 02:27:34] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:34] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:36] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:36] "GET /customers HTTP/1.1" 200 -
+[2026-04-07 02:27:37] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:37] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:38] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:38] "GET /returns HTTP/1.1" 200 -
+[2026-04-07 02:27:39] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:39] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:40] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:40] "GET /purchase-orders HTTP/1.1" 200 -
+[2026-04-07 02:27:41] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:41] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:42] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:42] "GET /suppliers HTTP/1.1" 200 -
+[2026-04-07 02:27:42] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:42] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:44] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:44] "GET /price-lists HTTP/1.1" 200 -
+[2026-04-07 02:27:45] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:45] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:47] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:47] "GET /price-lists/1 HTTP/1.1" 200 -
+[2026-04-07 02:27:47] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:47] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:50] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:50] "GET /price-lists/margin-analysis HTTP/1.1" 200 -
+[2026-04-07 02:27:52] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:52] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:55] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:55] "GET /transactions HTTP/1.1" 200 -
+[2026-04-07 02:27:56] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:56] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:27:59] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:27:59] "GET /reports HTTP/1.1" 200 -
+[2026-04-07 02:28:00] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:00] "GET /api/analytics HTTP/1.1" 200 -
+[2026-04-07 02:28:00] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:00] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:28:14] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:14] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:28:14] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:14] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:28:21] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:21] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:28:21] [INFO ] [werkzeug] 192.168.43.100 - - [07/Apr/2026 02:28:21] "[33mGET /products.json HTTP/1.1[0m" 404 -
+[2026-04-07 02:30:12] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-07 02:30:13] [INFO ] [werkzeug] [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:5000
+ * Running on http://192.168.43.100:5000
+[2026-04-07 02:30:13] [INFO ] [werkzeug] [33mPress CTRL+C to quit[0m
+[2026-04-07 02:36:08] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:08] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:36:09] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:09] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:36:10] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:10] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
+[2026-04-07 02:36:19] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:19] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:36:23] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:23] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:36:24] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:24] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:36:34] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:34] "GET / HTTP/1.1" 200 -
+[2026-04-07 02:36:39] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:39] "GET /sales/new HTTP/1.1" 200 -
+[2026-04-07 02:36:50] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:50] "GET /inventory/add HTTP/1.1" 200 -
+[2026-04-07 02:36:54] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:36:54] "GET /scan HTTP/1.1" 200 -
+[2026-04-07 02:37:05] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:05] "GET /scan HTTP/1.1" 200 -
+[2026-04-07 02:37:10] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:10] "GET /inventory/add HTTP/1.1" 200 -
+[2026-04-07 02:37:12] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:12] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:37:13] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:13] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:37:14] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:14] "GET /item/34774 HTTP/1.1" 200 -
+[2026-04-07 02:37:19] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:19] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:37:20] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:20] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:37:21] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:21] "GET /item/21 HTTP/1.1" 200 -
+[2026-04-07 02:37:24] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:24] "GET /inventory HTTP/1.1" 200 -
+[2026-04-07 02:37:25] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:25] "GET /api/inventory/stats HTTP/1.1" 200 -
+[2026-04-07 02:37:28] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:28] "GET /alerts HTTP/1.1" 200 -
+[2026-04-07 02:37:31] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:31] "GET /barcodes HTTP/1.1" 200 -
+[2026-04-07 02:37:33] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:33] "GET /scan HTTP/1.1" 200 -
+[2026-04-07 02:37:35] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:35] "GET /sales HTTP/1.1" 200 -
+[2026-04-07 02:37:35] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:35] "GET /api/analytics HTTP/1.1" 200 -
+[2026-04-07 02:37:38] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:38] "GET /sales/2 HTTP/1.1" 200 -
+[2026-04-07 02:37:42] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:42] "GET /sales/new HTTP/1.1" 200 -
+[2026-04-07 02:37:43] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:43] "GET /sales/new HTTP/1.1" 200 -
+[2026-04-07 02:37:44] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:44] "GET /customers HTTP/1.1" 200 -
+[2026-04-07 02:37:46] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:46] "GET /returns HTTP/1.1" 200 -
+[2026-04-07 02:37:53] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:53] "GET /purchase-orders HTTP/1.1" 200 -
+[2026-04-07 02:37:56] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:37:56] "GET /purchase-orders/2 HTTP/1.1" 200 -
+[2026-04-07 02:38:01] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:01] "GET /suppliers HTTP/1.1" 200 -
+[2026-04-07 02:38:03] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:03] "GET /suppliers/1 HTTP/1.1" 200 -
+[2026-04-07 02:38:06] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:06] "GET /purchase-orders/new HTTP/1.1" 200 -
+[2026-04-07 02:38:16] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:16] "GET /api/items/search?q=Dyd%206rd HTTP/1.1" 200 -
+[2026-04-07 02:38:16] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:16] "GET /api/items/search?q=Dyd%206rd HTTP/1.1" 200 -
+[2026-04-07 02:38:17] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:17] "GET /api/items/search?q=Dyd%206rd%20crd7cd6rcd4cd4 HTTP/1.1" 200 -
+[2026-04-07 02:38:17] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:17] "GET /api/items/search?q=Dyd%206rd%20crd7cd6rcd4cd4 HTTP/1.1" 200 -
+[2026-04-07 02:38:18] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:18] "GET /api/items/search?q=Dyd%206rd%20crd7cd6rcd4cd4ce4r%20d7%20d4dc HTTP/1.1" 200 -
+[2026-04-07 02:38:18] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:18] "GET /api/items/search?q=Dyd%206rd%20crd7cd6rcd4cd4ce4r%20d7%20d4dc HTTP/1.1" 200 -
+[2026-04-07 02:38:24] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:24] "GET /suppliers HTTP/1.1" 200 -
+[2026-04-07 02:38:25] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:25] "GET /price-lists HTTP/1.1" 200 -
+[2026-04-07 02:38:29] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:29] "GET /price-lists/margin-analysis HTTP/1.1" 200 -
+[2026-04-07 02:38:32] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:32] "GET /transactions HTTP/1.1" 200 -
+[2026-04-07 02:38:33] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:33] "GET /reports HTTP/1.1" 200 -
+[2026-04-07 02:38:34] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:34] "GET /api/analytics HTTP/1.1" 200 -
+[2026-04-07 02:38:36] [INFO ] [werkzeug] 192.168.43.32 - - [07/Apr/2026 02:38:36] "GET /admin HTTP/1.1" 200 -
+[2026-04-07 02:58:29] [DEBUG] [app.core.database] DB path (development): /sessions/gracious-quirky-noether/mnt/stock-manager/src/stock-manager/src/files/stock_manager.db
+[2026-04-07 02:58:34] [DEBUG] [app.core.database] DB path (development): /sessions/gracious-quirky-noether/mnt/stock-manager/src/stock-manager/src/files/stock_manager.db
+[2026-04-07 02:58:54] [DEBUG] [app.core.database] DB path (development): /sessions/gracious-quirky-noether/mnt/stock-manager/src/stock-manager/src/files/stock_manager.db
+[2026-04-11 01:49:44] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 01:49:44] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 01:49:44] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 01:49:44] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 01:49:50] [INFO ] [app.core.database] Initializing database
+[2026-04-11 01:49:50] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 01:49:50] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 01:49:50] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 01:49:50] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 01:49:52] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 01:50:22] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)
+[2026-04-11 01:53:37] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 01:53:37] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 01:53:37] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 01:53:37] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 01:53:37] [INFO ] [app.core.database] Initializing database
+[2026-04-11 01:53:37] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 01:53:37] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 01:53:37] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 01:53:37] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 01:53:38] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 01:54:08] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)
+[2026-04-11 02:02:36] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:02:36] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 02:02:36] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 02:02:36] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:02:37] [INFO ] [app.core.database] Initializing database
+[2026-04-11 02:02:37] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 02:02:37] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 02:02:37] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 02:02:37] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 02:02:38] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 02:03:10] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)
+[2026-04-11 02:07:22] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:07:22] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 02:07:22] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 02:07:22] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:07:23] [INFO ] [app.core.database] Initializing database
+[2026-04-11 02:07:23] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 02:07:23] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 02:07:23] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 02:07:23] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 02:07:24] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 02:13:12] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:13:12] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 02:13:12] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 02:13:12] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:13:13] [INFO ] [app.core.database] Initializing database
+[2026-04-11 02:13:13] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 02:13:13] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 02:13:13] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 02:13:13] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 02:13:14] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 02:13:45] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)
+[2026-04-11 02:24:01] [DEBUG] [app.core.database] DB path (development): C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:24:01] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-11 02:24:01] [INFO ] [__main__] Python version: 3.14.2 (tags/v3.14.2:df79316, Dec  5 2025, 17:18:21) [MSC v.1944 64 bit (AMD64)]
+[2026-04-11 02:24:01] [INFO ] [__main__] Database path: C:\Users\abdul\Projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-11 02:24:02] [INFO ] [app.core.database] Initializing database
+[2026-04-11 02:24:02] [INFO ] [app.core.database] Current schema version: 12, target: 12
+[2026-04-11 02:24:02] [INFO ] [app.core.database] Database initialization complete
+[2026-04-11 02:24:02] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-11 02:24:02] [INFO ] [app.core.health] Health check passed: Healthy — v12, 27 tables, 737,280 bytes
+[2026-04-11 02:24:03] [INFO ] [__main__] Main window displayed successfully
+[2026-04-11 02:24:33] [DEBUG] [app.services.update_service] UpdateService: check failed (HTTP Error 404: Not Found)

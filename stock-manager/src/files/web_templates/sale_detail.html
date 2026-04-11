@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Sale #{{ sale.id }} — Stock Pro{% endblock %}
+{% block page_title %}Sale #{{ sale.id }}{% endblock %}
+
+{% block content %}
+<!-- Header card -->
+<div class="card-dark">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div style="font-size:1.4rem; font-weight:700; color:var(--emerald);">
+        {{ fmt_price(sale.net_total) }}
+      </div>
+      {% if sale.discount > 0 %}
+      <div style="font-size:.8rem; color:var(--muted);">
+        Subtotal {{ fmt_price(sale.total_amount) }} — Discount {{ fmt_price(sale.discount) }}
+      </div>
+      {% endif %}
+    </div>
+    <span class="badge-ok">Completed</span>
+  </div>
+  <div style="margin-top:10px; font-size:.85rem; color:var(--muted);">
+    <i class="bi bi-clock"></i> {{ sale.timestamp[:16] if sale.timestamp else "" }}
+    {% if sale.customer_name %}
+      &nbsp;·&nbsp; <i class="bi bi-person"></i> {{ sale.customer_name }}
+    {% endif %}
+  </div>
+  {% if sale.note %}
+  <div style="margin-top:8px; font-size:.84rem; color:var(--muted);">
+    <i class="bi bi-chat-text"></i> {{ sale.note }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Items -->
+<div class="section-title">Items Sold</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% for item in sale.items %}
+  <div style="display:flex; align-items:center; gap:12px; padding:12px 0;
+              border-bottom:1px solid var(--border);"
+       class="{% if loop.last %}{% else %}{% endif %}">
+    <div class="item-icon">
+      <i class="bi bi-box2"></i>
+    </div>
+    <div class="item-info">
+      <div class="name">{{ item.item_name or "Item #" ~ item.item_id }}</div>
+      <div class="sub">
+        {{ item.quantity }} × {{ fmt_price(item.unit_price) }}
+        {% if item.cost_price %} — cost {{ fmt_price(item.cost_price) }}{% endif %}
+      </div>
+    </div>
+    <div style="font-weight:700; color:var(--emerald);">{{ fmt_price(item.line_total) }}</div>
+  </div>
+  {% else %}
+  <div style="padding:20px 0; text-align:center; color:var(--muted);">No items</div>
+  {% endfor %}
+</div>
+
+<!-- Totals -->
+<div class="card-dark">
+  <table style="width:100%; font-size:.9rem;">
+    <tr>
+      <td style="padding:4px 0; color:var(--muted);">Subtotal</td>
+      <td style="text-align:right;">{{ fmt_price(sale.total_amount) }}</td>
+    </tr>
+    {% if sale.discount > 0 %}
+    <tr>
+      <td style="padding:4px 0; color:var(--orange);">Discount</td>
+      <td style="text-align:right; color:var(--orange);">- {{ fmt_price(sale.discount) }}</td>
+    </tr>
+    {% endif %}
+    <tr>
+      <td style="padding:8px 0 4px; font-weight:700; border-top:1px solid var(--border);">Total</td>
+      <td style="text-align:right; font-weight:700; color:var(--emerald); border-top:1px solid var(--border);">
+        {{ fmt_price(sale.net_total) }}
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- Delete -->
+<form method="POST" action="/sales/{{ sale.id }}/delete"
+      onsubmit="return confirm('Delete this sale? This will NOT restore stock.')">
+  <button type="submit" class="btn-danger" style="width:100%;">
+    <i class="bi bi-trash3"></i> Delete Sale
+  </button>
+</form>
+{% endblock %}

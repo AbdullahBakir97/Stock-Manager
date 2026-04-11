@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}{% if pl %}Edit Price List{% else %}New Price List{% endif %} — Stock Pro{% endblock %}
+{% block page_title %}{% if pl %}Edit Price List{% else %}New Price List{% endif %}{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="{{ '/price-lists/' ~ pl.id ~ '/edit' if pl else '/price-lists/new' }}"
+      style="display:flex; flex-direction:column; gap:14px;">
+
+  <div class="card-dark">
+    <!-- Name -->
+    <div class="form-group">
+      <label class="form-label-dark">List Name *</label>
+      <input type="text" name="name" class="input-dark" required
+             value="{{ pl.name if pl else '' }}"
+             placeholder="e.g. Wholesale Q2 2026">
+    </div>
+
+    <!-- Description -->
+    <div class="form-group">
+      <label class="form-label-dark">Description</label>
+      <input type="text" name="description" class="input-dark"
+             value="{{ pl.description if pl else '' }}"
+             placeholder="Optional note about this price list">
+    </div>
+
+    <!-- Customer -->
+    <div class="form-group">
+      <label class="form-label-dark">Customer (optional)</label>
+      <select name="customer_id" class="input-dark">
+        <option value="">— All customers / General —</option>
+        {% for cust in customers|default([]) %}
+        <option value="{{ cust.id }}" {% if pl and pl.customer_id == cust.id %}selected{% endif %}>
+          {{ cust.name }}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <!-- Validity dates -->
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label-dark">Valid From</label>
+        <input type="date" name="valid_from" class="input-dark"
+               value="{{ pl.valid_from[:10] if pl and pl.valid_from else '' }}">
+      </div>
+      <div class="col-6">
+        <label class="form-label-dark">Valid To</label>
+        <input type="date" name="valid_to" class="input-dark"
+               value="{{ pl.valid_to[:10] if pl and pl.valid_to else '' }}">
+      </div>
+    </div>
+
+    <!-- Active toggle -->
+    <div class="form-group" style="display:flex; align-items:center; justify-content:space-between; margin-top:4px;">
+      <label class="form-label-dark" style="margin-bottom:0;">Active</label>
+      <input type="checkbox" name="is_active" value="1" style="width:18px; height:18px; accent-color:var(--emerald);"
+             {% if not pl or pl.is_active %}checked{% endif %}>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <button type="submit" class="btn-emerald" style="width:100%; padding:14px; font-size:1rem;">
+    <i class="bi bi-check-lg"></i> {{ 'Save Changes' if pl else 'Create Price List' }}
+  </button>
+  <a href="{{ '/price-lists/' ~ pl.id if pl else '/price-lists' }}"
+     class="btn-sm-dark" style="padding:12px; text-align:center; display:block;">
+    Cancel
+  </a>
+</form>
+
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Audit: {{ audit.name }} — Stock Pro{% endblock %}
+{% block page_title %}{{ audit.name }}{% endblock %}
+
+{% block topbar_title %}
+<div>
+  <div class="topbar-title">{{ audit.name }}</div>
+  <div class="topbar-subtitle">
+    {% if audit.status == 'OPEN' %}<span style="color:var(--orange);">● In Progress</span>
+    {% else %}<span style="color:var(--emerald);">● Completed</span>{% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- Summary strip -->
+<div class="row g-2 mb-3">
+  <div class="col-4">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num">{{ lines|length }}</div>
+      <div class="kpi-lbl">Items</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-green">
+      {% set counted = lines|selectattr('actual_qty', 'ne', none)|list|length %}
+      <div class="kpi-num">{{ counted }}</div>
+      <div class="kpi-lbl">Counted</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-red">
+      {% set discrepancies = lines|selectattr('discrepancy', 'ne', 0)|list|length if lines else 0 %}
+      <div class="kpi-num">{{ discrepancies }}</div>
+      <div class="kpi-lbl">Discrepancies</div>
+    </div>
+  </div>
+</div>
+
+<!-- Audit info card -->
+<div class="card-dark" style="padding:14px 16px; margin-bottom:14px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <div style="font-size:.78rem; color:var(--muted);">
+      <i class="bi bi-calendar3"></i> Created {{ audit.created_at[:10] if audit.created_at else '—' }}
+    </div>
+    {% if audit.status == 'OPEN' %}
+    <form method="POST" action="/audits/{{ audit.id }}/close" style="display:inline;">
+      <button type="submit" class="btn-sm-dark" style="color:var(--emerald);">
+        <i class="bi bi-check-circle-fill"></i> Close Audit
+      </button>
+    </form>
+    {% endif %}
+  </div>
+  {% if audit.notes %}
+  <div style="font-size:.85rem; color:var(--text2);">{{ audit.notes }}</div>
+  {% endif %}
+
+  <!-- Progress bar -->
+  {% if lines %}
+  {% set progress_pct = (counted / lines|length * 100)|round|int %}
+  <div style="margin-top:10px;">
+    <div style="display:flex; justify-content:space-between; font-size:.75rem; color:var(--muted); margin-bottom:4px;">
+      <span>Progress</span>
+      <span>{{ counted }} / {{ lines|length }}</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" style="width:{{ progress_pct }}%;"></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Add item to audit -->
+{% if audit.status == 'OPEN' %}
+<div class="section-title">Add Item to Audit</div>
+<div class="card-dark" style="padding:14px 16px; margin-bottom:14px;">
+  <form method="POST" action="/audits/{{ audit.id }}/add-item" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+    <div style="flex:1; min-width:160px;">
+      <label class="form-label-dark">Item</label>
+      <select name="item_id" class="input-dark" required>
+        <option value="">— Select item —</option>
+        {% for item in all_items %}
+        <option value="{{ item.id }}">{{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}{% if item.color %} ({{ item.color }}){% endif %} — stock: {{ item.stock }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="width:100px;">
+      <label class="form-label-dark">Expected Qty</label>
+      <input type="number" name="expected_qty" class="input-dark" placeholder="Auto" min="0" style="width:100%;">
+    </div>
+    <button type="submit" class="btn-emerald" style="height:46px; align-self:flex-end;">
+      <i class="bi bi-plus-lg"></i> Add
+    </button>
+  </form>
+</div>
+{% endif %}
+
+<!-- Audit lines -->
+{% if lines %}
+<div class="section-title">Count Sheet</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% for line in lines %}
+  {% set has_disc = line.discrepancy != 0 if line.discrepancy is not none else false %}
+  <div style="padding:12px 0; border-bottom:1px solid var(--border2);">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+      <div class="item-icon" style="{% if has_disc %}background:rgba(239,68,68,.1){% else %}background:rgba(16,185,129,.1){% endif %}">
+        <i class="bi bi-{% if has_disc %}exclamation-triangle-fill{% else %}check2{% endif %}"
+           style="color:{% if has_disc %}#ef4444{% else %}#10b981{% endif %}; font-size:.9rem;"></i>
+      </div>
+      <div style="flex:1; min-width:0;">
+        <div class="truncate" style="font-weight:600; font-size:.88rem;">
+          {{ line.brand ~ ' ' if line.brand else '' }}{{ line.item_name }}{% if line.color %} ({{ line.color }}){% endif %}
+        </div>
+        <div style="font-size:.73rem; color:var(--muted);">
+          Expected: <strong>{{ line.expected_qty }}</strong>
+          {% if line.actual_qty is not none %}
+          · Counted: <strong style="color:{% if has_disc %}var(--red){% else %}var(--emerald){% endif %}">{{ line.actual_qty }}</strong>
+          {% if has_disc %}
+          · <span style="color:{% if line.discrepancy < 0 %}var(--red){% else %}var(--emerald){% endif %}">
+              Δ {{ '+' if line.discrepancy > 0 else '' }}{{ line.discrepancy }}
+            </span>
+          {% endif %}
+          {% else %}
+          · <span style="color:var(--orange);">Not counted</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <!-- Count input form -->
+    {% if audit.status == 'OPEN' %}
+    <form method="POST" action="/audits/{{ audit.id }}/count/{{ line.id }}"
+          style="display:flex; gap:8px; align-items:center;">
+      <input type="number" name="actual_qty" class="input-dark" min="0"
+             value="{{ line.actual_qty if line.actual_qty is not none else '' }}"
+             placeholder="Enter count…"
+             style="flex:1; padding:8px 12px; font-size:.88rem;">
+      <button type="submit" class="btn-sm-dark" style="color:var(--emerald); white-space:nowrap;">
+        <i class="bi bi-check-lg"></i> Save
+      </button>
+    </form>
+    {% if line.notes %}
+    <div style="font-size:.73rem; color:var(--muted); margin-top:4px; padding-left:2px;">{{ line.notes }}</div>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if audit.status == 'DONE' and discrepancies > 0 %}
+  <div style="padding:12px 0;">
+    <div class="alert-banner alert-warn" style="margin:0;">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      <div>
+        <div style="font-weight:700;">{{ discrepancies }} discrepancies found</div>
+        <div style="font-size:.78rem; margin-top:2px;">Review and adjust stock levels as needed</div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% else %}
+<div class="card-dark">
+  <div class="empty-state">
+    <i class="bi bi-clipboard2 empty-icon"></i>
+    <div class="empty-title">No items added</div>
+    <div class="empty-sub">Add items above to start counting</div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

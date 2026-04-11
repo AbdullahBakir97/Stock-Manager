@@ -30,7 +30,7 @@ _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
 _COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
-_COL_W = {"model": 150, "stamm": 80, "bestbung": 80, "stock": 70, "inventur": 80}
+_COL_W = {"model": 160, "stamm": 108, "bestbung": 104, "stock": 84, "inventur": 112}
 _HEADER_ROW = 0
 
 # Fonts

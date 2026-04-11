@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}Analytics — Stock Pro{% endblock %}
+{% block page_title %}Analytics & Reports{% endblock %}
+
+{% block content %}
+
+<!-- Date Range Filter -->
+<div class="card-dark" style="padding:12px 14px; margin-bottom:14px;">
+  <form method="GET" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input type="date" name="from" value="{{ date_from }}"
+           class="input-dark" style="flex:1; min-width:130px;">
+    <span style="color:var(--muted); font-size:.85rem;">to</span>
+    <input type="date" name="to" value="{{ date_to }}"
+           class="input-dark" style="flex:1; min-width:130px;">
+    <button type="submit" class="btn-sm-dark">Apply</button>
+  </form>
+</div>
+
+<!-- KPI Strip (async) -->
+<div class="row g-2 mb-3">
+  <div class="col-6">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-num" id="kpi-revenue" style="font-size:1.3rem;">{{ fmt_price(total_revenue) }}</div>
+      <div class="kpi-lbl">Total Revenue</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num">{{ total_orders }}</div>
+      <div class="kpi-lbl">Total Orders</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-num" id="kpi-items">—</div>
+      <div class="kpi-lbl">Total Items</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-orange">
+      <div class="kpi-num" id="kpi-low">—</div>
+      <div class="kpi-lbl">Low Stock</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-red">
+      <div class="kpi-num" id="kpi-out">—</div>
+      <div class="kpi-lbl">Out of Stock</div>
+    </div>
+  </div>
+</div>
+
+<!-- Stock Health Donut -->
+<div class="section-title">Stock Health</div>
+<div class="card-dark" style="padding:16px; margin-bottom:14px;">
+  <div style="max-width:220px; margin:0 auto; position:relative;">
+    <canvas id="healthChart" height="200"></canvas>
+    <div id="healthCenter" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+         text-align:center; pointer-events:none;">
+      <div style="font-size:1.5rem; font-weight:700; color:var(--text);" id="healthPct">—</div>
+      <div style="font-size:.7rem; color:var(--muted);">Healthy</div>
+    </div>
+  </div>
+  <div style="display:flex; justify-content:center; gap:16px; margin-top:12px; font-size:.78rem;">
+    <span style="color:#10b981;"><i class="bi bi-circle-fill" style="font-size:.5rem;"></i> OK</span>
+    <span style="color:#f59e0b;"><i class="bi bi-circle-fill" style="font-size:.5rem;"></i> Low</span>
+    <span style="color:#ef4444;"><i class="bi bi-circle-fill" style="font-size:.5rem;"></i> Out</span>
+  </div>
+</div>
+
+<!-- Daily Revenue Chart -->
+{% if rev_rows %}
+<div class="section-title">Daily Revenue ({{ date_from }} – {{ date_to }})</div>
+<div class="card-dark" style="padding:12px;">
+  <canvas id="revenueChart" height="160"></canvas>
+</div>
+{% endif %}
+
+<!-- 30-Day Activity Trend -->
+<div class="section-title" style="margin-top:14px;">30-Day Activity Trend</div>
+<div class="card-dark" style="padding:12px; margin-bottom:14px;">
+  <canvas id="trendChart" height="160"></canvas>
+</div>
+
+<!-- Category Distribution -->
+<div class="section-title">Stock by Category</div>
+<div class="card-dark" style="padding:12px; margin-bottom:14px;">
+  <canvas id="catChart" height="200"></canvas>
+</div>
+
+<!-- Top Selling Items -->
+{% if top_items %}
+<div class="section-title">Top Selling Items</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% for item in top_items %}
+  <div style="display:flex; align-items:center; gap:12px; padding:11px 0;
+              border-bottom:1px solid var(--border);">
+    <div style="width:28px; text-align:center; font-size:.8rem; font-weight:700; color:var(--muted);">
+      {{ loop.index }}
+    </div>
+    <div class="item-icon"><i class="bi bi-box2"></i></div>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:.88rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        {{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}{% if item.color %} — {{ item.color }}{% endif %}
+      </div>
+      <div style="font-size:.74rem; color:var(--muted);">{{ item.units_sold }} units sold</div>
+    </div>
+    <div style="font-weight:700; color:var(--emerald); flex-shrink:0;">{{ fmt_price(item.revenue) }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Top Customers -->
+<div class="section-title">Top Customers</div>
+<div class="card-dark" style="padding:12px; margin-bottom:14px;">
+  <canvas id="custChart" height="180"></canvas>
+</div>
+
+<!-- Stock Operations Summary -->
+{% if stock_ops %}
+<div class="section-title">Stock Operations</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% for op in stock_ops %}
+  {% set op_color = 'var(--emerald)' if op.operation == 'IN' else ('var(--red)' if op.operation == 'OUT' else 'var(--orange)') %}
+  <div style="display:flex; justify-content:space-between; align-items:center; padding:11px 0;
+              border-bottom:1px solid var(--border);">
+    <span style="color:{{ op_color }}; font-weight:700; min-width:50px;">{{ op.operation }}</span>
+    <span style="color:var(--muted); font-size:.82rem;">{{ op.op_count }} ops</span>
+    <span style="font-weight:700;">{{ op.total_qty }} units</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Category Stock Table -->
+{% if cat_summary %}
+<div class="section-title">Category Stock Detail</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% for cat in cat_summary %}
+  <div style="padding:11px 0; border-bottom:1px solid var(--border);">
+    <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+      <span style="font-weight:600; font-size:.9rem;">{{ cat.category }}</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span style="font-size:.78rem; color:var(--muted);">{{ cat.item_count }} items</span>
+        {% if cat.out_count > 0 %}
+        <span class="badge-out">{{ cat.out_count }} out</span>
+        {% endif %}
+      </div>
+    </div>
+    {% set pct = [(cat.total_stock / 500 * 100), 100] | min %}
+    <div style="background:var(--card2); border-radius:4px; height:6px; overflow:hidden;">
+      <div style="background:var(--emerald); width:{{ pct }}%; height:100%; border-radius:4px; transition:width .6s ease;"></div>
+    </div>
+    <div style="font-size:.75rem; color:var(--muted); margin-top:3px;">{{ cat.total_stock }} total units</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- Export Links -->
+<div class="section-title">Export Data</div>
+<div style="display:flex; flex-direction:column; gap:8px; margin-bottom:24px;">
+  <a href="/export/inventory.csv" class="btn-sm-dark" style="padding:12px; text-align:center; display:block;">
+    <i class="bi bi-download"></i> Export Inventory CSV
+  </a>
+  <a href="/export/transactions.csv" class="btn-sm-dark" style="padding:12px; text-align:center; display:block;">
+    <i class="bi bi-download"></i> Export Transactions CSV
+  </a>
+  <a href="/export/sales.csv" class="btn-sm-dark" style="padding:12px; text-align:center; display:block;">
+    <i class="bi bi-download"></i> Export Sales CSV
+  </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+
+{% if rev_rows %}
+<script>
+new Chart(document.getElementById('revenueChart').getContext('2d'), {
+  type: 'bar',
+  data: {
+    labels: {{ rev_rows | map(attribute='day') | list | tojson }},
+    datasets: [{
+      label: 'Revenue',
+      data: {{ rev_rows | map(attribute='revenue') | list | tojson }},
+      backgroundColor: 'rgba(16,185,129,.45)',
+      borderColor: 'rgba(16,185,129,1)',
+      borderWidth: 1,
+      borderRadius: 4,
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color:'#888', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' } },
+      y: { ticks: { color:'#888', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true }
+    }
+  }
+});
+</script>
+{% endif %}
+
+<script>
+// Shared chart defaults
+Chart.defaults.color = '#888';
+Chart.defaults.borderColor = 'rgba(255,255,255,.06)';
+
+// Load analytics data
+fetch('/api/analytics')
+  .then(r => r.json())
+  .then(data => {
+
+    // Inventory KPIs
+    if (data.inventory) {
+      const inv = data.inventory;
+      document.getElementById('kpi-items').textContent = inv.total_items ?? '—';
+      document.getElementById('kpi-low').textContent = inv.low_stock ?? '—';
+      document.getElementById('kpi-out').textContent = inv.out_of_stock ?? '—';
+
+      // Stock Health Donut
+      const ok = inv.total_items - (inv.low_stock || 0) - (inv.out_of_stock || 0);
+      const low = inv.low_stock || 0;
+      const out = inv.out_of_stock || 0;
+      const total = ok + low + out || 1;
+      const pct = Math.round(ok / total * 100);
+      document.getElementById('healthPct').textContent = pct + '%';
+
+      new Chart(document.getElementById('healthChart').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['In Stock', 'Low Stock', 'Out of Stock'],
+          datasets: [{
+            data: [ok, low, out],
+            backgroundColor: ['rgba(16,185,129,.8)', 'rgba(245,158,11,.8)', 'rgba(239,68,68,.8)'],
+            borderWidth: 2,
+            borderColor: '#1a1a2e',
+            hoverBorderColor: '#1a1a2e'
+          }]
+        },
+        options: {
+          cutout: '72%',
+          plugins: {
+            legend: { display: false },
+            tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw}` } }
+          }
+        }
+      });
+    }
+
+    // 30-Day Trend (area chart)
+    if (data.trend && data.trend.length) {
+      const labels = data.trend.map(r => r.day);
+      const inQty  = data.trend.map(r => r.in_qty  || 0);
+      const outQty = data.trend.map(r => r.out_qty || 0);
+      new Chart(document.getElementById('trendChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [
+            {
+              label: 'Stock IN',
+              data: inQty,
+              borderColor: '#10b981',
+              backgroundColor: 'rgba(16,185,129,.12)',
+              fill: true, tension: 0.35, pointRadius: 2, borderWidth: 2
+            },
+            {
+              label: 'Stock OUT',
+              data: outQty,
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239,68,68,.08)',
+              fill: true, tension: 0.35, pointRadius: 2, borderWidth: 2
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { labels: { boxWidth: 12, font: { size: 11 } } } },
+          scales: {
+            x: { ticks: { color:'#888', font:{size:9}, maxRotation:45, maxTicksLimit: 10 }, grid: { color:'rgba(255,255,255,.04)' } },
+            y: { ticks: { color:'#888', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+
+    // Category horizontal bar chart
+    if (data.categories && data.categories.length) {
+      const cats = data.categories;
+      new Chart(document.getElementById('catChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: cats.map(c => c.name),
+          datasets: [{
+            label: 'Units',
+            data: cats.map(c => c.total_stock),
+            backgroundColor: cats.map((_, i) => `hsl(${160 + i * 35}, 60%, 50%)`),
+            borderRadius: 4,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color:'#888', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true },
+            y: { ticks: { color:'#aaa', font:{size:11} }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+    // Top Customers horizontal bar
+    if (data.top_customers && data.top_customers.length) {
+      const cust = data.top_customers.slice(0, 8);
+      new Chart(document.getElementById('custChart').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: cust.map(c => c.name || 'Walk-in'),
+          datasets: [{
+            label: 'Revenue',
+            data: cust.map(c => c.revenue),
+            backgroundColor: 'rgba(99,102,241,.65)',
+            borderRadius: 4,
+            borderWidth: 0
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color:'#888', font:{size:10} }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true },
+            y: { ticks: { color:'#aaa', font:{size:11} }, grid: { display: false } }
+          }
+        }
+      });
+    }
+
+  })
+  .catch(err => console.warn('Analytics load failed:', err));
+</script>
+{% endblock %}

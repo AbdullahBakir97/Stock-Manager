@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}{{ pl.name }} — Price List{% endblock %}
+{% block page_title %}{{ pl.name }}{% endblock %}
+
+{% block content %}
+
+<!-- Header Card -->
+<div class="card-dark" style="padding:14px 16px; margin-bottom:14px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+    <div>
+      {% if pl.is_active %}
+      <span class="badge-ok">Active</span>
+      {% else %}
+      <span class="badge-out">Inactive</span>
+      {% endif %}
+    </div>
+    <a href="/price-lists/{{ pl.id }}/edit" class="btn-sm-dark">
+      <i class="bi bi-pencil"></i> Edit
+    </a>
+  </div>
+  {% if pl.description %}
+  <div style="font-size:.85rem; color:var(--muted); margin-bottom:8px;">{{ pl.description }}</div>
+  {% endif %}
+  <div style="display:flex; flex-wrap:wrap; gap:12px; font-size:.78rem; color:var(--muted);">
+    {% if pl.customer_name %}
+    <span><i class="bi bi-person"></i> {{ pl.customer_name }}</span>
+    {% endif %}
+    {% if pl.valid_from %}
+    <span><i class="bi bi-calendar3"></i> Valid: {{ pl.valid_from[:10] }}{% if pl.valid_to %} → {{ pl.valid_to[:10] }}{% endif %}</span>
+    {% endif %}
+    <span><i class="bi bi-list-ul"></i> {{ items|length }} item{{ 's' if items|length != 1 }}</span>
+  </div>
+</div>
+
+<!-- Add Item Form -->
+<div class="section-title">Add Item to List</div>
+<div class="card-dark" style="padding:14px 16px; margin-bottom:14px;">
+  <form method="POST" action="/price-lists/{{ pl.id }}/item/add" style="display:flex; flex-direction:column; gap:8px;">
+    <div>
+      <label class="form-label-dark">Item</label>
+      <select name="item_id" class="input-dark" required>
+        <option value="">— Select item —</option>
+        {% for inv_item in all_items %}
+        <option value="{{ inv_item.id }}">{{ inv_item.brand ~ ' ' if inv_item.brand else '' }}{{ inv_item.name }}{% if inv_item.color %} ({{ inv_item.color }}){% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="row g-2">
+      <div class="col-6">
+        <label class="form-label-dark">Price</label>
+        <input type="number" name="price" class="input-dark" step="0.01" min="0" placeholder="0.00" required>
+      </div>
+      <div class="col-6">
+        <label class="form-label-dark">Min Qty</label>
+        <input type="number" name="min_qty" class="input-dark" min="1" value="1" placeholder="1">
+      </div>
+    </div>
+    <button type="submit" class="btn-emerald" style="width:100%;">
+      <i class="bi bi-plus-lg"></i> Add Item
+    </button>
+  </form>
+</div>
+
+<!-- Item List -->
+<div class="section-title">Items ({{ items|length }})</div>
+{% if items %}
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% for entry in items %}
+  <div style="display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--border);">
+    <div class="item-icon"><i class="bi bi-box2"></i></div>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:.88rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+        {{ entry.brand ~ ' ' if entry.brand else '' }}{{ entry.name }}{% if entry.color %} ({{ entry.color }}){% endif %}
+      </div>
+      {% if entry.min_qty and entry.min_qty > 1 %}
+      <div style="font-size:.75rem; color:var(--muted);">Min qty: {{ entry.min_qty }}</div>
+      {% endif %}
+    </div>
+    <div style="text-align:right; flex-shrink:0; margin-right:8px;">
+      <div style="font-weight:700; color:var(--emerald);">{{ fmt_price(entry.price) }}</div>
+      {% if entry.original_price %}
+      <div style="font-size:.72rem; color:var(--muted); text-decoration:line-through;">{{ fmt_price(entry.original_price) }}</div>
+      {% endif %}
+    </div>
+    <form method="POST" action="/price-lists/{{ pl.id }}/item/{{ entry.id }}/remove"
+          onsubmit="return confirm('Remove this item?')">
+      <button type="submit" style="background:none; border:none; color:var(--red); cursor:pointer; padding:4px; font-size:1.1rem;">
+        <i class="bi bi-x-circle"></i>
+      </button>
+    </form>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card-dark" style="padding:30px 16px; text-align:center; color:var(--muted); margin-bottom:14px;">
+  <i class="bi bi-inbox" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+  No items in this price list yet
+</div>
+{% endif %}
+
+<!-- Danger Zone -->
+<div style="margin-top:8px;">
+  <form method="POST" action="/price-lists/{{ pl.id }}/delete"
+        onsubmit="return confirm('Permanently delete this price list?')">
+    <button type="submit" class="btn-sm-dark" style="width:100%; color:var(--red); padding:12px;">
+      <i class="bi bi-trash"></i> Delete Price List
+    </button>
+  </form>
+</div>
+
+{% endblock %}

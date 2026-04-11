@@ -461,7 +461,7 @@ class MainWindow(QMainWindow):
                 "refresh_selected",
                 lambda: _item_repo.get_by_id(cp_id),
                 lambda item: (setattr(self, '_cp', item),
-                              self._inv_page.detail.set_product(item)),
+                              self._inv_page.select_product(item)),
             )
         self._show_status(t("status_refreshed"), 2000)
 
@@ -507,7 +507,7 @@ class MainWindow(QMainWindow):
     # ── Events ───────────────────────────────────────────────────────────────
 
     def _sel(self, item: InventoryItem | None) -> None:
-        self._cp = item; self._inv_page.detail.set_product(item)
+        self._cp = item; self._inv_page.select_product(item)
 
     def _on_low_stock_product_selected(self, pid: int) -> None:
         self._nav_ctrl.go("nav_inventory")
@@ -541,7 +541,7 @@ class MainWindow(QMainWindow):
         self._inv_page.table.viewport().update()
         self._inv_page.dashboard.apply_theme()
         if self._cp:
-            self._inv_page.detail.set_product(self._cp)
+            self._inv_page.select_product(self._cp)
 
     # ── CRUD (delegated to controllers) ──────────────────────────────────────
 
@@ -574,7 +574,7 @@ class MainWindow(QMainWindow):
             self._header.search.clear()
         elif self._cp:
             self._cp = None
-            self._inv_page.detail.set_product(None)
+            self._inv_page.select_product(None)
             self._inv_page.table.clearSelection()
 
     def _open_help(self) -> None:

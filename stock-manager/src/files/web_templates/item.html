@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}{{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }} — Stock Pro{% endblock %}
+{% block page_title %}Item Detail{% endblock %}
+
+{% block topbar_title %}
+<div class="topbar-crumb">
+  <a href="/inventory">Inventory</a>
+  <span class="sep">›</span>
+  <span class="cur">{{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}</span>
+</div>
+{% endblock %}
+
+{% block topbar_actions %}
+<a href="/item/{{ item.id }}/edit" class="icon-btn" title="Edit item">
+  <i class="bi bi-pencil"></i>
+</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ ITEM HEADER ══════════════════════════════ -->
+<div class="card-highlight" style="margin-bottom:12px;">
+  <div style="display:flex; align-items:flex-start; gap:14px;">
+    <div style="width:60px; height:60px; border-radius:16px; display:flex; align-items:center;
+         justify-content:center; font-size:1.7rem; flex-shrink:0;
+         background:{% if item.is_out %}rgba(239,68,68,.12){% elif item.is_low %}rgba(245,158,11,.12){% else %}rgba(16,185,129,.12){% endif %};">
+      <i class="bi bi-{% if not item.is_product %}cpu{% else %}box2{% endif %}"
+         style="color:{% if item.is_out %}#ef4444{% elif item.is_low %}#f59e0b{% else %}#10b981{% endif %};"></i>
+    </div>
+    <div style="flex:1; min-width:0;">
+      <div style="font-size:1.1rem; font-weight:800; letter-spacing:-.01em;">
+        {{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}
+      </div>
+      <div style="font-size:.82rem; color:var(--muted); margin-top:3px;">
+        {% if not item.is_product %}
+          {{ item.model_brand ~ ' ' if item.model_brand else '' }}{{ item.model_name }} · {{ item.part_type_name }}
+        {% else %}
+          {% if item.color %}{{ item.color }}{% endif %}{% if item.sku %} · SKU: {{ item.sku }}{% endif %}
+        {% endif %}
+      </div>
+      <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+        {% if item.is_out %}
+        <span class="badge-out">Out of Stock</span>
+        {% elif item.is_low %}
+        <span class="badge-low">Low Stock</span>
+        {% else %}
+        <span class="badge-ok">In Stock</span>
+        {% endif %}
+        {% if not item.is_product %}<span class="badge-blue">Matrix Item</span>{% endif %}
+        {% if item.barcode %}<span class="badge-muted"><i class="bi bi-upc"></i> {{ item.barcode }}</span>{% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ STOCK METRICS ════════════════════════════ -->
+<div class="row g-2 mb-3">
+  <div class="col-4">
+    <div class="kpi-card {% if item.is_out %}kpi-red{% elif item.is_low %}kpi-orange{% else %}kpi-green{% endif %}">
+      <div class="kpi-num" style="font-size:1.8rem;">{{ item.stock }}</div>
+      <div class="kpi-lbl">In Stock</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card" style="border-left-color:var(--muted);">
+      <div class="kpi-num" style="font-size:1.8rem; color:var(--muted);">{{ item.min_stock }}</div>
+      <div class="kpi-lbl">Minimum</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num" style="font-size:1.4rem;">
+        {% if item.sell_price %}{{ fmt_price(item.sell_price) }}{% else %}—{% endif %}
+      </div>
+      <div class="kpi-lbl">Sell Price</div>
+    </div>
+  </div>
+</div>
+
+<!-- Cost + Margin row -->
+{% if item.cost_price or item.sell_price %}
+<div class="row g-2 mb-3">
+  {% if item.cost_price %}
+  <div class="col-6">
+    <div class="kpi-card" style="border-left-color:var(--purple);">
+      <div class="kpi-num" style="font-size:1.3rem; color:var(--purple);">{{ fmt_price(item.cost_price) }}</div>
+      <div class="kpi-lbl">Cost Price</div>
+    </div>
+  </div>
+  {% if item.sell_price and item.cost_price %}
+  <div class="col-6">
+    {% set margin = ((item.sell_price - item.cost_price) / item.sell_price * 100)|round(1) %}
+    <div class="kpi-card {% if margin >= 30 %}kpi-green{% elif margin >= 15 %}kpi-orange{% else %}kpi-red{% endif %}">
+      <div class="kpi-num" style="font-size:1.3rem;">{{ margin }}%</div>
+      <div class="kpi-lbl">Margin</div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ═══ STOCK OPERATION ══════════════════════════ -->
+<div class="section-title">Update Stock</div>
+<div class="card-dark" style="margin-bottom:14px;">
+
+  <!-- Operation selector — vertical layout keeps text visible in any language -->
+  <div style="display:flex; gap:6px; margin-bottom:16px;">
+    <button onclick="setOp('in')" id="btn-in"
+      style="flex:1; padding:10px 6px; border-radius:10px; border:1.5px solid rgba(16,185,129,.4);
+             font-weight:700; font-size:clamp(.72rem,2.8vw,.88rem); cursor:pointer;
+             background:rgba(16,185,129,.12); color:#10b981;
+             display:flex; flex-direction:column; align-items:center; gap:4px;
+             transition:all .15s; line-height:1.2; text-align:center;">
+      <i class="bi bi-arrow-up-circle-fill" style="font-size:1.2rem;"></i>
+      <span>Stock In</span>
+    </button>
+    <button onclick="setOp('out')" id="btn-out"
+      style="flex:1; padding:10px 6px; border-radius:10px; border:1.5px solid var(--border);
+             font-weight:700; font-size:clamp(.72rem,2.8vw,.88rem); cursor:pointer;
+             background:transparent; color:var(--muted);
+             display:flex; flex-direction:column; align-items:center; gap:4px;
+             transition:all .15s; line-height:1.2; text-align:center;">
+      <i class="bi bi-arrow-down-circle-fill" style="font-size:1.2rem;"></i>
+      <span>Stock Out</span>
+    </button>
+    <button onclick="setOp('adjust')" id="btn-adj"
+      style="flex:1; padding:10px 6px; border-radius:10px; border:1.5px solid var(--border);
+             font-weight:700; font-size:clamp(.72rem,2.8vw,.88rem); cursor:pointer;
+             background:transparent; color:var(--muted);
+             display:flex; flex-direction:column; align-items:center; gap:4px;
+             transition:all .15s; line-height:1.2; text-align:center;">
+      <i class="bi bi-arrow-repeat" style="font-size:1.2rem;"></i>
+      <span>Adjust</span>
+    </button>
+  </div>
+
+  <form method="post" action="/item/{{ item.id }}/stock" id="stock-form">
+    <input type="hidden" name="op" id="op-field" value="in">
+
+    <!-- Quantity -->
+    <div class="form-group">
+      <label class="form-label-dark" id="qty-label">Quantity to Add</label>
+      <div class="qty-row">
+        <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+        <input type="number" name="qty" id="qty" value="1" min="1"
+               class="qty-input" inputmode="numeric">
+        <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+
+    <!-- Quick quantities -->
+    <div style="display:flex; gap:5px; margin-bottom:14px; flex-wrap:wrap;">
+      {% for q in [1, 2, 5, 10, 20, 50, 100] %}
+      <button type="button" onclick="setQty({{ q }})"
+        style="padding:6px 10px; border-radius:8px; border:1px solid var(--border);
+               background:var(--card2); color:var(--text2); font-size:.8rem; cursor:pointer;
+               transition:border-color .12s;">
+        {{ q }}
+      </button>
+      {% endfor %}
+    </div>
+
+    <!-- Note -->
+    <div class="form-group" style="margin-bottom:14px;">
+      <label class="form-label-dark">Note <span style="color:var(--muted); font-weight:400;">(optional)</span></label>
+      <input type="text" name="note" class="input-dark" placeholder="e.g. Supplier delivery, sale, adjustment…">
+    </div>
+
+    <button type="submit" id="submit-btn" class="btn-emerald" style="width:100%; padding:14px;">
+      <i class="bi bi-check-circle-fill"></i> <span id="submit-label">Confirm Stock In</span>
+    </button>
+  </form>
+</div>
+
+<!-- ═══ ITEM DETAILS ════════════════════════════ -->
+<div class="section-title">Details</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% set details = [
+    ('Brand', item.brand),
+    ('Name', item.name),
+    ('Color', item.color),
+    ('SKU', item.sku),
+    ('Barcode', item.barcode),
+    ('Cost Price', fmt_price(item.cost_price) if item.cost_price else none),
+    ('Sell Price', fmt_price(item.sell_price) if item.sell_price else none),
+    ('Min Stock', item.min_stock|string),
+  ] %}
+  {% for label, value in details %}
+  {% if value %}
+  <div style="display:flex; justify-content:space-between; align-items:center;
+              padding:10px 0; border-bottom:1px solid var(--border2);">
+    <span style="font-size:.8rem; color:var(--muted); font-weight:600;">{{ label }}</span>
+    <span style="font-size:.88rem; font-weight:600; color:var(--text2);">{{ value }}</span>
+  </div>
+  {% endif %}
+  {% endfor %}
+  <!-- Edit action at bottom -->
+  <a href="/item/{{ item.id }}/edit" style="display:flex; align-items:center; justify-content:center; gap:6px;
+     padding:12px 0; font-size:.85rem; color:var(--emerald); text-decoration:none;">
+    <i class="bi bi-pencil-square"></i> Edit Item Details
+  </a>
+</div>
+
+<!-- ═══ TRANSACTION HISTORY ═════════════════════ -->
+<div class="page-section-header">
+  <div class="title">Transaction History</div>
+  <a href="/transactions?q={{ item.name }}" class="action">All →</a>
+</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% if txns %}
+    {% for t in txns %}
+    {% set op_col = '#10b981' if t.operation == 'IN' else ('#ef4444' if t.operation == 'OUT' else '#f59e0b') %}
+    {% set op_bg  = 'rgba(16,185,129,.1)' if t.operation == 'IN' else ('rgba(239,68,68,.1)' if t.operation == 'OUT' else 'rgba(245,158,11,.1)') %}
+    <div style="display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--border2);">
+      <div style="width:34px; height:34px; border-radius:9px; display:flex;
+                  align-items:center; justify-content:center; flex-shrink:0;
+                  background:{{ op_bg }}; font-size:.75rem; font-weight:700; color:{{ op_col }}; letter-spacing:.5px;">
+        {{ t.operation }}
+      </div>
+      <div style="flex:1;">
+        <div style="font-size:.88rem; font-weight:700; color:{{ op_col }}">
+          {{ '+' if t.operation == 'IN' else ('−' if t.operation == 'OUT' else '±') }}{{ t.quantity }}
+          <span style="color:var(--text2); font-weight:500; font-size:.82rem;">→ {{ t.stock_after or '?' }}</span>
+        </div>
+        <div style="font-size:.72rem; color:var(--muted);">
+          {{ t.timestamp[:16] if t.timestamp else '—' }}{% if t.note %} · {{ t.note }}{% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-state" style="padding:24px 0;">
+      <i class="bi bi-clock-history empty-icon" style="font-size:2rem;"></i>
+      <div class="empty-sub">No transactions yet</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ═══ DANGER ZONE ══════════════════════════════ -->
+<div class="section-title" style="color:var(--red);">Danger Zone</div>
+<form method="POST" action="/item/{{ item.id }}/delete"
+      onsubmit="return confirm('Permanently delete {{ item.name }}? This cannot be undone.')">
+  <button type="submit" class="btn-danger" style="width:100%; padding:13px;">
+    <i class="bi bi-trash3-fill"></i> Delete Item
+  </button>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const OPS = {
+  in:     { label:'Stock In',   btnColor:'rgba(16,185,129,.12)', btnBorder:'rgba(16,185,129,.4)', color:'#10b981', submitLabel:'Confirm Stock In',   submitBg:'var(--emerald)', qtyLabel:'Quantity to Add' },
+  out:    { label:'Stock Out',  btnColor:'rgba(239,68,68,.12)',  btnBorder:'rgba(239,68,68,.4)',  color:'#ef4444', submitLabel:'Confirm Stock Out',  submitBg:'#ef4444',        qtyLabel:'Quantity to Remove' },
+  adjust: { label:'Adjust',     btnColor:'rgba(245,158,11,.12)', btnBorder:'rgba(245,158,11,.4)', color:'#f59e0b', submitLabel:'Confirm Adjustment', submitBg:'#f59e0b',        qtyLabel:'Set Stock To' }
+};
+let currentOp = 'in';
+
+function setOp(op) {
+  currentOp = op;
+  ['in','out','adjust'].forEach(o => {
+    const btn = document.getElementById('btn-'+o);
+    if (!btn) return;
+    const cfg = OPS[o];
+    if (o === op) {
+      btn.style.background = cfg.btnColor;
+      btn.style.borderColor = cfg.btnBorder;
+      btn.style.color = cfg.color;
+    } else {
+      btn.style.background = 'transparent';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--muted)';
+    }
+  });
+  document.getElementById('op-field').value = op;
+  document.getElementById('submit-label').textContent = OPS[op].submitLabel;
+  document.getElementById('submit-btn').style.background = OPS[op].submitBg;
+  document.getElementById('qty-label').textContent = OPS[op].qtyLabel;
+}
+
+function changeQty(d) {
+  const el = document.getElementById('qty');
+  el.value = Math.max(0, parseInt(el.value || 1) + d);
+}
+function setQty(v) {
+  document.getElementById('qty').value = v;
+  /* Pulse the input */
+  const el = document.getElementById('qty');
+  el.style.borderColor = 'var(--emerald)';
+  setTimeout(() => el.style.borderColor = '', 600);
+}
+
+/* Quick quantity button hover */
+document.querySelectorAll('[onclick^="setQty"]').forEach(btn => {
+  btn.addEventListener('mouseenter', () => btn.style.borderColor = 'var(--emerald)');
+  btn.addEventListener('mouseleave', () => btn.style.borderColor = '');
+});
+</script>
+{% endblock %}

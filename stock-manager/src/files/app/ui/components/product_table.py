@@ -43,7 +43,7 @@ class ProductTable(QTableWidget):
 
     _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
                  "col_stock", "col_min", "col_best_bung", "col_status", "col_actions"]
-    _WIDTHS    = [40, 200, 50, 100, 70, 60, 50, 80, 80, 90]
+    _WIDTHS    = [40, 200, 50, 110, 80, 70, 56, 80, 80, 90]
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,8 +51,14 @@ class ProductTable(QTableWidget):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
         hh = self.horizontalHeader()
         hh.setMinimumSectionSize(30)
-        hh.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
+        # Column 1 (name) → Stretch so it always claims the majority of space.
+        # All other columns → Interactive with explicit initial pixel widths so
+        # a long barcode cannot shrink the name column.
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for i, w in enumerate(self._WIDTHS):
+            if i != 1:
+                hh.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+                self.setColumnWidth(i, w)
         self.setSelectionBehavior(self.SelectionBehavior.SelectRows)
         self.setSelectionMode(self.SelectionMode.ExtendedSelection)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
@@ -93,10 +99,13 @@ class ProductTable(QTableWidget):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
 
     def reset_column_widths(self):
-        """Reset columns — keep Stretch on name, ResizeToContents on rest."""
+        """Reset columns to default widths — name column keeps Stretch mode."""
         hh = self.horizontalHeader()
-        hh.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        for i, w in enumerate(self._WIDTHS):
+            if i != 1:
+                hh.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
+                self.setColumnWidth(i, w)
 
     def load(self, items: list[InventoryItem]):
         self._data = list(items)
@@ -138,7 +147,13 @@ class ProductTable(QTableWidget):
                         str(item.stock), str(item.min_stock), diff_str, sl, ""]
                 for j, v in enumerate(vals):
                     it = QTableWidgetItem(v)
-                    it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                    # Name column (1) is left-aligned for readability; rest centred
+                    if j == 1:
+                        it.setTextAlignment(
+                            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                        )
+                    else:
+                        it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                     if j == 3:
                         it.setFont(_mono_sm)
                     elif j == 5:

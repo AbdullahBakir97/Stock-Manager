@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Stock Manager Pro{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block topbar_title %}
+<div>
+  <div class="topbar-title">Dashboard</div>
+  <div class="topbar-subtitle" id="dash-time" style="color:var(--muted); font-size:.66rem;">Loading…</div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ ALERT BANNER ════════════════════════════ -->
+{% if stats.low > 0 or stats.out > 0 %}
+<a href="/alerts" style="text-decoration:none; display:block; margin-bottom:14px;">
+  <div style="background:linear-gradient(135deg,rgba(245,158,11,.12) 0%,rgba(239,68,68,.08) 100%);
+              border:1px solid rgba(245,158,11,.3); border-radius:var(--radius);
+              padding:12px 14px; display:flex; align-items:center; gap:10px;">
+    <span class="pulse-dot"></span>
+    <div style="flex:1;">
+      <div style="font-size:.88rem; font-weight:700; color:var(--orange);">
+        {{ stats.out }} out of stock · {{ stats.low }} low stock
+      </div>
+      <div style="font-size:.73rem; color:var(--muted);">Tap to review and reorder</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:var(--muted);"></i>
+  </div>
+</a>
+{% endif %}
+
+<!-- ═══ TODAY'S KPIs ════════════════════════════ -->
+<div class="section-title" style="margin-top:0;">Today</div>
+<div class="row g-2 mb-1">
+  <div class="col-6">
+    <a href="/sales" style="text-decoration:none;">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><i class="bi bi-bag-check-fill"></i></div>
+        <div class="kpi-num">{{ stats.sales_today }}</div>
+        <div class="kpi-lbl">Sales Today</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/sales" style="text-decoration:none;">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-icon"><i class="bi bi-currency-dollar"></i></div>
+        <div class="kpi-num" style="font-size:1.2rem;">{{ fmt_price(stats.revenue_today) }}</div>
+        <div class="kpi-lbl">Revenue Today</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ STOCK KPIs ══════════════════════════════ -->
+<div class="section-title" style="margin-top:14px;">Inventory</div>
+<div class="row g-2 mb-1">
+  <div class="col-4">
+    <a href="/inventory" style="text-decoration:none;">
+      <div class="kpi-card kpi-teal">
+        <div class="kpi-num" style="font-size:1.4rem;">{{ stats.total }}</div>
+        <div class="kpi-lbl">Total Items</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-4">
+    <a href="/inventory?status=low" style="text-decoration:none;">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-num" style="font-size:1.4rem;">{{ stats.low }}</div>
+        <div class="kpi-lbl">Low Stock</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-4">
+    <a href="/inventory?status=out" style="text-decoration:none;">
+      <div class="kpi-card kpi-red">
+        <div class="kpi-num" style="font-size:1.4rem;">{{ stats.out }}</div>
+        <div class="kpi-lbl">Out of Stock</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ BUSINESS KPIs (async) ══════════════════ -->
+<div class="section-title" style="margin-top:14px;">Business</div>
+<div class="row g-2 mb-1">
+  <div class="col-6">
+    <a href="/sales" style="text-decoration:none;">
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-icon"><i class="bi bi-receipt-cutoff"></i></div>
+        <div class="kpi-num" id="kpi-sales-month" style="font-size:1.3rem;">—</div>
+        <div class="kpi-lbl">Sales This Month</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/sales" style="text-decoration:none;">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-icon"><i class="bi bi-graph-up"></i></div>
+        <div class="kpi-num" id="kpi-rev-month" style="font-size:1.1rem;">—</div>
+        <div class="kpi-lbl">Revenue This Month</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/purchase-orders?status=DRAFT" style="text-decoration:none;">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-num" style="font-size:1.4rem;">{{ stats.pending_pos }}</div>
+        <div class="kpi-lbl">Pending Orders</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/customers" style="text-decoration:none;">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-num" id="kpi-customers" style="font-size:1.4rem;">—</div>
+        <div class="kpi-lbl">Customers</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ 7-DAY SPARKLINE ═════════════════════════ -->
+<div class="page-section-header" style="margin-top:16px;">
+  <div class="title">7-Day Revenue</div>
+  <a href="/reports" class="action">Full analytics →</a>
+</div>
+<div class="card-highlight" style="padding:14px 14px 10px;">
+  <canvas id="sparkChart" height="80"></canvas>
+</div>
+
+<!-- ═══ QUICK ACTIONS ══════════════════════════ -->
+<div class="section-title" style="margin-top:16px;">Quick Actions</div>
+<div class="row g-2 mb-2">
+  <div class="col-6">
+    <a href="/sales/new" style="text-decoration:none;">
+      <div style="background:linear-gradient(135deg,rgba(16,185,129,.15) 0%,rgba(16,185,129,.06) 100%);
+                  border:1px solid rgba(16,185,129,.25); border-radius:var(--radius-lg);
+                  padding:16px 14px; text-align:center;">
+        <i class="bi bi-cart-plus-fill" style="font-size:1.8rem; color:var(--emerald);"></i>
+        <div style="font-size:.85rem; margin-top:7px; font-weight:700; color:var(--text);">New Sale</div>
+        <div style="font-size:.7rem; color:var(--muted);">POS Terminal</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/scan" style="text-decoration:none;">
+      <div style="background:linear-gradient(135deg,rgba(99,102,241,.15) 0%,rgba(99,102,241,.06) 100%);
+                  border:1px solid rgba(99,102,241,.25); border-radius:var(--radius-lg);
+                  padding:16px 14px; text-align:center;">
+        <i class="bi bi-qr-code-scan" style="font-size:1.8rem; color:#6366f1;"></i>
+        <div style="font-size:.85rem; margin-top:7px; font-weight:700; color:var(--text);">Quick Scan</div>
+        <div style="font-size:.7rem; color:var(--muted);">Barcode Scanner</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/inventory/add" style="text-decoration:none;">
+      <div style="background:linear-gradient(135deg,rgba(59,130,246,.15) 0%,rgba(59,130,246,.06) 100%);
+                  border:1px solid rgba(59,130,246,.25); border-radius:var(--radius-lg);
+                  padding:16px 14px; text-align:center;">
+        <i class="bi bi-plus-circle-fill" style="font-size:1.8rem; color:var(--blue);"></i>
+        <div style="font-size:.85rem; margin-top:7px; font-weight:700; color:var(--text);">Add Item</div>
+        <div style="font-size:.7rem; color:var(--muted);">New Inventory</div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6">
+    <a href="/purchase-orders/new" style="text-decoration:none;">
+      <div style="background:linear-gradient(135deg,rgba(245,158,11,.15) 0%,rgba(245,158,11,.06) 100%);
+                  border:1px solid rgba(245,158,11,.25); border-radius:var(--radius-lg);
+                  padding:16px 14px; text-align:center;">
+        <i class="bi bi-bag-plus-fill" style="font-size:1.8rem; color:var(--orange);"></i>
+        <div style="font-size:.85rem; margin-top:7px; font-weight:700; color:var(--text);">New Order</div>
+        <div style="font-size:.7rem; color:var(--muted);">Purchase Order</div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ═══ STOCK HEALTH ════════════════════════════ -->
+<div class="page-section-header" style="margin-top:16px;">
+  <div class="title">Stock Health</div>
+  <a href="/inventory" class="action">View all →</a>
+</div>
+<div class="card-dark" style="padding:14px 16px;">
+  <!-- Donut + legend side by side -->
+  <div style="display:flex; align-items:center; gap:16px;">
+    <div style="position:relative; width:90px; height:90px; flex-shrink:0;">
+      <canvas id="healthDonut" width="90" height="90"></canvas>
+      <div style="position:absolute; inset:0; display:flex; flex-direction:column;
+                  align-items:center; justify-content:center; pointer-events:none;">
+        <div style="font-size:1.1rem; font-weight:800; color:var(--text);" id="health-pct">—</div>
+        <div style="font-size:.6rem; color:var(--muted);">OK</div>
+      </div>
+    </div>
+    <div style="flex:1; display:flex; flex-direction:column; gap:7px;">
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:.78rem; margin-bottom:3px;">
+          <span style="color:var(--emerald); font-weight:600;">In Stock</span>
+          <span id="health-ok-n" style="color:var(--text2);">—</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill" id="health-ok-bar" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:.78rem; margin-bottom:3px;">
+          <span style="color:var(--orange); font-weight:600;">Low Stock</span>
+          <span id="health-low-n" style="color:var(--text2);">—</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill orange" id="health-low-bar" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; font-size:.78rem; margin-bottom:3px;">
+          <span style="color:var(--red); font-weight:600;">Out of Stock</span>
+          <span id="health-out-n" style="color:var(--text2);">—</span>
+        </div>
+        <div class="progress-bar-wrap"><div class="progress-bar-fill red" id="health-out-bar" style="width:0%"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ LOW STOCK ALERTS ════════════════════════ -->
+{% if alerts %}
+<div class="page-section-header">
+  <div class="title">Needs Attention</div>
+  <a href="/alerts" class="action">All alerts →</a>
+</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% for item in alerts[:5] %}
+  <a href="/item/{{ item.id }}" class="item-row">
+    <div class="item-icon" style="{% if item.stock == 0 %}background:rgba(239,68,68,.12){% else %}background:rgba(245,158,11,.12){% endif %}">
+      <i class="bi bi-exclamation-triangle-fill"
+         style="color:{% if item.stock == 0 %}#ef4444{% else %}#f59e0b{% endif %}; font-size:.9rem;"></i>
+    </div>
+    <div class="item-info">
+      <div class="name">{{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}{% if item.color %} · {{ item.color }}{% endif %}</div>
+      <div class="sub">Min: {{ item.min_stock }} · Current: {{ item.stock }}</div>
+    </div>
+    <div>
+      {% if item.stock == 0 %}
+      <span class="badge-out">Out</span>
+      {% else %}
+      <span class="badge-low">{{ item.stock }}</span>
+      {% endif %}
+    </div>
+  </a>
+  {% endfor %}
+  {% if alerts|length > 5 %}
+  <a href="/alerts" style="display:block; text-align:center; padding:12px 0; font-size:.82rem; color:var(--emerald); text-decoration:none;">
+    +{{ alerts|length - 5 }} more alerts →
+  </a>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- ═══ RECENT ACTIVITY ═════════════════════════ -->
+<div class="page-section-header">
+  <div class="title">Recent Activity</div>
+  <a href="/transactions" class="action">All →</a>
+</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% if stats.recent %}
+    {% for t in stats.recent %}
+    {% set is_in = t.operation == 'IN' %}
+    <a href="/item/{{ t.item_id if t.item_id is defined else '#' }}" class="item-row">
+      <div class="item-icon" style="background:{% if is_in %}rgba(16,185,129,.12){% elif t.operation == 'OUT' %}rgba(239,68,68,.12){% else %}rgba(245,158,11,.12){% endif %}">
+        <i class="bi bi-arrow-{% if is_in %}up-circle-fill{% elif t.operation == 'OUT' %}down-circle-fill{% else %}repeat{% endif %}"
+           style="color:{% if is_in %}#10b981{% elif t.operation == 'OUT' %}#ef4444{% else %}#f59e0b{% endif %}"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">{{ t.brand ~ ' ' if t.brand else '' }}{{ t.name }}{% if t.color %} · {{ t.color }}{% endif %}</div>
+        <div class="sub">{{ t.timestamp[:16] if t.timestamp else "" }}{% if t.note %} · {{ t.note }}{% endif %}</div>
+      </div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-weight:800; font-size:.95rem; color:{% if is_in %}#10b981{% elif t.operation == 'OUT' %}#ef4444{% else %}#f59e0b{% endif %}">
+          {{ '+' if is_in else ('−' if t.operation == 'OUT' else '±') }}{{ t.quantity }}
+        </div>
+        <div style="font-size:.68rem; color:var(--muted);">{{ t.stock_after or '—' }}</div>
+      </div>
+    </a>
+    {% endfor %}
+    <a href="/transactions" style="display:flex; align-items:center; justify-content:center; gap:5px;
+       padding:12px 0; font-size:.82rem; color:var(--emerald); text-decoration:none;">
+      View all transactions <i class="bi bi-arrow-right"></i>
+    </a>
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-clock-history empty-icon"></i>
+      <div class="empty-title">No activity yet</div>
+      <div class="empty-sub">Stock operations will appear here</div>
+    </div>
+  {% endif %}
+</div>
+
+<!-- ═══ RECENT SALES ════════════════════════════ -->
+{% if stats.recent_sales %}
+<div class="page-section-header">
+  <div class="title">Recent Sales</div>
+  <a href="/sales" class="action">All sales →</a>
+</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% for s in stats.recent_sales %}
+  <a href="/sales/{{ s.id }}" class="item-row">
+    <div class="item-icon" style="background:rgba(16,185,129,.1);">
+      <i class="bi bi-receipt-cutoff" style="color:var(--emerald);"></i>
+    </div>
+    <div class="item-info">
+      <div class="name">Sale #{{ s.id }}{% if s.customer_name %} · {{ s.customer_name }}{% endif %}</div>
+      <div class="sub">{{ s.timestamp[:16] if s.timestamp else "" }}</div>
+    </div>
+    <div style="font-weight:700; color:var(--emerald); flex-shrink:0;">{{ fmt_price(s.net_total) }}</div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script>
+/* Live clock */
+function tick() {
+  const now = new Date();
+  const opts = { weekday:'short', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' };
+  document.getElementById('dash-time').textContent = now.toLocaleDateString('en-US', opts);
+}
+tick(); setInterval(tick, 30000);
+
+/* Chart defaults */
+Chart.defaults.color = '#606078';
+Chart.defaults.borderColor = 'rgba(255,255,255,.05)';
+
+/* Load analytics */
+fetch('/api/analytics')
+  .then(r => r.json())
+  .then(data => {
+    /* KPIs — sales_stats: {cnt, revenue, avg_sale, items_sold} */
+    const ss = data.sales_stats;
+    if (ss) {
+      document.getElementById('kpi-sales-month').textContent = ss.cnt ?? '—';
+      if (ss.revenue != null) {
+        const v = parseFloat(ss.revenue) || 0;
+        document.getElementById('kpi-rev-month').textContent =
+          (v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : '$' + v.toFixed(0));
+      }
+    }
+    if (data.total_customers != null) {
+      document.getElementById('kpi-customers').textContent = data.total_customers;
+    }
+
+    /* Stock health — inventory: {total_products, low_count, out_count, ok_count} */
+    const inv = data.inventory;
+    if (inv) {
+      const ok  = inv.ok_count || Math.max(0, (inv.total_products||0) - (inv.low_count||0) - (inv.out_count||0));
+      const low = inv.low_count || 0;
+      const out = inv.out_count || 0;
+      const tot = ok + low + out || 1;
+      const pct = Math.round(ok / tot * 100);
+      document.getElementById('health-pct').textContent = pct + '%';
+      document.getElementById('health-ok-n').textContent = ok;
+      document.getElementById('health-low-n').textContent = low;
+      document.getElementById('health-out-n').textContent = out;
+      setTimeout(() => {
+        document.getElementById('health-ok-bar').style.width  = (ok/tot*100) + '%';
+        document.getElementById('health-low-bar').style.width = (low/tot*100) + '%';
+        document.getElementById('health-out-bar').style.width = (out/tot*100) + '%';
+      }, 100);
+      /* Health donut */
+      new Chart(document.getElementById('healthDonut').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          datasets: [{
+            data: [ok, low, out],
+            backgroundColor: ['rgba(16,185,129,.8)', 'rgba(245,158,11,.8)', 'rgba(239,68,68,.8)'],
+            borderWidth: 2, borderColor: '#13131c', hoverBorderColor: '#13131c'
+          }]
+        },
+        options: {
+          cutout: '76%',
+          plugins: { legend: { display: false }, tooltip: { enabled: false } }
+        }
+      });
+    }
+
+    /* 7-day sparkline — use rev_trend (daily revenue) */
+    const sparkData = (data.rev_trend && data.rev_trend.length) ? data.rev_trend : (data.trend || []);
+    if (sparkData.length) {
+      const recent = sparkData.slice(-7);
+      new Chart(document.getElementById('sparkChart').getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: recent.map(r => r.day || ''),
+          datasets: [{
+            data: recent.map(r => r.revenue || r.ops || 0),
+            borderColor: '#10b981',
+            backgroundColor: 'rgba(16,185,129,.1)',
+            fill: true, tension: 0.4, pointRadius: 3,
+            pointBackgroundColor: '#10b981', borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false }, tooltip: {
+            callbacks: { label: ctx => ' $' + ctx.raw.toFixed(0) }
+          }},
+          scales: {
+            x: { ticks: { color:'#606078', font:{size:10} }, grid: { display:false } },
+            y: { ticks: { color:'#606078', font:{size:9} }, grid: { color:'rgba(255,255,255,.04)' }, beginAtZero: true }
+          }
+        }
+      });
+    }
+  })
+  .catch(() => {});
+</script>
+{% endblock %}

@@ -11,6 +11,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.3.3] - 2026-04-11
+
+### Fixed
+- German button and column header text no longer truncated (removed hard pixel width caps)
+- Product name column now stretches to fill available space in inventory list
+- Collapsible inventory sections (Overview, Filters, Selected Item) give table more space when hidden
+
+### Changed
+- Release workflow now auto-extracts changelog entry and publishes it to GitHub Release
+
+---
+
 ## [2.3.2] - 2026-04-11
 
 ### Fixed

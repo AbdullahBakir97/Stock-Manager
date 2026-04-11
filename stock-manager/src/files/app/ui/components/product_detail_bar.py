@@ -203,7 +203,6 @@ class ProductDetailBar(QFrame):
 
         self._btn_in = QPushButton(t("btn_stock_in"))
         self._btn_in.setFixedHeight(_btn_h)
-        self._btn_in.setMaximumWidth(70)
         self._btn_in.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_in.setStyleSheet(btn_ss_in)
         self._btn_in.clicked.connect(self.request_in)
@@ -211,7 +210,6 @@ class ProductDetailBar(QFrame):
 
         self._btn_out = QPushButton(t("btn_stock_out"))
         self._btn_out.setFixedHeight(_btn_h)
-        self._btn_out.setMaximumWidth(70)
         self._btn_out.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_out.setStyleSheet(btn_ss_out)
         self._btn_out.clicked.connect(self.request_out)
@@ -219,7 +217,6 @@ class ProductDetailBar(QFrame):
 
         self._btn_adj = QPushButton(t("btn_adjust"))
         self._btn_adj.setFixedHeight(_btn_h)
-        self._btn_adj.setMaximumWidth(60)
         self._btn_adj.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_adj.setStyleSheet(btn_ss_adj)
         self._btn_adj.clicked.connect(self.request_adj)
@@ -227,7 +224,6 @@ class ProductDetailBar(QFrame):
 
         self._btn_edit = QPushButton(t("btn_edit"))
         self._btn_edit.setFixedHeight(_btn_h)
-        self._btn_edit.setMaximumWidth(50)
         self._btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_edit.setStyleSheet(btn_ss_edit)
         self._btn_edit.setIcon(get_button_icon("edit"))

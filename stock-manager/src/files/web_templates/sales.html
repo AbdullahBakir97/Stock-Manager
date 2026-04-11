@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}Sales — Stock Pro{% endblock %}
+{% block page_title %}Sales History{% endblock %}
+
+{% block content %}
+
+<!-- 4 KPI Cards -->
+<div class="row g-2 mb-3">
+  <div class="col-6">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num">{{ total_cnt }}</div>
+      <div class="kpi-lbl">Total Sales</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-num" style="font-size:1.2rem;">{{ fmt_price(total_rev) }}</div>
+      <div class="kpi-lbl">Revenue</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-purple">
+      <div class="kpi-num" style="font-size:1.2rem;">
+        {% if total_cnt > 0 %}{{ fmt_price(total_rev / total_cnt) }}{% else %}—{% endif %}
+      </div>
+      <div class="kpi-lbl">Avg Sale Value</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-orange">
+      <div class="kpi-num" id="kpi-items-sold">—</div>
+      <div class="kpi-lbl">Items Sold</div>
+    </div>
+  </div>
+</div>
+
+<!-- Date + Search Filter -->
+<div class="card-dark" style="padding:12px 14px; margin-bottom:10px;">
+  <form method="GET" style="display:flex; flex-direction:column; gap:8px;">
+    <div style="position:relative;">
+      <i class="bi bi-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--muted)"></i>
+      <input type="text" name="q" value="{{ search|default('') }}"
+             class="search-box" style="padding-left:42px;"
+             placeholder="Search customer, sale #…">
+    </div>
+    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <input type="date" name="from" value="{{ date_from }}"
+             class="input-dark" style="flex:1; min-width:130px;">
+      <input type="date" name="to" value="{{ date_to }}"
+             class="input-dark" style="flex:1; min-width:130px;">
+      <button type="submit" class="btn-sm-dark">Apply</button>
+      <a href="/sales" class="btn-sm-dark">Clear</a>
+    </div>
+  </form>
+</div>
+
+<!-- Toolbar -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+  <div style="font-size:.8rem; color:var(--muted);">{{ total_cnt }} sale{{ 's' if total_cnt != 1 }}</div>
+  <a href="/export/sales.csv{% if date_from %}?from={{ date_from }}&to={{ date_to }}{% endif %}"
+     style="font-size:.8rem; color:var(--emerald); text-decoration:none;">
+    <i class="bi bi-download"></i> Export CSV
+  </a>
+</div>
+
+<!-- Sales List -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if sales %}
+    {% for s in sales %}
+    <a href="/sales/{{ s.id }}" class="item-row" style="align-items:flex-start; padding:14px 0;">
+      <div class="item-icon" style="background:rgba(16,185,129,.1);">
+        <i class="bi bi-receipt" style="color:var(--emerald);"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">
+          Sale #{{ s.id }}{% if s.customer_name %} — {{ s.customer_name }}{% endif %}
+        </div>
+        <div class="sub" style="display:flex; gap:8px; flex-wrap:wrap;">
+          <span>{{ s.timestamp[:16] if s.timestamp else "" }}</span>
+          {% if s.item_count %}<span>{{ s.item_count }} item{{ 's' if s.item_count != 1 }}</span>{% endif %}
+        </div>
+      </div>
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-weight:700; color:var(--emerald);">{{ fmt_price(s.net_total) }}</div>
+        {% if s.discount and s.discount > 0 %}
+        <div style="font-size:.72rem; color:var(--muted);">-{{ fmt_price(s.discount) }} off</div>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+
+    {% if sales|length >= 50 %}
+    <div style="text-align:center; padding:14px 0; border-top:1px solid var(--border);">
+      <a href="/sales?from={{ date_from }}&to={{ date_to }}&limit=500"
+         style="font-size:.82rem; color:var(--emerald); text-decoration:none;">
+        Load more <i class="bi bi-chevron-down"></i>
+      </a>
+    </div>
+    {% endif %}
+
+  {% else %}
+    <div style="padding:40px 0; text-align:center; color:var(--muted);">
+      <i class="bi bi-receipt" style="font-size:2.5rem; display:block; margin-bottom:10px;"></i>
+      No sales found
+      {% if date_from or search|default('') %}
+      <div style="margin-top:8px;">
+        <a href="/sales" style="color:var(--emerald); font-size:.85rem;">Clear filters</a>
+      </div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- FAB: New Sale -->
+<a href="/sales/new" style="position:fixed; bottom:80px; right:20px; width:54px; height:54px;
+   background:var(--emerald); border-radius:50%; display:flex; align-items:center; justify-content:center;
+   box-shadow:0 4px 20px rgba(16,185,129,.4); text-decoration:none; z-index:100;">
+  <i class="bi bi-plus-lg" style="font-size:1.5rem; color:#000;"></i>
+</a>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Load items sold count from analytics
+fetch('/api/analytics')
+  .then(r => r.json())
+  .then(data => {
+    if (data.sales && data.sales.items_sold != null) {
+      document.getElementById('kpi-items-sold').textContent = data.sales.items_sold.toLocaleString();
+    }
+  })
+  .catch(() => {});
+</script>
+{% endblock %}

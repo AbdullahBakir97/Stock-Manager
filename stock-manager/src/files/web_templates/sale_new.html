@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}New Sale — Stock Pro{% endblock %}
+{% block page_title %}New Sale (POS){% endblock %}
+
+{% block content %}
+<form method="POST" id="saleForm">
+  <input type="hidden" name="items_json" id="itemsJson" value="[]">
+
+  <!-- Item search / scan -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Add Items</div>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="itemSearch" class="search-box"
+             placeholder="Search item name, brand or scan barcode..."
+             autocomplete="off" style="flex:1;">
+    </div>
+    <div id="searchResults" style="margin-top:8px;"></div>
+  </div>
+
+  <!-- Cart -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Cart</div>
+    <div id="cartEmpty" style="text-align:center; color:var(--muted); padding:20px 0; font-size:.88rem;">
+      <i class="bi bi-cart" style="font-size:2rem; display:block; margin-bottom:6px;"></i>
+      No items added yet
+    </div>
+    <div id="cartList"></div>
+    <div id="cartTotals" style="display:none; border-top:1px solid var(--border); padding-top:12px; margin-top:4px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+        <span style="color:var(--muted); font-size:.88rem;">Subtotal</span>
+        <span id="subtotalDisp" style="font-weight:600;">0.00</span>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="color:var(--orange); font-size:.88rem;">Discount</span>
+        <input type="number" name="discount" id="discountInput" class="input-dark"
+               style="width:110px; text-align:right; padding:6px 10px;" min="0" step="0.01" value="0"
+               onchange="updateTotals()">
+      </div>
+      <div style="display:flex; justify-content:space-between; border-top:1px solid var(--border); padding-top:8px;">
+        <span style="font-weight:700;">Total</span>
+        <span id="totalDisp" style="font-weight:700; color:var(--emerald); font-size:1.2rem;">0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Customer & note -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Customer (Optional)</div>
+    <div class="form-group">
+      <select name="customer_id" class="input-dark">
+        <option value="">Walk-in customer</option>
+        {% for c in customers %}
+        <option value="{{ c.id }}">{{ c.name }}{% if c.phone %} — {{ c.phone }}{% endif %}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="form-group">
+      <input type="text" name="customer_name" class="input-dark"
+             placeholder="Or type customer name">
+    </div>
+    <div class="form-group">
+      <textarea name="note" class="input-dark" placeholder="Note (optional)" rows="2"></textarea>
+    </div>
+  </div>
+
+  <button type="submit" class="btn-emerald" id="submitBtn" disabled
+          style="width:100%; opacity:.5;">
+    <i class="bi bi-check2-circle"></i> Complete Sale
+  </button>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let cart = [];
+
+// ── Search ────────────────────────────────────
+const searchInput = document.getElementById('itemSearch');
+let searchTimer;
+searchInput.addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  const q = searchInput.value.trim();
+  if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+  searchTimer = setTimeout(() => fetchItems(q), 300);
+});
+
+async function fetchItems(q) {
+  const res = await fetch('/api/items/search?q=' + encodeURIComponent(q));
+  const items = await res.json();
+  const el = document.getElementById('searchResults');
+  if (!items.length) {
+    el.innerHTML = '<div style="font-size:.82rem;color:var(--muted);padding:8px 0;">No items found with stock</div>';
+    return;
+  }
+  el.innerHTML = items.map(i => `
+    <div onclick="addToCart(${i.id}, ${JSON.stringify(i.name)}, ${i.sell_price}, ${i.stock})"
+         style="display:flex;align-items:center;gap:10px;padding:10px;
+                border-radius:8px;cursor:pointer;margin-bottom:4px;
+                background:var(--card2);border:1px solid var(--border);">
+      <div style="flex:1;">
+        <div style="font-size:.88rem;font-weight:600;">${i.name}</div>
+        <div style="font-size:.75rem;color:var(--muted);">Stock: ${i.stock}</div>
+      </div>
+      <div style="font-weight:700;color:var(--emerald);">${parseFloat(i.sell_price).toFixed(2)}</div>
+    </div>
+  `).join('');
+}
+
+// ── Cart ──────────────────────────────────────
+function addToCart(id, name, price, maxStock) {
+  const existing = cart.find(i => i.item_id == id);
+  if (existing) {
+    if (existing.quantity < maxStock) existing.quantity++;
+  } else {
+    cart.push({ item_id: id, name, unit_price: price, quantity: 1, max_stock: maxStock });
+  }
+  searchInput.value = '';
+  document.getElementById('searchResults').innerHTML = '';
+  renderCart();
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(i => i.item_id != id);
+  renderCart();
+}
+
+function changeQty(id, delta) {
+  const item = cart.find(i => i.item_id == id);
+  if (!item) return;
+  item.quantity = Math.max(1, Math.min(item.max_stock, item.quantity + delta));
+  renderCart();
+}
+
+function setPrice(id, val) {
+  const item = cart.find(i => i.item_id == id);
+  if (item) item.unit_price = parseFloat(val) || 0;
+  updateTotals();
+}
+
+function renderCart() {
+  const el = document.getElementById('cartList');
+  const empty = document.getElementById('cartEmpty');
+  const totals = document.getElementById('cartTotals');
+  const submitBtn = document.getElementById('submitBtn');
+  if (!cart.length) {
+    el.innerHTML = '';
+    empty.style.display = '';
+    totals.style.display = 'none';
+    submitBtn.disabled = true;
+    submitBtn.style.opacity = '.5';
+    return;
+  }
+  empty.style.display = 'none';
+  totals.style.display = '';
+  submitBtn.disabled = false;
+  submitBtn.style.opacity = '1';
+  el.innerHTML = cart.map(item => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 0;
+                border-bottom:1px solid var(--border);">
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:.88rem;">${item.name}</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;">
+          <button type="button" class="qty-btn" style="width:36px;height:36px;font-size:1rem;"
+                  onclick="changeQty(${item.item_id},-1)">−</button>
+          <span style="font-weight:700;min-width:28px;text-align:center;">${item.quantity}</span>
+          <button type="button" class="qty-btn" style="width:36px;height:36px;font-size:1rem;"
+                  onclick="changeQty(${item.item_id},1)">+</button>
+          <span style="color:var(--muted);font-size:.78rem;">× </span>
+          <input type="number" step="0.01" value="${item.unit_price.toFixed(2)}"
+                 class="input-dark" style="width:80px;padding:6px 8px;text-align:right;"
+                 onchange="setPrice(${item.item_id}, this.value)">
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;">
+        <div style="font-weight:700;color:var(--emerald);">
+          ${(item.quantity * item.unit_price).toFixed(2)}
+        </div>
+        <button type="button" onclick="removeFromCart(${item.item_id})"
+                style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;margin-top:4px;">
+          <i class="bi bi-trash3"></i> Remove
+        </button>
+      </div>
+    </div>
+  `).join('');
+  updateTotals();
+}
+
+function updateTotals() {
+  const subtotal = cart.reduce((s, i) => s + i.quantity * i.unit_price, 0);
+  const discount = parseFloat(document.getElementById('discountInput').value) || 0;
+  document.getElementById('subtotalDisp').textContent = subtotal.toFixed(2);
+  document.getElementById('totalDisp').textContent = Math.max(0, subtotal - discount).toFixed(2);
+  document.getElementById('itemsJson').value = JSON.stringify(
+    cart.map(i => ({ item_id: i.item_id, quantity: i.quantity, unit_price: i.unit_price }))
+  );
+}
+</script>
+{% endblock %}

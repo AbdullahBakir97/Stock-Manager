@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Barcodes — Stock Pro{% endblock %}
+{% block page_title %}Barcode Generator{% endblock %}
+
+{% block content %}
+<div class="mb-3">
+  <form method="GET">
+    <input type="text" name="q" class="search-box" value="{{ search }}"
+           placeholder="Search items to print barcodes...">
+  </form>
+</div>
+
+<div class="card-dark" style="padding:12px 14px; margin-bottom:12px;">
+  <div style="font-size:.82rem; color:var(--muted);">
+    <i class="bi bi-info-circle"></i>
+    Select items below and tap <strong>Print</strong> to print barcode labels.
+    Use the <a href="/scan" style="color:var(--emerald);">scanner</a> to look up items by barcode.
+  </div>
+</div>
+
+<!-- Items list with barcode info -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if items %}
+    {% for item in items %}
+    <div class="item-row" style="cursor:default;">
+      <div class="item-icon">
+        <i class="bi bi-upc"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">{{ item.display_name }}</div>
+        <div class="sub">
+          {% if item.barcode %}
+          <span style="color:var(--emerald);">{{ item.barcode }}</span>
+          {% else %}
+          <span style="color:var(--muted);">No barcode assigned</span>
+          {% endif %}
+          · Stock: {{ item.stock }}
+        </div>
+      </div>
+      <div style="flex-shrink:0;">
+        {% if item.barcode %}
+        <button type="button" class="btn-sm-dark"
+                onclick="printBarcode('{{ item.barcode }}', '{{ item.display_name|replace("'","") }}', {{ item.sell_price or 0 }})">
+          <i class="bi bi-printer"></i>
+        </button>
+        {% else %}
+        <a href="/item/{{ item.id }}/edit" class="btn-sm-dark">
+          <i class="bi bi-pencil"></i>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div style="padding:32px 0; text-align:center; color:var(--muted);">
+      <i class="bi bi-upc" style="font-size:2.5rem; display:block; margin-bottom:8px;"></i>
+      No items found
+    </div>
+  {% endif %}
+</div>
+
+<!-- Print modal (hidden) -->
+<div id="printArea" style="display:none;">
+  <div id="printContent"></div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/JsBarcode/3.11.5/JsBarcode.all.min.js"></script>
+<style>
+@media print {
+  body > *:not(#printArea) { display: none !important; }
+  #printArea { display: block !important; }
+  .barcode-label {
+    display: inline-block; width: 50mm; height: 30mm;
+    border: 1px solid #ccc; margin: 2mm; padding: 2mm;
+    text-align: center; page-break-inside: avoid;
+    font-family: sans-serif;
+  }
+}
+</style>
+<script>
+function printBarcode(code, name, price) {
+  const area = document.getElementById('printContent');
+  area.innerHTML = `
+    <div class="barcode-label">
+      <div style="font-size:9px; font-weight:bold; margin-bottom:2mm; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">${name}</div>
+      <svg id="bc"></svg>
+      <div style="font-size:8px; margin-top:1mm;">${price ? price.toFixed(2) : ''}</div>
+    </div>
+  `;
+  document.getElementById('printArea').style.display = 'block';
+  try {
+    JsBarcode("#bc", code, { width: 1.5, height: 40, displayValue: true, fontSize: 10 });
+  } catch(e) {}
+  window.print();
+  setTimeout(() => {
+    document.getElementById('printArea').style.display = 'none';
+    area.innerHTML = '';
+  }, 1000);
+}
+</script>
+{% endblock %}

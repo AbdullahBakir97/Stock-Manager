@@ -726,6 +726,17 @@ QFrame#detail_card {{
 QFrame#detail_card:hover {{
     border-color: {acc};
 }}
+/* ── Inventory page section headers ──────────────────────── */
+QLabel#inv_section_lbl {{
+    font-size: 10px; font-weight: 700; color: {t.t4};
+    letter-spacing: 0.8px;
+}}
+QFrame#inv_divider {{
+    background: {t.border};
+    max-height: 1px;
+    border: none;
+}}
+
 QLabel#detail_product_name {{ font-size: 14px; font-weight: 600; color: {t.t1}; }}
 QLabel#detail_color_name   {{ font-size: 13px; color: {t.t2}; }}
 QLabel#detail_barcode      {{ font-size: 12px; color: {t.t3}; font-family: 'JetBrains Mono', Consolas, monospace; }}

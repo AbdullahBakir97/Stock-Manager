@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% block title %}Inventory Audits — Stock Pro{% endblock %}
+{% block page_title %}Inventory Audits{% endblock %}
+
+{% block content %}
+
+<!-- KPIs -->
+<div class="row g-2 mb-3">
+  <div class="col-4">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num">{{ audits|length }}</div>
+      <div class="kpi-lbl">Total Audits</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-orange">
+      <div class="kpi-num">{{ audits|selectattr('status','eq','OPEN')|list|length }}</div>
+      <div class="kpi-lbl">Open</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-num">{{ audits|selectattr('status','eq','DONE')|list|length }}</div>
+      <div class="kpi-lbl">Completed</div>
+    </div>
+  </div>
+</div>
+
+<!-- Info banner -->
+<div class="alert-banner alert-info" style="margin-bottom:14px;">
+  <i class="bi bi-info-circle-fill"></i>
+  <div>
+    <div style="font-weight:700; font-size:.88rem;">What is an Audit?</div>
+    <div style="font-size:.78rem; margin-top:2px;">A physical stock count to verify inventory levels. Count items and record discrepancies.</div>
+  </div>
+</div>
+
+<!-- Audits list -->
+{% if audits %}
+<div class="section-title">Audit Records</div>
+{% for audit in audits %}
+<div class="card-dark" style="padding:14px 16px; margin-bottom:8px;">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+    <div style="flex:1; min-width:0; margin-right:10px;">
+      <div style="font-weight:700; font-size:.95rem;">{{ audit.name }}</div>
+      {% if audit.notes %}
+      <div style="font-size:.78rem; color:var(--muted); margin-top:2px;">{{ audit.notes }}</div>
+      {% endif %}
+    </div>
+    {% if audit.status == 'OPEN' %}
+    <span class="badge-low">Open</span>
+    {% elif audit.status == 'DONE' %}
+    <span class="badge-ok">Done</span>
+    {% else %}
+    <span class="badge-muted">{{ audit.status }}</span>
+    {% endif %}
+  </div>
+
+  <div style="display:flex; gap:14px; font-size:.75rem; color:var(--muted); margin-bottom:12px; flex-wrap:wrap;">
+    <span><i class="bi bi-calendar3"></i> {{ audit.created_at[:10] if audit.created_at else '—' }}</span>
+    {% if audit.line_count is defined %}
+    <span><i class="bi bi-list-check"></i> {{ audit.line_count }} items</span>
+    {% endif %}
+    {% if audit.discrepancy_count is defined and audit.discrepancy_count > 0 %}
+    <span style="color:var(--red);"><i class="bi bi-exclamation-circle"></i> {{ audit.discrepancy_count }} discrepancies</span>
+    {% endif %}
+  </div>
+
+  <div style="display:flex; gap:8px;">
+    <a href="/audits/{{ audit.id }}" class="btn-sm-dark" style="flex:1; text-align:center; justify-content:center;">
+      <i class="bi bi-eye"></i> {% if audit.status == 'OPEN' %}Continue{% else %}View{% endif %}
+    </a>
+    {% if audit.status == 'OPEN' %}
+    <form method="POST" action="/audits/{{ audit.id }}/close">
+      <button type="submit" class="btn-sm-dark" style="color:var(--emerald);">
+        <i class="bi bi-check-lg"></i> Close
+      </button>
+    </form>
+    {% endif %}
+    <form method="POST" action="/audits/{{ audit.id }}/delete"
+          onsubmit="return confirm('Delete this audit? This cannot be undone.')">
+      <button type="submit" class="btn-icon" style="color:var(--red);">
+        <i class="bi bi-trash"></i>
+      </button>
+    </form>
+  </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card-dark">
+  <div class="empty-state">
+    <i class="bi bi-clipboard2-check empty-icon"></i>
+    <div class="empty-title">No audits yet</div>
+    <div class="empty-sub">Create your first inventory audit to start counting stock</div>
+    <div style="margin-top:16px;">
+      <a href="/audits/new" class="btn-emerald">
+        <i class="bi bi-plus-lg"></i> Create First Audit
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- FAB -->
+<a href="/audits/new" class="fab" title="New Audit">
+  <i class="bi bi-plus-lg"></i>
+</a>
+
+{% endblock %}

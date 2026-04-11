@@ -93,6 +93,23 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Schnellaktionen",
         "AR": "إجراءات سريعة",
     },
+    # ── Inventory page section headers ───────────────────────────────────────
+    "inv_section_overview": {
+        "EN": "Overview",
+        "DE": "Übersicht",
+        "AR": "نظرة عامة",
+    },
+    "inv_section_filters": {
+        "EN": "Filters & Search",
+        "DE": "Filter & Suche",
+        "AR": "التصفية والبحث",
+    },
+    "inv_section_selected": {
+        "EN": "Selected Item",
+        "DE": "Ausgewähltes Element",
+        "AR": "العنصر المحدد",
+    },
+    # ── Dashboard / quick actions ─────────────────────────────────────────────
     "dash_new_product": {
         "EN": "New Product",
         "DE": "Neues Produkt",

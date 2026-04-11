@@ -5,7 +5,7 @@ REM  Run from the REPO ROOT:  installer\build_installer.bat
 REM ================================================================
 setlocal enabledelayedexpansion
 
-set APP_VERSION=2.3.0
+set APP_VERSION=2.3.2
 set SRC_DIR=%~dp0..\src
 set ISS_FILE=%~dp0StockManagerPro.iss
 set OUTPUT_DIR=%~dp0Output

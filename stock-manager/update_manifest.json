@@ -1,7 +1,7 @@
 {
   "version": "2.3.1",
   "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.1/StockManagerPro-2.3.1-setup.exe",
-  "release_notes": "German text fully visible in table headers and buttons. Inventory sections now collapsible. Product name column wider and left-aligned.",
-  "release_date": "2026-04-11",
-  "checksum_sha256": "REPLACE_WITH_SHA256_FROM_RELEASE"
+  "release_notes": "See https://github.com/AbdullahBakir97/Stock-Manager/releases/tag/v2.3.1",
+  "release_date": "Sat 04/11/2026",
+  "checksum_sha256": "e179e6e5d068d226dd33c68fc1498b3536c2017a3b33bf38cf5439b07e65735a"
 }

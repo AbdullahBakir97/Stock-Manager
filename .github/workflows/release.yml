@@ -43,10 +43,13 @@ jobs:
       - name: Extract changelog entry
         id: changelog
         shell: python
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GH_REPO: ${{ github.repository }}
         run: |
           import re, os, sys
 
-          version = "${{ steps.version.outputs.VERSION }}"
+          version = os.environ["VERSION"]
           changelog_path = "CHANGELOG.md"
 
           try:
@@ -63,7 +66,7 @@ jobs:
               if match:
                   notes = match.group(1).strip()
               else:
-                  notes = f"See full changelog at https://github.com/${{{{ github.repository }}}}/blob/main/CHANGELOG.md"
+                  notes = f"See full changelog at https://github.com/{os.environ['GH_REPO']}/blob/main/CHANGELOG.md"
 
               # Short version for the in-app banner (first 2 bullet points)
               bullets = [l.strip() for l in notes.splitlines() if l.strip().startswith("-")]
@@ -80,11 +83,13 @@ jobs:
       # ── 6. Stamp CHANGELOG — move [Unreleased] → [VERSION] ───────────────────
       - name: Stamp changelog
         shell: python
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           from datetime import date
-          import re
+          import re, os
 
-          version  = "${{ steps.version.outputs.VERSION }}"
+          version  = os.environ["VERSION"]
           today    = date.today().isoformat()
           path     = "CHANGELOG.md"
 
@@ -149,14 +154,19 @@ jobs:
       # ── 10. Update update_manifest.json ──────────────────────────────────────
       - name: Update update_manifest.json
         shell: python
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          SHA256: ${{ steps.sha256.outputs.HASH }}
+          SHORT: ${{ steps.changelog.outputs.SHORT }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          import json
+          import json, os
           from datetime import date
 
-          version = "${{ steps.version.outputs.VERSION }}"
-          sha256  = "${{ steps.sha256.outputs.HASH }}"
-          short   = "${{ steps.changelog.outputs.SHORT }}"
-          repo    = "${{ github.repository }}"
+          version = os.environ["VERSION"]
+          sha256  = os.environ["SHA256"]
+          short   = os.environ.get("SHORT", "")
+          repo    = os.environ["GH_REPO"]
 
           manifest = {
               "version": version,

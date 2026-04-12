@@ -286,6 +286,7 @@ _TR: dict[str, dict[str, str]] = {
     "update_available":      {"EN": "Update available",         "DE": "Update verfügbar",              "AR": "تحديث متاح"},
     "update_available_body": {"EN": "Version {version} is ready. {notes}", "DE": "Version {version} ist bereit. {notes}", "AR": "الإصدار {version} جاهز. {notes}"},
     "update_now":            {"EN": "Download & Install",       "DE": "Herunterladen & Installieren",  "AR": "تحميل وتثبيت"},
+    "update_install_now":   {"EN": "Install Now",               "DE": "Jetzt installieren",             "AR": "تثبيت الآن"},
     "update_later":          {"EN": "Remind Me Later",          "DE": "Später erinnern",               "AR": "ذكرني لاحقاً"},
     "update_dismiss":        {"EN": "Skip This Version",        "DE": "Diese Version überspringen",    "AR": "تخطي هذا الإصدار"},
     "update_downloading":    {"EN": "Downloading update…",      "DE": "Update wird heruntergeladen…",  "AR": "جارٍ تحميل التحديث…"},

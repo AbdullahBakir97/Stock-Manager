@@ -393,8 +393,25 @@ class MainWindow(QMainWindow):
             THEME.set_theme(cfg.theme)
             self._header.theme_toggle._update_text()
             self._bg.update()
+            # Run same full repaint chain as _toggle_mode so every widget updates
+            self._inv_page.dashboard.apply_theme()
+            self._inv_page.apply_theme()
+            for widget, children in [
+                (self._sidebar, True),
+                (self._header, True),
+                (self._footer, True),
+            ]:
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                if children:
+                    from PyQt6.QtWidgets import QWidget as _QW
+                    for child in widget.findChildren(_QW):
+                        child.style().unpolish(child)
+                        child.style().polish(child)
+                widget.update()
         ensure_matrix_entries()
         self._nav_ctrl.rebuild_matrix_tabs()
+        self._nav_ctrl.apply_theme_to_matrix_tabs()
         self._retranslate()
         self._nav_ctrl.go(saved)
 

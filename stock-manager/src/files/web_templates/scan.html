@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Scan — Stock Pro{% endblock %}
+{% block content %}
+
+<div style="text-align:center;margin-bottom:16px">
+  <div style="font-weight:700;font-size:1.1rem">Barcode Scanner</div>
+  <div style="font-size:.82rem;color:var(--muted)">Point camera at a barcode</div>
+</div>
+
+<!-- Camera viewfinder -->
+<div style="position:relative;border-radius:16px;overflow:hidden;background:#000;margin-bottom:16px;aspect-ratio:4/3">
+  <video id="video" autoplay playsinline
+    style="width:100%;height:100%;object-fit:cover"></video>
+  <!-- Scan frame overlay -->
+  <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none">
+    <div style="width:65%;aspect-ratio:3/1;border:2.5px solid #10b981;border-radius:8px;
+                box-shadow:0 0 0 2000px rgba(0,0,0,.45)"></div>
+  </div>
+  <div id="scan-status" style="position:absolute;bottom:12px;left:0;right:0;text-align:center;
+    font-size:.82rem;color:#fff;text-shadow:0 1px 3px #000">
+    Scanning…
+  </div>
+</div>
+
+<!-- Manual input fallback -->
+<div style="margin-bottom:14px">
+  <div style="font-size:.8rem;color:var(--muted);margin-bottom:6px">Or enter barcode manually</div>
+  <div style="display:flex;gap:8px">
+    <input type="text" id="manual-bc" class="input-dark" placeholder="Enter barcode…"
+           style="flex:1" inputmode="numeric">
+    <button onclick="lookupManual()"
+      style="padding:12px 18px;background:var(--emerald);color:#000;border:none;border-radius:10px;font-weight:600;cursor:pointer">
+      <i class="bi bi-search"></i>
+    </button>
+  </div>
+</div>
+
+<!-- Result card -->
+<div id="result-card" style="display:none">
+  <div class="card-dark" id="result-found" style="display:none">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+      <div style="width:44px;height:44px;border-radius:10px;background:rgba(16,185,129,.12);
+                  display:flex;align-items:center;justify-content:center;font-size:1.3rem">
+        <i class="bi bi-box-fill" style="color:#10b981"></i>
+      </div>
+      <div style="flex:1">
+        <div id="res-name" style="font-weight:700;font-size:1rem"></div>
+        <div id="res-stock" style="font-size:.82rem;color:var(--muted)"></div>
+      </div>
+    </div>
+    <a id="res-link" href="#" class="btn-emerald" style="display:block;text-align:center;text-decoration:none">
+      <i class="bi bi-arrow-right-circle-fill"></i> Open Item
+    </a>
+  </div>
+  <div id="result-notfound" class="alert-banner alert-err" style="display:none">
+    <i class="bi bi-x-circle-fill"></i>
+    <span>Barcode not found in inventory</span>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<script>
+let scanning = false;
+
+function showResult(data) {
+  document.getElementById('result-card').style.display = 'block';
+  if (data.found) {
+    document.getElementById('result-found').style.display = 'block';
+    document.getElementById('result-notfound').style.display = 'none';
+    document.getElementById('res-name').textContent = data.name;
+    document.getElementById('res-stock').textContent = 'Stock: ' + data.stock;
+    document.getElementById('res-link').href = '/item/' + data.id;
+    document.getElementById('scan-status').textContent = '✓ Found!';
+  } else {
+    document.getElementById('result-found').style.display = 'none';
+    document.getElementById('result-notfound').style.display = 'flex';
+    document.getElementById('scan-status').textContent = 'Not found';
+  }
+}
+
+function lookup(barcode) {
+  fetch('/api/barcode/' + encodeURIComponent(barcode))
+    .then(r => r.json()).then(showResult);
+}
+
+function lookupManual() {
+  const bc = document.getElementById('manual-bc').value.trim();
+  if (bc) lookup(bc);
+}
+
+document.getElementById('manual-bc').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupManual();
+});
+
+// Start camera scanner
+Quagga.init({
+  inputStream: {
+    type: 'LiveStream',
+    target: document.getElementById('video'),
+    constraints: { facingMode: 'environment', aspectRatio: { min: 1, max: 2 } }
+  },
+  decoder: { readers: ['ean_reader','ean_8_reader','code_128_reader','code_39_reader','upc_reader'] }
+}, err => {
+  if (err) {
+    document.getElementById('scan-status').textContent = 'Camera not available — use manual input';
+    return;
+  }
+  Quagga.start();
+  scanning = true;
+});
+
+let lastBarcode = '';
+let lastTime = 0;
+Quagga.onDetected(result => {
+  const bc = result.codeResult.code;
+  const now = Date.now();
+  if (bc === lastBarcode && now - lastTime < 3000) return;
+  lastBarcode = bc; lastTime = now;
+  document.getElementById('scan-status').textContent = 'Found: ' + bc;
+  // Vibrate feedback on mobile
+  if (navigator.vibrate) navigator.vibrate(100);
+  lookup(bc);
+});
+</script>
+{% endblock %}

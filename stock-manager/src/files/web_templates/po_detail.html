@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ po.po_number }} — Stock Pro{% endblock %}
+{% block page_title %}{{ po.po_number }}{% endblock %}
+
+{% block content %}
+{% set status_color = {'DRAFT':'var(--orange)','SENT':'var(--blue)','PARTIAL':'#a78bfa','RECEIVED':'var(--emerald)','CLOSED':'var(--muted)','CANCELLED':'var(--red)'} %}
+
+<!-- Header -->
+<div class="card-dark">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div style="font-size:1.2rem; font-weight:700;">{{ po.po_number }}</div>
+      <div style="font-size:.84rem; color:var(--muted); margin-top:4px;">
+        <i class="bi bi-truck"></i> {{ po.supplier_name or "No supplier assigned" }}
+      </div>
+      <div style="font-size:.82rem; color:var(--muted); margin-top:2px;">
+        <i class="bi bi-clock"></i> {{ po.created_at[:16] if po.created_at else "" }}
+      </div>
+    </div>
+    <span style="color:{{ status_color.get(po.status,'var(--muted)') }};
+                 background:rgba(255,255,255,.05); border-radius:8px;
+                 padding:4px 12px; font-size:.82rem; font-weight:600;">
+      {{ po.status_label }}
+    </span>
+  </div>
+  {% if po.notes %}
+  <div style="margin-top:10px; font-size:.84rem; color:var(--muted); padding-top:10px;
+              border-top:1px solid var(--border);">
+    <i class="bi bi-chat-text"></i> {{ po.notes }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- Total -->
+<div class="card-dark" style="padding:14px 16px;">
+  <div style="display:flex; justify-content:space-between; align-items:center;">
+    <span style="color:var(--muted);">Total Order Value</span>
+    <span style="font-size:1.3rem; font-weight:700; color:var(--emerald);">{{ fmt_price(po.total_value) }}</span>
+  </div>
+</div>
+
+<!-- Line items -->
+<div class="section-title">Order Lines ({{ po.line_count }})</div>
+<div class="card-dark" style="padding:0 16px;">
+  {% for line in po.lines %}
+  <div style="display:flex; align-items:center; gap:12px; padding:12px 0;
+              border-bottom:1px solid var(--border);">
+    <div class="item-icon"><i class="bi bi-box2"></i></div>
+    <div class="item-info">
+      <div class="name">{{ line.item_name or "Item #" ~ line.item_id }}</div>
+      <div class="sub">
+        {{ line.quantity }} × {{ fmt_price(line.cost_price) }}
+        {% if line.received_qty > 0 %}
+          — Received: {{ line.received_qty }}
+        {% endif %}
+      </div>
+    </div>
+    <div style="font-weight:700; color:var(--emerald);">{{ fmt_price(line.line_total) }}</div>
+  </div>
+  {% else %}
+  <div style="padding:20px 0; text-align:center; color:var(--muted);">No lines added</div>
+  {% endfor %}
+</div>
+
+<!-- Status actions -->
+{% if po.status not in ('RECEIVED', 'CLOSED', 'CANCELLED') %}
+<div class="section-title">Update Status</div>
+<div class="card-dark" style="display:flex; gap:8px; flex-wrap:wrap;">
+  {% if po.status == 'DRAFT' %}
+  <form method="POST" action="/purchase-orders/{{ po.id }}/status" style="flex:1;">
+    <input type="hidden" name="status" value="SENT">
+    <button type="submit" class="btn-outline-emerald" style="width:100%;">
+      <i class="bi bi-send"></i> Mark as Sent
+    </button>
+  </form>
+  {% endif %}
+  {% if po.status in ('SENT', 'PARTIAL') %}
+  <form method="POST" action="/purchase-orders/{{ po.id }}/status" style="flex:1;"
+        onsubmit="return confirm('Mark as received? This will add stock for all lines.')">
+    <input type="hidden" name="status" value="RECEIVED">
+    <button type="submit" class="btn-emerald" style="width:100%;">
+      <i class="bi bi-box-arrow-in-down"></i> Receive Order
+    </button>
+  </form>
+  {% endif %}
+  <form method="POST" action="/purchase-orders/{{ po.id }}/delete" style="flex:1;"
+        onsubmit="return confirm('Cancel this order?')">
+    <button type="submit" class="btn-danger" style="width:100%;">
+      <i class="bi bi-x-circle"></i> Cancel
+    </button>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

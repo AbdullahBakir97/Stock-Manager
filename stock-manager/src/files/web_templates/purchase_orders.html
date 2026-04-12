@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Purchase Orders — Stock Pro{% endblock %}
+{% block page_title %}Purchase Orders{% endblock %}
+
+{% block content %}
+<!-- Summary -->
+<div class="row g-2 mb-3">
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.4rem; color:var(--muted);">{{ summary.get('total',0) }}</div>
+      <div class="lbl">Total</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.4rem; color:var(--orange);">{{ summary.get('draft_count',0) }}</div>
+      <div class="lbl">Draft</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.4rem; color:var(--blue);">{{ summary.get('sent_count',0) }}</div>
+      <div class="lbl">Sent</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.4rem; color:var(--emerald);">{{ summary.get('received_count',0) }}</div>
+      <div class="lbl">Rcvd</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="filter-tabs">
+  <a href="/purchase-orders" class="filter-tab {% if not status %}active{% endif %}">All</a>
+  <a href="/purchase-orders?status=DRAFT" class="filter-tab {% if status=='DRAFT' %}active{% endif %}">Draft</a>
+  <a href="/purchase-orders?status=SENT" class="filter-tab {% if status=='SENT' %}active{% endif %}">Sent</a>
+  <a href="/purchase-orders?status=PARTIAL" class="filter-tab {% if status=='PARTIAL' %}active{% endif %}">Partial</a>
+  <a href="/purchase-orders?status=RECEIVED" class="filter-tab {% if status=='RECEIVED' %}active{% endif %}">Received</a>
+</div>
+
+<!-- Search -->
+<div class="mb-3">
+  <form method="GET">
+    {% if status %}<input type="hidden" name="status" value="{{ status }}">{% endif %}
+    <input type="text" name="q" class="search-box" value="{{ search }}"
+           placeholder="Search PO number or supplier...">
+  </form>
+</div>
+
+<!-- List -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if pos %}
+    {% for po in pos %}
+    {% set status_color = {'DRAFT':'var(--orange)','SENT':'var(--blue)','PARTIAL':'#a78bfa','RECEIVED':'var(--emerald)','CLOSED':'var(--muted)','CANCELLED':'var(--red)'} %}
+    <a href="/purchase-orders/{{ po.id }}" class="item-row">
+      <div class="item-icon" style="background:rgba(59,130,246,.1); color:var(--blue);">
+        <i class="bi bi-bag"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">{{ po.po_number }}</div>
+        <div class="sub">
+          {{ po.supplier_name or "No supplier" }} · {{ po.line_count }} item(s)
+        </div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-weight:600; color:{{ status_color.get(po.status, 'var(--muted)') }}; font-size:.8rem;">
+          {{ po.status_label }}
+        </div>
+        <div style="font-size:.82rem; color:var(--emerald);">{{ fmt_price(po.total_value) }}</div>
+      </div>
+    </a>
+    {% endfor %}
+  {% else %}
+    <div style="padding:32px 0; text-align:center; color:var(--muted);">
+      <i class="bi bi-bag" style="font-size:2.5rem; display:block; margin-bottom:8px;"></i>
+      No purchase orders found
+    </div>
+  {% endif %}
+</div>
+
+<a href="/purchase-orders/new" class="fab" title="New Order">
+  <i class="bi bi-plus-lg"></i>
+</a>
+{% endblock %}

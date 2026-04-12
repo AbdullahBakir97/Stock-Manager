@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Returns — Stock Pro{% endblock %}
+{% block page_title %}Returns{% endblock %}
+
+{% block content %}
+<!-- Summary -->
+<div class="row g-2 mb-3">
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.3rem; color:var(--muted);">{{ summary.get('total',0) }}</div>
+      <div class="lbl">Total</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.3rem; color:var(--emerald);">{{ summary.get('restocked',0) }}</div>
+      <div class="lbl">Restocked</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.3rem; color:var(--red);">{{ summary.get('writeoff',0) }}</div>
+      <div class="lbl">Write-off</div>
+    </div>
+  </div>
+  <div class="col-3">
+    <div class="stat-card">
+      <div class="num" style="font-size:1.1rem; color:var(--orange);">{{ fmt_price(summary.get('total_refunded',0)) }}</div>
+      <div class="lbl">Refunded</div>
+    </div>
+  </div>
+</div>
+
+<!-- List -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if returns %}
+    {% for r in returns %}
+    <div class="item-row" style="cursor:default;">
+      <div class="item-icon" style="background:rgba(239,68,68,.1); color:var(--red);">
+        <i class="bi bi-arrow-return-left"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">{{ r.item_name or "Item #" ~ r.item_id }}</div>
+        <div class="sub">
+          {{ r.created_at[:10] if r.created_at else "" }} ·
+          Qty: {{ r.quantity }} ·
+          {% if r.action == 'RESTOCK' %}<span style="color:var(--emerald);">Restocked</span>
+          {% else %}<span style="color:var(--red);">Write-off</span>{% endif %}
+          {% if r.reason %} · {{ r.reason }}{% endif %}
+        </div>
+      </div>
+      {% if r.refund_amount %}
+      <div style="font-weight:700; color:var(--orange); font-size:.88rem;">
+        {{ fmt_price(r.refund_amount) }}
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+  {% else %}
+    <div style="padding:32px 0; text-align:center; color:var(--muted);">
+      <i class="bi bi-arrow-return-left" style="font-size:2.5rem; display:block; margin-bottom:8px;"></i>
+      No returns recorded
+    </div>
+  {% endif %}
+</div>
+
+<a href="/returns/new" class="fab" title="New Return">
+  <i class="bi bi-plus-lg"></i>
+</a>
+{% endblock %}

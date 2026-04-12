@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Margin Analysis — Stock Pro{% endblock %}
+{% block page_title %}Margin Analysis{% endblock %}
+
+{% block content %}
+
+<!-- Summary KPIs -->
+<div class="row g-2 mb-3">
+  <div class="col-6">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-num" id="kpi-avg-margin">—</div>
+      <div class="kpi-lbl">Avg Margin</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-blue">
+      <div class="kpi-num" id="kpi-items-priced">—</div>
+      <div class="kpi-lbl">Items Priced</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-orange">
+      <div class="kpi-num" id="kpi-low-margin">—</div>
+      <div class="kpi-lbl">Low Margin (<20%)</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="kpi-card kpi-red">
+      <div class="kpi-num" id="kpi-no-price">—</div>
+      <div class="kpi-lbl">No Cost Set</div>
+    </div>
+  </div>
+</div>
+
+<!-- Margin Table -->
+{% if analysis %}
+<div class="section-title">Item Margins</div>
+<div class="card-dark" style="padding:0 16px; margin-bottom:14px;">
+  {% for row in analysis %}
+  {% set margin_color = '#10b981' if row.margin_pct >= 30 else ('#f59e0b' if row.margin_pct >= 15 else '#ef4444') %}
+  <div style="padding:12px 0; border-bottom:1px solid var(--border);">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:6px;">
+      <div style="flex:1; min-width:0; margin-right:8px;">
+        <div style="font-size:.88rem; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          {{ row.brand ~ ' ' if row.brand else '' }}{{ row.name }}{% if row.color %} ({{ row.color }}){% endif %}
+        </div>
+        {% if row.price_list_name %}
+        <div style="font-size:.72rem; color:var(--muted);">{{ row.price_list_name }}</div>
+        {% endif %}
+      </div>
+      <!-- Margin badge -->
+      <div style="text-align:right; flex-shrink:0;">
+        <div style="font-weight:700; color:{{ margin_color }}; font-size:1.1rem;">
+          {% if row.margin_pct is not none %}{{ "%.1f"|format(row.margin_pct) }}%{% else %}N/A{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Price vs Cost bar -->
+    <div style="display:flex; gap:12px; font-size:.75rem; color:var(--muted); margin-bottom:6px;">
+      <span>Cost: <strong style="color:var(--text);">{% if row.cost %}{{ fmt_price(row.cost) }}{% else %}—{% endif %}</strong></span>
+      <span>Price: <strong style="color:var(--text);">{% if row.sell_price %}{{ fmt_price(row.sell_price) }}{% else %}—{% endif %}</strong></span>
+      {% if row.gross_profit %}
+      <span>Profit: <strong style="color:#10b981;">{{ fmt_price(row.gross_profit) }}</strong></span>
+      {% endif %}
+    </div>
+
+    {% if row.margin_pct is not none %}
+    <div style="background:var(--card2); border-radius:4px; height:5px; overflow:hidden;">
+      <div style="background:{{ margin_color }}; width:{{ [row.margin_pct, 100]|min }}%; height:100%; border-radius:4px; transition:width .5s ease;"></div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card-dark" style="padding:40px 16px; text-align:center; color:var(--muted);">
+  <i class="bi bi-graph-up-arrow" style="font-size:3rem; display:block; margin-bottom:10px;"></i>
+  <div style="font-size:.9rem; margin-bottom:8px;">No margin data available</div>
+  <div style="font-size:.8rem;">Set purchase cost on items and create price lists to see analysis</div>
+</div>
+{% endif %}
+
+<!-- Legend -->
+<div class="card-dark" style="padding:12px 16px; margin-bottom:14px;">
+  <div class="section-title" style="margin-top:0; font-size:.8rem;">Margin Guide</div>
+  <div style="display:flex; flex-direction:column; gap:6px; font-size:.78rem;">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#10b981; flex-shrink:0;"></div>
+      <span style="color:var(--text);">≥ 30%</span>
+      <span style="color:var(--muted);">Healthy margin</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#f59e0b; flex-shrink:0;"></div>
+      <span style="color:var(--text);">15–30%</span>
+      <span style="color:var(--muted);">Moderate margin</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:8px;">
+      <div style="width:12px; height:12px; border-radius:50%; background:#ef4444; flex-shrink:0;"></div>
+      <span style="color:var(--text);">&lt; 15%</span>
+      <span style="color:var(--muted);">Low margin — review pricing</span>
+    </div>
+  </div>
+</div>
+
+<!-- Back Link -->
+<a href="/price-lists" class="btn-sm-dark" style="padding:12px; text-align:center; display:block; margin-bottom:24px;">
+  <i class="bi bi-arrow-left"></i> Back to Price Lists
+</a>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function() {
+  const rows = {{ analysis | tojson if analysis else '[]' }};
+  const priced = rows.filter(r => r.margin_pct !== null && r.margin_pct !== undefined);
+  const noCost = rows.filter(r => r.cost === null || r.cost === undefined || r.cost === 0);
+  const lowM = priced.filter(r => r.margin_pct < 20);
+  const avgM = priced.length ? priced.reduce((s, r) => s + r.margin_pct, 0) / priced.length : null;
+
+  document.getElementById('kpi-items-priced').textContent = priced.length;
+  document.getElementById('kpi-no-price').textContent = noCost.length;
+  document.getElementById('kpi-low-margin').textContent = lowM.length;
+  if (avgM !== null) {
+    const el = document.getElementById('kpi-avg-margin');
+    el.textContent = avgM.toFixed(1) + '%';
+    el.style.color = avgM >= 30 ? '#10b981' : avgM >= 15 ? '#f59e0b' : '#ef4444';
+  }
+})();
+</script>
+{% endblock %}

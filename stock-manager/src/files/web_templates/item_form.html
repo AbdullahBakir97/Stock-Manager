@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit Item" if mode == "edit" else "Add Item" }} — Stock Pro{% endblock %}
+{% block page_title %}{{ "Edit Item" if mode == "edit" else "Add Item" }}{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <!-- Basic Info -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Basic Information</div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Brand</label>
+      <input type="text" name="brand" class="input-dark"
+             value="{{ item.brand if item else '' }}"
+             placeholder="e.g. Apple, Samsung" autocomplete="off">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Name / Type *</label>
+      <input type="text" name="name" class="input-dark" required
+             value="{{ item.name if item else '' }}"
+             placeholder="e.g. Screen, Battery, Case">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Color / Variant</label>
+      <input type="text" name="color" class="input-dark"
+             value="{{ item.color if item else '' }}"
+             placeholder="e.g. Black, White, 128GB">
+    </div>
+  </div>
+
+  <!-- Stock & Pricing -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Stock & Pricing</div>
+
+    {% if mode == "add" %}
+    <div class="form-group">
+      <label class="form-label-dark">Opening Stock</label>
+      <input type="number" name="stock" class="input-dark" min="0" value="0">
+    </div>
+    {% endif %}
+
+    <div class="form-group">
+      <label class="form-label-dark">Minimum Stock (Low Stock Alert)</label>
+      <input type="number" name="min_stock" class="input-dark" min="0"
+             value="{{ item.min_stock if item else '0' }}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Sell Price (optional)</label>
+      <input type="number" name="sell_price" class="input-dark"
+             step="0.01" min="0"
+             value="{{ '%.2f'|format(item.sell_price) if item and item.sell_price else '' }}"
+             placeholder="0.00">
+    </div>
+  </div>
+
+  <!-- Identification -->
+  <div class="card-dark">
+    <div class="section-title" style="margin-top:0">Identification</div>
+
+    <div class="form-group">
+      <label class="form-label-dark">SKU</label>
+      <input type="text" name="sku" class="input-dark"
+             value="{{ item.sku if item and item.sku else '' }}"
+             placeholder="Internal SKU (optional)">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Barcode</label>
+      <input type="text" name="barcode" class="input-dark"
+             value="{{ item.barcode if item and item.barcode else '' }}"
+             placeholder="Scan or type barcode">
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div style="display:flex; gap:10px; margin-top:4px;">
+    <button type="submit" class="btn-emerald" style="flex:1;">
+      <i class="bi bi-check-lg"></i>
+      {{ "Save Changes" if mode == "edit" else "Add Item" }}
+    </button>
+    {% if mode == "edit" %}
+    <a href="/item/{{ item.id }}" class="btn-outline-emerald" style="flex:1; text-align:center;">
+      Cancel
+    </a>
+    {% else %}
+    <a href="/inventory" class="btn-outline-emerald" style="flex:1; text-align:center;">
+      Cancel
+    </a>
+    {% endif %}
+  </div>
+
+  {% if mode == "edit" %}
+  <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+    <form method="POST" action="/item/{{ item.id }}/delete"
+          onsubmit="return confirm('Delete this item permanently?')">
+      <button type="submit" class="btn-danger" style="width:100%;">
+        <i class="bi bi-trash3"></i> Delete Item
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

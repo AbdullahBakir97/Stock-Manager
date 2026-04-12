@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}New Return — Stock Pro{% endblock %}
+{% block page_title %}Process Return{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <div class="card-dark">
+    <div class="form-group">
+      <label class="form-label-dark">Item *</label>
+      <select name="item_id" class="input-dark" required>
+        <option value="">Select item...</option>
+        {% for item in items %}
+        <option value="{{ item.id }}">{{ item.display_name }} (Stock: {{ item.stock }})</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Quantity</label>
+      <div class="qty-row">
+        <button type="button" class="qty-btn" onclick="adj(-1)">−</button>
+        <input type="number" name="quantity" id="qtyInput" class="qty-input"
+               min="1" value="1">
+        <button type="button" class="qty-btn" onclick="adj(1)">+</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Return Action</label>
+      <select name="action" class="input-dark">
+        <option value="RESTOCK">Restock — Add back to inventory</option>
+        <option value="WRITEOFF">Write-off — Remove permanently</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Reason</label>
+      <input type="text" name="reason" class="input-dark"
+             placeholder="e.g. Defective, Wrong item, Customer changed mind">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Refund Amount</label>
+      <input type="number" name="refund_amount" class="input-dark"
+             step="0.01" min="0" value="0" placeholder="0.00">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label-dark">Sale ID (optional)</label>
+      <input type="number" name="sale_id" class="input-dark"
+             placeholder="Sale ID this return is linked to">
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px;">
+    <button type="submit" class="btn-emerald" style="flex:1;">
+      <i class="bi bi-check-lg"></i> Process Return
+    </button>
+    <a href="/returns" class="btn-outline-emerald" style="flex:1; text-align:center;">Cancel</a>
+  </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function adj(delta) {
+  const inp = document.getElementById('qtyInput');
+  inp.value = Math.max(1, parseInt(inp.value || 1) + delta);
+}
+</script>
+{% endblock %}

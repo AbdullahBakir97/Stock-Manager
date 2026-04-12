@@ -1,0 +1,13 @@
+In files/app/core/version.py, change:
+
+    APP_VERSION = "2.0.0"
+
+to:
+
+    APP_VERSION = "2.3.0"
+
+And update UPDATE_MANIFEST_URL to your real GitHub Releases URL once you publish:
+
+    UPDATE_MANIFEST_URL: str = (
+        "https://raw.githubusercontent.com/AbdullahBakir97/Stock-Manager/main/update_manifest.json"
+    )

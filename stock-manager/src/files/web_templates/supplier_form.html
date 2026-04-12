@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit Supplier" if mode == "edit" else "New Supplier" }} — Stock Pro{% endblock %}
+{% block page_title %}{{ "Edit Supplier" if mode == "edit" else "New Supplier" }}{% endblock %}
+
+{% block content %}
+<form method="POST">
+  <div class="card-dark">
+    <div class="form-group">
+      <label class="form-label-dark">Company Name *</label>
+      <input type="text" name="name" class="input-dark" required
+             value="{{ supplier.name if supplier else '' }}" placeholder="Supplier company name">
+    </div>
+    <div class="form-group">
+      <label class="form-label-dark">Contact Person</label>
+      <input type="text" name="contact_name" class="input-dark"
+             value="{{ supplier.contact_name if supplier else '' }}" placeholder="Contact name">
+    </div>
+    <div class="form-group">
+      <label class="form-label-dark">Phone</label>
+      <input type="tel" name="phone" class="input-dark"
+             value="{{ supplier.phone if supplier else '' }}" placeholder="+1 234 567 8900">
+    </div>
+    <div class="form-group">
+      <label class="form-label-dark">Email</label>
+      <input type="email" name="email" class="input-dark"
+             value="{{ supplier.email if supplier else '' }}" placeholder="supplier@example.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label-dark">Address</label>
+      <textarea name="address" class="input-dark" rows="2"
+                placeholder="Street, City, Country">{{ supplier.address if supplier else '' }}</textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label-dark">Notes</label>
+      <textarea name="notes" class="input-dark" rows="2"
+                placeholder="Internal notes">{{ supplier.notes if supplier else '' }}</textarea>
+    </div>
+  </div>
+
+  <div style="display:flex; gap:10px;">
+    <button type="submit" class="btn-emerald" style="flex:1;">
+      <i class="bi bi-check-lg"></i>
+      {{ "Save Changes" if mode == "edit" else "Add Supplier" }}
+    </button>
+    <a href="{{ '/suppliers/' ~ supplier.id if mode == 'edit' else '/suppliers' }}"
+       class="btn-outline-emerald" style="flex:1; text-align:center;">Cancel</a>
+  </div>
+</form>
+{% endblock %}

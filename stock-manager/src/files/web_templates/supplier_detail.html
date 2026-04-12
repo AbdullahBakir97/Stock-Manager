@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} — Stock Pro{% endblock %}
+{% block page_title %}{{ supplier.name }}{% endblock %}
+
+{% block content %}
+<div class="card-dark">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div style="font-size:1.1rem; font-weight:700;">{{ supplier.name }}</div>
+      {% if supplier.contact_name %}
+      <div style="font-size:.84rem; color:var(--muted); margin-top:3px;">
+        <i class="bi bi-person"></i> {{ supplier.contact_name }}
+      </div>
+      {% endif %}
+    </div>
+    {% if not supplier.is_active %}
+    <span class="badge-out">Inactive</span>
+    {% else %}
+    <span class="badge-ok">Active</span>
+    {% endif %}
+  </div>
+
+  {% if supplier.phone %}
+  <div style="margin-top:10px; font-size:.88rem;">
+    <i class="bi bi-telephone" style="color:var(--muted);"></i>
+    <a href="tel:{{ supplier.phone }}" style="color:var(--emerald); text-decoration:none;">{{ supplier.phone }}</a>
+  </div>
+  {% endif %}
+  {% if supplier.email %}
+  <div style="margin-top:6px; font-size:.88rem;">
+    <i class="bi bi-envelope" style="color:var(--muted);"></i>
+    <a href="mailto:{{ supplier.email }}" style="color:var(--emerald); text-decoration:none; margin-left:6px;">{{ supplier.email }}</a>
+  </div>
+  {% endif %}
+  {% if supplier.address %}
+  <div style="margin-top:6px; font-size:.84rem; color:var(--muted);">
+    <i class="bi bi-geo-alt"></i> {{ supplier.address }}
+  </div>
+  {% endif %}
+  {% if supplier.notes %}
+  <div style="margin-top:8px; font-size:.84rem; color:var(--muted); padding-top:8px; border-top:1px solid var(--border);">
+    <i class="bi bi-chat-text"></i> {{ supplier.notes }}
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-2 mb-3">
+  <div class="col-6">
+    <div class="stat-card">
+      <div class="num" style="color:var(--blue);">{{ supplier.item_count }}</div>
+      <div class="lbl">Items</div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="stat-card">
+      <div class="num" style="color:var(--emerald);">{{ supplier.total_orders or 0 }}</div>
+      <div class="lbl">Orders</div>
+    </div>
+  </div>
+</div>
+
+<a href="/suppliers/{{ supplier.id }}/edit" class="btn-outline-emerald" style="width:100%; margin-bottom:10px; display:block; text-align:center;">
+  <i class="bi bi-pencil"></i> Edit Supplier
+</a>
+<a href="/purchase-orders/new" class="btn-emerald" style="width:100%; display:block; text-align:center;">
+  <i class="bi bi-bag-plus"></i> New Purchase Order
+</a>
+{% endblock %}

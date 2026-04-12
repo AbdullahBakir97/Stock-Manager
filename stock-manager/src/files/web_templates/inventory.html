@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}Inventory — Stock Pro{% endblock %}
+{% block page_title %}Inventory{% endblock %}
+
+{% block content %}
+
+<!-- ═══ KPI CARDS ══════════════════════════════════════════ -->
+<div class="section-header-row">
+  <span class="sh-label">Overview</span>
+  <button class="section-toggle-btn" onclick="toggleSection('kpi')" id="toggle-kpi" title="Collapse">
+    <i class="bi bi-chevron-up" id="icon-kpi"></i>
+  </button>
+</div>
+<div id="section-kpi" class="collapsible">
+  <div class="row g-2 mb-2">
+    <div class="col-4">
+      <div class="kpi-card kpi-green">
+        <div class="kpi-num" id="kpi-total">—</div>
+        <div class="kpi-lbl">Items</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-num" id="kpi-units">—</div>
+        <div class="kpi-lbl">Units</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-num" id="kpi-value" style="font-size:1rem">—</div>
+        <div class="kpi-lbl">Value</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="kpi-card kpi-orange">
+        <div class="kpi-icon"><i class="bi bi-exclamation-triangle-fill"></i></div>
+        <div class="kpi-num" id="kpi-low">—</div>
+        <div class="kpi-lbl">Low Stock</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="kpi-card kpi-red">
+        <div class="kpi-icon"><i class="bi bi-x-circle-fill"></i></div>
+        <div class="kpi-num" id="kpi-out">—</div>
+        <div class="kpi-lbl">Out of Stock</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ SEARCH + ADD TOOLBAR ════════════════════════════════ -->
+<div class="section-header-row" style="margin-top:6px;">
+  <span class="sh-label">Search</span>
+  <button class="section-toggle-btn" onclick="toggleSection('toolbar')" id="toggle-toolbar" title="Collapse">
+    <i class="bi bi-chevron-up" id="icon-toolbar"></i>
+  </button>
+</div>
+<div id="section-toolbar" class="collapsible">
+  <form method="get" action="/inventory" id="filterForm">
+    <div style="display:flex; gap:7px; margin-bottom:8px; align-items:center;">
+      <div style="position:relative; flex:1;">
+        <i class="bi bi-search" style="position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none;"></i>
+        <input type="text" name="q" value="{{ search }}"
+               class="search-box" style="padding-left:40px;"
+               placeholder="Search items, brand, color…"
+               autocomplete="off" autocorrect="off">
+      </div>
+      <a href="/inventory/add"
+         style="flex-shrink:0; display:flex; align-items:center; justify-content:center; gap:5px;
+                padding:10px 14px; border-radius:var(--radius); background:var(--emerald);
+                color:#000; font-weight:700; font-size:.85rem; text-decoration:none;
+                box-shadow:0 3px 12px rgba(16,185,129,.3); white-space:nowrap;">
+        <i class="bi bi-plus-lg"></i> Add Item
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- ═══ FILTERS ═════════════════════════════════════════════ -->
+<div class="section-header-row">
+  <span class="sh-label">Filters</span>
+  <button class="section-toggle-btn" onclick="toggleSection('filters')" id="toggle-filters" title="Collapse">
+    <i class="bi bi-chevron-up" id="icon-filters"></i>
+  </button>
+</div>
+<div id="section-filters" class="collapsible">
+  <form method="get" action="/inventory" id="filterForm2">
+    <input type="hidden" name="q" value="{{ search }}">
+    <div style="display:flex; gap:6px; margin-bottom:6px; overflow-x:auto;">
+      <select name="status" class="input-dark"
+              style="flex:1; min-width:90px; font-size:.82rem; padding:8px 10px;"
+              onchange="this.form.submit()">
+        <option value="" {% if status == '' %}selected{% endif %}>All Status</option>
+        <option value="ok"  {% if status == 'ok'  %}selected{% endif %}>✅ In Stock</option>
+        <option value="low" {% if status == 'low' %}selected{% endif %}>⚠️ Low Stock</option>
+        <option value="out" {% if status == 'out' %}selected{% endif %}>❌ Out of Stock</option>
+      </select>
+      <select name="cat" class="input-dark"
+              style="flex:1; min-width:90px; font-size:.82rem; padding:8px 10px;"
+              onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        <option value="products" {% if cat == 'products' %}selected{% endif %}>📦 Products</option>
+        {% for category in categories %}
+        <option value="{{ category.key }}" {% if cat == category.key %}selected{% endif %}>{{ category.name_en }}</option>
+        {% endfor %}
+      </select>
+      <select name="sort" class="input-dark"
+              style="flex:1; min-width:90px; font-size:.82rem; padding:8px 10px;"
+              onchange="this.form.submit()">
+        <option value="name_asc"  {% if sort == 'name_asc'  %}selected{% endif %}>Name A-Z</option>
+        <option value="name_desc" {% if sort == 'name_desc' %}selected{% endif %}>Name Z-A</option>
+        <option value="stock_desc"{% if sort == 'stock_desc'%}selected{% endif %}>Stock ↓</option>
+        <option value="stock_asc" {% if sort == 'stock_asc' %}selected{% endif %}>Stock ↑</option>
+        <option value="price_desc"{% if sort == 'price_desc'%}selected{% endif %}>Price ↓</option>
+        <option value="updated"   {% if sort == 'updated'   %}selected{% endif %}>Recent</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- Active filter pills -->
+  {% if status or cat or search %}
+  <div style="display:flex; gap:5px; flex-wrap:wrap; margin-bottom:6px;">
+    {% if status %}
+    <span style="background:var(--card2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:.74rem; display:flex; align-items:center; gap:5px;">
+      {{ {'ok':'In Stock','low':'Low Stock','out':'Out of Stock'}.get(status, status) }}
+      <a href="/inventory?{% if search %}q={{ search }}&{% endif %}{% if cat %}cat={{ cat }}{% endif %}" style="color:var(--muted); text-decoration:none;">×</a>
+    </span>
+    {% endif %}
+    {% if cat %}
+    <span style="background:var(--card2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:.74rem; display:flex; align-items:center; gap:5px;">
+      {{ cat }}
+      <a href="/inventory?{% if search %}q={{ search }}&{% endif %}{% if status %}status={{ status }}{% endif %}" style="color:var(--muted); text-decoration:none;">×</a>
+    </span>
+    {% endif %}
+    {% if search %}
+    <span style="background:var(--card2); border:1px solid var(--border); border-radius:20px; padding:3px 10px; font-size:.74rem; display:flex; align-items:center; gap:5px;">
+      "{{ search }}"
+      <a href="/inventory?{% if status %}status={{ status }}&{% endif %}{% if cat %}cat={{ cat }}{% endif %}" style="color:var(--muted); text-decoration:none;">×</a>
+    </span>
+    {% endif %}
+    <a href="/inventory" style="color:var(--muted); font-size:.74rem; display:flex; align-items:center; gap:3px; text-decoration:none; padding:3px 8px;">
+      <i class="bi bi-x"></i> Clear all
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ═══ DETAIL BAR ══════════════════════════════════════════ -->
+<div class="section-header-row" style="margin-top:4px;">
+  <span class="sh-label">Results</span>
+  <button class="section-toggle-btn" onclick="toggleSection('detail')" id="toggle-detail" title="Collapse">
+    <i class="bi bi-chevron-up" id="icon-detail"></i>
+  </button>
+</div>
+<div id="section-detail" class="collapsible">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+    <div style="font-size:.82rem; color:var(--muted);">
+      <span style="font-weight:700; color:var(--text2);">{{ count }}</span>
+      item{{ 's' if count != 1 }}
+      {% if status or cat or search %} (filtered){% endif %}
+    </div>
+    <div style="display:flex; gap:10px; align-items:center;">
+      <a href="/export/inventory.csv" style="font-size:.8rem; color:var(--emerald); text-decoration:none; display:flex; align-items:center; gap:4px;">
+        <i class="bi bi-download"></i> CSV
+      </a>
+      <a href="/scan" style="font-size:.8rem; color:var(--muted); text-decoration:none; display:flex; align-items:center; gap:4px;">
+        <i class="bi bi-upc-scan"></i> Scan
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ITEM LIST ═══════════════════════════════════════════ -->
+<div class="card-dark" style="padding:0 16px;">
+  {% if items %}
+    {% for item in items %}
+    <a href="/item/{{ item.id }}" class="item-row">
+      <div class="item-icon" style="{% if item.is_out %}background:rgba(239,68,68,.1){% elif item.is_low %}background:rgba(245,158,11,.1){% else %}background:var(--card2){% endif %}">
+        <i class="bi bi-{% if not item.is_product %}cpu{% else %}box{% endif %}"
+           style="color:{% if item.is_out %}#ef4444{% elif item.is_low %}#f59e0b{% else %}#10b981{% endif %}"></i>
+      </div>
+      <div class="item-info">
+        <div class="name">{{ item.brand ~ ' ' if item.brand else '' }}{{ item.name }}</div>
+        <div class="sub">
+          {% if not item.is_product %}
+            {{ item.model_brand ~ ' ' if item.model_brand else '' }}{{ item.model_name }} · {{ item.part_type_name }}
+          {% else %}
+            {% if item.color %}{{ item.color }}{% endif %}
+            {% if item.sku %} · {{ item.sku }}{% endif %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="item-stock">
+        <span class="badge rounded-pill px-2 py-1
+          {% if item.is_out %}badge-out
+          {% elif item.is_low %}badge-low
+          {% else %}badge-ok{% endif %}">
+          {{ item.stock }}
+        </span>
+        <div style="font-size:.64rem; color:var(--muted); text-align:right; margin-top:2px;">
+          min {{ item.min_stock }}
+        </div>
+      </div>
+    </a>
+    {% endfor %}
+    {% if count > 50 %}
+    <div style="text-align:center; padding:12px 0; font-size:.8rem; color:var(--muted);">
+      Showing {{ count }} items · <a href="/export/inventory.csv" style="color:var(--emerald);">Export all</a>
+    </div>
+    {% endif %}
+  {% else %}
+    <div class="empty-state">
+      <i class="bi bi-search empty-icon"></i>
+      <div class="empty-title">No items found</div>
+      {% if search or status or cat %}
+      <div class="empty-sub">Try adjusting your filters</div>
+      <div style="margin-top:12px;">
+        <a href="/inventory" class="btn-sm-dark">Clear filters</a>
+      </div>
+      {% else %}
+      <div class="empty-sub">Add your first item to get started</div>
+      <div style="margin-top:12px;">
+        <a href="/inventory/add" class="btn-emerald" style="font-size:.85rem; padding:10px 18px;">
+          <i class="bi bi-plus-lg"></i> Add Item
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  {% endif %}
+</div>
+
+<!-- FAB — floating add button -->
+<a href="/inventory/add" class="fab" title="Add Item">
+  <i class="bi bi-plus-lg"></i>
+</a>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+/* ── Collapsible sections ─────────────────────────────── */
+function toggleSection(key) {
+  const el   = document.getElementById('section-' + key);
+  const icon = document.getElementById('icon-' + key);
+  const btn  = document.getElementById('toggle-' + key);
+  const isHidden = el.hasAttribute('hidden');
+  if (isHidden) {
+    el.removeAttribute('hidden');
+    icon.className = 'bi bi-chevron-up';
+    btn.title = 'Collapse';
+  } else {
+    el.setAttribute('hidden', '');
+    icon.className = 'bi bi-chevron-down';
+    btn.title = 'Expand';
+  }
+  try { localStorage.setItem('inv-hide-' + key, isHidden ? '0' : '1'); } catch(e) {}
+}
+
+/* Restore collapse state on load */
+['kpi', 'toolbar', 'filters', 'detail'].forEach(k => {
+  try {
+    if (localStorage.getItem('inv-hide-' + k) === '1') {
+      const el = document.getElementById('section-' + k);
+      if (el) {
+        el.setAttribute('hidden', '');
+        const icon = document.getElementById('icon-' + k);
+        if (icon) icon.className = 'bi bi-chevron-down';
+        const btn = document.getElementById('toggle-' + k);
+        if (btn) btn.title = 'Expand';
+      }
+    }
+  } catch(e) {}
+});
+
+/* ── Search: auto-submit after typing stops ────────────── */
+const searchInput = document.querySelector('[name="q"]');
+if (searchInput) {
+  let timer;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      document.getElementById('filterForm').submit();
+    }, 500);
+  });
+}
+
+/* ── Async KPI cards ───────────────────────────────────── */
+fetch('/api/inventory/stats')
+  .then(r => r.json())
+  .then(d => {
+    const s = d.stats || {};
+    document.getElementById('kpi-total').textContent = s.total_products ?? '—';
+    document.getElementById('kpi-units').textContent = s.total_units != null
+      ? Number(s.total_units).toLocaleString() : '—';
+    document.getElementById('kpi-value').textContent = s.inv_value != null
+      ? '$' + Number(s.inv_value).toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})
+      : '—';
+    document.getElementById('kpi-low').textContent  = s.low_count ?? '—';
+    document.getElementById('kpi-out').textContent  = s.out_count ?? '—';
+  })
+  .catch(() => {});
+</script>
+{% endblock %}

@@ -1,0 +1,10 @@
+In StockManagerPro.spec, change line 93:
+
+    version_file=None,
+
+to:
+
+    version_file='../installer/file_version_info.txt',
+
+This gives the compiled .exe proper Windows version metadata (visible in
+File Properties → Details tab).

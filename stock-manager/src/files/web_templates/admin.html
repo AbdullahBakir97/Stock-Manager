@@ -1,0 +1,361 @@
+{% extends "base.html" %}
+{% block title %}Settings — Stock Pro{% endblock %}
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+
+<!-- ═══ NAV TABS ════════════════════════════════ -->
+<div class="filter-tabs" style="margin-bottom:16px;" id="settingsTabs">
+  <a href="#shop"       class="filter-tab active" onclick="showTab(this,'shop')">Shop</a>
+  <a href="#categories" class="filter-tab"         onclick="showTab(this,'categories')">Categories</a>
+  <a href="#data"       class="filter-tab"         onclick="showTab(this,'data')">Data</a>
+  <a href="#about"      class="filter-tab"         onclick="showTab(this,'about')">About</a>
+</div>
+
+<!-- ═══ SHOP TAB ════════════════════════════════ -->
+<div id="tab-shop">
+  <form method="POST" action="/admin/settings/save">
+    <div class="card-dark">
+      <div class="section-title" style="margin-top:0; color:var(--emerald);">
+        <i class="bi bi-shop"></i> Business Info
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">Shop / Business Name *</label>
+        <input type="text" name="shop_name" class="input-dark"
+               value="{{ config.get('shop_name','') }}" placeholder="My Store" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">Phone Number</label>
+        <div class="input-wrap">
+          <i class="bi bi-telephone input-icon"></i>
+          <input type="tel" name="shop_phone" class="input-dark"
+                 value="{{ config.get('shop_phone','') }}" placeholder="+1 234 567 8900">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">Address</label>
+        <input type="text" name="shop_address" class="input-dark"
+               value="{{ config.get('shop_address','') }}" placeholder="Shop address">
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">Email</label>
+        <div class="input-wrap">
+          <i class="bi bi-envelope input-icon"></i>
+          <input type="email" name="shop_email" class="input-dark"
+                 value="{{ config.get('shop_email','') }}" placeholder="shop@example.com">
+        </div>
+      </div>
+    </div>
+
+    <div class="card-dark">
+      <div class="section-title" style="margin-top:0; color:var(--blue);">
+        <i class="bi bi-currency-exchange"></i> Currency & Locale
+      </div>
+      <div class="row g-2">
+        <div class="col-4">
+          <label class="form-label-dark">Currency</label>
+          <input type="text" name="currency" class="input-dark"
+                 value="{{ config.get('currency','$') }}" placeholder="$" maxlength="4">
+        </div>
+        <div class="col-8">
+          <label class="form-label-dark">Currency Name</label>
+          <input type="text" name="currency_name" class="input-dark"
+                 value="{{ config.get('currency_name','USD') }}" placeholder="USD">
+        </div>
+      </div>
+      <div class="form-group" style="margin-top:10px;">
+        <label class="form-label-dark">Tax Rate (%)</label>
+        <input type="number" name="tax_rate" class="input-dark" step="0.1" min="0" max="100"
+               value="{{ config.get('tax_rate','0') }}" placeholder="0">
+      </div>
+    </div>
+
+    <div class="card-dark">
+      <div class="section-title" style="margin-top:0; color:var(--purple);">
+        <i class="bi bi-sliders"></i> App Preferences
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">Default Low Stock Threshold</label>
+        <input type="number" name="default_min_stock" class="input-dark" min="0"
+               value="{{ config.get('default_min_stock','5') }}" placeholder="5">
+        <div style="font-size:.72rem; color:var(--muted); margin-top:4px;">
+          Applied to new items unless overridden
+        </div>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
+        <div>
+          <div style="font-size:.88rem; font-weight:600;">Show Cost Price</div>
+          <div style="font-size:.72rem; color:var(--muted);">Display cost on item pages</div>
+        </div>
+        <input type="checkbox" name="show_cost" value="1"
+               {% if config.get('show_cost','1') == '1' %}checked{% endif %}>
+      </div>
+      <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0;">
+        <div>
+          <div style="font-size:.88rem; font-weight:600;">Auto-reorder Alerts</div>
+          <div style="font-size:.72rem; color:var(--muted);">Notify when stock hits minimum</div>
+        </div>
+        <input type="checkbox" name="auto_alerts" value="1"
+               {% if config.get('auto_alerts','1') == '1' %}checked{% endif %}>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-emerald" style="width:100%; padding:14px; margin-bottom:16px;">
+      <i class="bi bi-check-circle-fill"></i> Save Settings
+    </button>
+  </form>
+</div>
+
+<!-- ═══ CATEGORIES TAB ══════════════════════════ -->
+<div id="tab-categories" style="display:none;">
+  <div style="margin-bottom:14px; font-size:.82rem; color:var(--muted);">
+    Categories define the matrix inventory tabs (Displays, Batteries, etc.). Each category contains Part Types.
+  </div>
+
+  {% for cat in categories %}
+  <div class="card-dark" style="margin-bottom:10px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+      <div>
+        <div style="font-weight:700; font-size:.95rem;">{{ cat.name_en }}</div>
+        <div style="font-size:.73rem; color:var(--muted);">Key: {{ cat.key }} · {{ cat.part_types|length if cat.part_types else 0 }} part types</div>
+      </div>
+      <form method="POST" action="/admin/category/{{ cat.id }}/toggle">
+        <button type="submit" class="btn-sm-dark" style="{% if not cat.is_active %}color:var(--emerald);{% endif %}">
+          {% if cat.is_active %}<i class="bi bi-toggle-on"></i> Active{% else %}<i class="bi bi-toggle-off"></i> Inactive{% endif %}
+        </button>
+      </form>
+    </div>
+
+    {% if cat.part_types %}
+    <div style="display:flex; flex-wrap:wrap; gap:5px; margin-bottom:10px;">
+      {% for pt in cat.part_types %}
+      <span style="background:{{ pt.accent_color }}18; color:{{ pt.accent_color }};
+                   border:1px solid {{ pt.accent_color }}35;
+                   border-radius:7px; padding:3px 10px; font-size:.75rem; font-weight:600;">
+        {{ pt.name }}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Add part type -->
+    <details>
+      <summary style="font-size:.78rem; color:var(--emerald); cursor:pointer; padding:4px 0;">
+        <i class="bi bi-plus-circle"></i> Add Part Type
+      </summary>
+      <form method="POST" action="/admin/parttype/add" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;">
+        <input type="hidden" name="category_id" value="{{ cat.id }}">
+        <input type="text" name="key" class="input-dark" placeholder="Key e.g. lcd"
+               style="font-size:.85rem; padding:9px 12px;" required>
+        <input type="text" name="name" class="input-dark" placeholder="Display name e.g. LCD Screen"
+               style="font-size:.85rem; padding:9px 12px;" required>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="color" name="accent_color" value="#4A9EFF"
+                 style="width:44px; height:44px; border:1px solid var(--border); border-radius:8px; background:var(--card2); cursor:pointer; padding:2px;">
+          <button type="submit" class="btn-sm-dark" style="flex:1; justify-content:center; padding:11px;">
+            <i class="bi bi-plus-lg"></i> Add Part Type
+          </button>
+        </div>
+      </form>
+    </details>
+  </div>
+  {% endfor %}
+
+  <!-- Add new category -->
+  <div class="section-title" style="color:var(--emerald);">Add New Category</div>
+  <div class="card-dark">
+    <form method="POST" action="/admin/category/add">
+      <div class="form-group">
+        <label class="form-label-dark">Key (unique, no spaces)</label>
+        <input type="text" name="key" class="input-dark" required placeholder="e.g. tablets">
+      </div>
+      <div class="form-group">
+        <label class="form-label-dark">English Name *</label>
+        <input type="text" name="name_en" class="input-dark" required placeholder="e.g. Tablets">
+      </div>
+      <div class="row g-2">
+        <div class="col-6">
+          <label class="form-label-dark">German Name</label>
+          <input type="text" name="name_de" class="input-dark" placeholder="e.g. Tablets">
+        </div>
+        <div class="col-6">
+          <label class="form-label-dark">Arabic Name</label>
+          <input type="text" name="name_ar" class="input-dark" placeholder="أجهزة لوحية" dir="rtl">
+        </div>
+      </div>
+      <button type="submit" class="btn-emerald" style="width:100%; margin-top:4px;">
+        <i class="bi bi-plus-lg"></i> Add Category
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ DATA TAB ════════════════════════════════ -->
+<div id="tab-data" style="display:none;">
+  <!-- Export section -->
+  <div class="section-title" style="margin-top:0;">Export Data</div>
+  <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:16px;">
+    <a href="/export/inventory.csv"
+       style="display:flex; align-items:center; gap:10px; padding:14px 16px;
+              background:var(--card2); border:1px solid var(--border); border-radius:var(--radius);
+              text-decoration:none; color:var(--text); font-size:.88rem; font-weight:600;
+              transition:border-color .13s;">
+      <i class="bi bi-file-earmark-spreadsheet-fill" style="color:var(--emerald); font-size:1.3rem;"></i>
+      <div>
+        <div>Export Inventory</div>
+        <div style="font-size:.72rem; color:var(--muted);">All items with stock levels and prices</div>
+      </div>
+      <i class="bi bi-download" style="margin-left:auto; color:var(--muted);"></i>
+    </a>
+    <a href="/export/transactions.csv"
+       style="display:flex; align-items:center; gap:10px; padding:14px 16px;
+              background:var(--card2); border:1px solid var(--border); border-radius:var(--radius);
+              text-decoration:none; color:var(--text); font-size:.88rem; font-weight:600;
+              transition:border-color .13s;">
+      <i class="bi bi-file-earmark-text-fill" style="color:var(--blue); font-size:1.3rem;"></i>
+      <div>
+        <div>Export Transactions</div>
+        <div style="font-size:.72rem; color:var(--muted);">Full transaction audit log</div>
+      </div>
+      <i class="bi bi-download" style="margin-left:auto; color:var(--muted);"></i>
+    </a>
+    <a href="/export/sales.csv"
+       style="display:flex; align-items:center; gap:10px; padding:14px 16px;
+              background:var(--card2); border:1px solid var(--border); border-radius:var(--radius);
+              text-decoration:none; color:var(--text); font-size:.88rem; font-weight:600;
+              transition:border-color .13s;">
+      <i class="bi bi-file-earmark-bar-graph-fill" style="color:var(--purple); font-size:1.3rem;"></i>
+      <div>
+        <div>Export Sales</div>
+        <div style="font-size:.72rem; color:var(--muted);">Sales history and revenue data</div>
+      </div>
+      <i class="bi bi-download" style="margin-left:auto; color:var(--muted);"></i>
+    </a>
+  </div>
+
+  <!-- Import section -->
+  <div class="section-title">Import Data</div>
+  <div class="card-dark" style="margin-bottom:10px;">
+    <div style="display:flex; align-items:flex-start; gap:10px; margin-bottom:12px;">
+      <i class="bi bi-file-earmark-arrow-up-fill" style="color:var(--orange); font-size:1.5rem; flex-shrink:0; margin-top:2px;"></i>
+      <div>
+        <div style="font-weight:700; font-size:.9rem;">Import Items from CSV</div>
+        <div style="font-size:.75rem; color:var(--muted); margin-top:2px;">
+          CSV must have columns: name, brand, color, sku, stock, min_stock, sell_price, cost_price
+        </div>
+      </div>
+    </div>
+    <form method="POST" action="/admin/import/csv" enctype="multipart/form-data" style="display:flex; flex-direction:column; gap:10px;">
+      <input type="file" name="csv_file" accept=".csv"
+             style="background:var(--card3); border:1.5px dashed var(--border); border-radius:10px;
+                    padding:16px; color:var(--text2); font-size:.85rem; cursor:pointer; width:100%;">
+      <button type="submit" class="btn-outline" style="width:100%; padding:12px;">
+        <i class="bi bi-upload"></i> Import CSV
+      </button>
+    </form>
+    <div style="margin-top:10px;">
+      <a href="/admin/import/template" style="font-size:.78rem; color:var(--emerald); text-decoration:none;">
+        <i class="bi bi-download"></i> Download CSV template
+      </a>
+    </div>
+  </div>
+
+  <!-- Database info -->
+  <div class="section-title">Database</div>
+  <div class="card-dark">
+    <div style="display:flex; flex-direction:column; gap:8px; font-size:.85rem;">
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--muted);">Schema Version</span>
+        <span style="font-weight:600;">v{{ config.get('schema_version','?') }}</span>
+      </div>
+      <div style="display:flex; justify-content:space-between;">
+        <span style="color:var(--muted);">Database Engine</span>
+        <span style="font-weight:600;">SQLite 3</span>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:.75rem; color:var(--muted);">
+        Database is stored locally on the server machine. Back up regularly.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ ABOUT TAB ════════════════════════════════ -->
+<div id="tab-about" style="display:none;">
+  <div class="card-highlight" style="text-align:center; padding:28px 16px;">
+    <div style="width:72px; height:72px; border-radius:20px; margin:0 auto 14px;
+                background:linear-gradient(135deg,var(--emerald) 0%,#047857 100%);
+                display:flex; align-items:center; justify-content:center;
+                box-shadow:0 6px 28px rgba(16,185,129,.35);">
+      <i class="bi bi-box-seam-fill" style="font-size:2rem; color:#000;"></i>
+    </div>
+    <div style="font-size:1.2rem; font-weight:800; margin-bottom:4px;">Stock Manager Pro</div>
+    <div style="font-size:.8rem; color:var(--muted); margin-bottom:16px;">Web Interface · v2.0</div>
+    <div style="display:inline-flex; align-items:center; gap:6px; background:var(--card3);
+                border:1px solid var(--border); border-radius:20px; padding:5px 14px;
+                font-size:.78rem; color:var(--emerald);">
+      <i class="bi bi-circle-fill" style="font-size:.5rem;"></i> All systems operational
+    </div>
+  </div>
+
+  <div class="card-dark">
+    <div style="display:flex; flex-direction:column; gap:10px; font-size:.85rem;">
+      {% set about = [
+        ('Platform','Python / Flask'),
+        ('Database','SQLite 3 (Schema v' ~ config.get('schema_version','?') ~ ')'),
+        ('Frontend','Bootstrap 5 + Chart.js'),
+        ('Desktop App','PyQt6 Desktop Client'),
+      ] %}
+      {% for label, value in about %}
+      <div style="display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--border2);">
+        <span style="color:var(--muted);">{{ label }}</span>
+        <span style="font-weight:600; color:var(--text2);">{{ value }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Quick links -->
+  <div class="section-title">Navigate</div>
+  <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:24px;">
+    {% set links = [
+      ('/','bi-speedometer2','Dashboard','var(--emerald)'),
+      ('/inventory','bi-grid-fill','Inventory','var(--blue)'),
+      ('/sales','bi-receipt-cutoff','Sales','var(--orange)'),
+      ('/reports','bi-bar-chart-fill','Analytics','var(--purple)'),
+      ('/audits','bi-clipboard2-check-fill','Audits','var(--teal,#14b8a6)'),
+      ('/alerts','bi-bell-fill','Alerts','var(--red)'),
+    ] %}
+    {% for href, icon, label, color in links %}
+    <a href="{{ href }}" style="display:flex; align-items:center; gap:8px; padding:12px 14px;
+       background:var(--card2); border:1px solid var(--border); border-radius:var(--radius);
+       text-decoration:none; color:var(--text); font-size:.85rem; font-weight:600;">
+      <i class="bi {{ icon }}" style="color:{{ color }};"></i> {{ label }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showTab(el, tab) {
+  /* Update pills */
+  document.querySelectorAll('#settingsTabs .filter-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  el.blur();
+  /* Show panel */
+  ['shop','categories','data','about'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = (t === tab) ? '' : 'none';
+  });
+  return false; /* prevent anchor jump */
+}
+
+/* Hover effects on export links */
+document.querySelectorAll('[href^="/export"]').forEach(el => {
+  el.addEventListener('mouseenter', () => el.style.borderColor = 'var(--emerald)');
+  el.addEventListener('mouseleave', () => el.style.borderColor = '');
+});
+</script>
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}New Audit — Stock Pro{% endblock %}
+{% block page_title %}New Inventory Audit{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="/audits/new" style="display:flex; flex-direction:column; gap:14px;">
+  <div class="card-dark">
+    <div class="form-group">
+      <label class="form-label-dark">Audit Name *</label>
+      <input type="text" name="name" class="input-dark" required
+             placeholder="e.g. Monthly Count — April 2026"
+             autofocus>
+    </div>
+    <div class="form-group" style="margin-bottom:0;">
+      <label class="form-label-dark">Notes (optional)</label>
+      <textarea name="notes" class="input-dark" rows="3"
+                placeholder="Any special instructions for this audit…"></textarea>
+    </div>
+  </div>
+
+  <!-- Quick start options -->
+  <div class="section-title" style="margin-top:4px;">What to count?</div>
+  <div class="card-dark" style="padding:10px 16px;">
+    {% set scope_opts = [('all','All Items','Count every item in inventory','bi-grid-3x3-gap-fill'), ('low','Low Stock Items','Only items below minimum stock','bi-exclamation-triangle-fill'), ('out','Out of Stock','Only items with zero stock','bi-x-circle-fill')] %}
+    {% for val, label, desc, icon in scope_opts %}
+    <label style="display:flex; align-items:center; gap:12px; padding:11px 0; cursor:pointer;
+                  border-bottom: 1px solid var(--border2);">
+      <input type="radio" name="scope" value="{{ val }}" {% if val == 'all' %}checked{% endif %}
+             style="accent-color:var(--emerald); width:18px; height:18px;">
+      <div class="item-icon" style="background:var(--card3); color:var(--muted);">
+        <i class="bi {{ icon }}"></i>
+      </div>
+      <div>
+        <div style="font-weight:600; font-size:.88rem;">{{ label }}</div>
+        <div style="font-size:.75rem; color:var(--muted);">{{ desc }}</div>
+      </div>
+    </label>
+    {% endfor %}
+    <label style="display:flex; align-items:center; gap:12px; padding:11px 0; cursor:pointer;">
+      <input type="radio" name="scope" value="manual"
+             style="accent-color:var(--emerald); width:18px; height:18px;">
+      <div class="item-icon" style="background:var(--card3); color:var(--muted);">
+        <i class="bi bi-plus-circle"></i>
+      </div>
+      <div>
+        <div style="font-weight:600; font-size:.88rem;">Manual</div>
+        <div style="font-size:.75rem; color:var(--muted);">Add items one by one after creating</div>
+      </div>
+    </label>
+  </div>
+
+  <button type="submit" class="btn-emerald" style="width:100%; padding:14px;">
+    <i class="bi bi-clipboard2-plus-fill"></i> Create Audit
+  </button>
+  <a href="/audits" class="btn-sm-dark" style="padding:12px; text-align:center; display:flex; justify-content:center;">
+    Cancel
+  </a>
+</form>
+
+{% endblock %}

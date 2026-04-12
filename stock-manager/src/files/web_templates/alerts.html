@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Alerts — Stock Pro{% endblock %}
+{% block content %}
+
+{% if out %}
+<div class="section-title" style="color:#ef4444">
+  <i class="bi bi-x-circle-fill"></i> Out of Stock ({{ out|length }})
+</div>
+<div class="card-dark" style="padding:0 16px">
+  {% for item in out %}
+  <a href="/item/{{ item.id }}" class="item-row">
+    <div class="item-icon" style="background:rgba(239,68,68,.1)">
+      <i class="bi bi-exclamation-circle-fill" style="color:#ef4444"></i>
+    </div>
+    <div class="item-info">
+      <div class="name">{{ item.brand }} {{ item.name }}</div>
+      <div class="sub">
+        {% if not item.is_product %}{{ item.model_brand }} {{ item.model_name }} · {{ item.part_type_name }}
+        {% else %}{% if item.color %}{{ item.color }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="item-stock">
+      <span class="badge badge-out rounded-pill px-2 py-1">0</span>
+      <div style="font-size:.65rem;color:var(--muted);text-align:right">min {{ item.min_stock }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if low %}
+<div class="section-title" style="color:#f59e0b">
+  <i class="bi bi-exclamation-triangle-fill"></i> Low Stock ({{ low|length }})
+</div>
+<div class="card-dark" style="padding:0 16px">
+  {% for item in low %}
+  <a href="/item/{{ item.id }}" class="item-row">
+    <div class="item-icon" style="background:rgba(245,158,11,.1)">
+      <i class="bi bi-arrow-down-circle-fill" style="color:#f59e0b"></i>
+    </div>
+    <div class="item-info">
+      <div class="name">{{ item.brand }} {{ item.name }}</div>
+      <div class="sub">
+        {% if not item.is_product %}{{ item.model_brand }} {{ item.model_name }} · {{ item.part_type_name }}
+        {% else %}{% if item.color %}{{ item.color }}{% endif %}{% endif %}
+      </div>
+    </div>
+    <div class="item-stock">
+      <span class="badge badge-low rounded-pill px-2 py-1">{{ item.stock }}</span>
+      <div style="font-size:.65rem;color:var(--muted);text-align:right">min {{ item.min_stock }}</div>
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if not out and not low %}
+<div style="text-align:center;padding:60px 20px;color:var(--muted)">
+  <i class="bi bi-check-circle-fill" style="font-size:3rem;color:#10b981"></i>
+  <div style="margin-top:14px;font-size:1.1rem;font-weight:600;color:var(--text)">All good!</div>
+  <div style="margin-top:6px;font-size:.88rem">No low stock or out-of-stock items</div>
+</div>
+{% endif %}
+
+{% endblock %}

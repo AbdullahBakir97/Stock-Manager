@@ -309,6 +309,7 @@ jobs:
 
       # ── 11b. Create PR and auto-merge release → main ─────────────────────────
       - name: Create and merge release PR
+        shell: bash
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

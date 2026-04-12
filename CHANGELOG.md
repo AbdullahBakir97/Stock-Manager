@@ -1,0 +1,148 @@
+# Changelog
+
+All notable changes to **Stock Manager Pro** are documented here.
+Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+---
+
+## [Unreleased]
+
+## [2.3.4] - 2026-04-12
+
+
+## [2.3.4] - 2026-04-12
+
+### Added
+- **Sticky model column** — frozen left-side table for model names stays visible when scrolling horizontally in the matrix
+- **Part-type banner bar** — colour-coded part-type names displayed above column headers via synced QScrollArea
+- **Excel-like zoom** — Ctrl+Scroll / Ctrl+Plus/Minus zoom (50–200%) with compact footer slider, auto-reset on page switch, hidden on non-table pages
+- **Per-model product colours** — right-click any model row in the matrix to select which colours (Black, Silver, Gold…) per model; same toggle UI in settings Admin → Part Types → Model Colors section (double-click to edit)
+- **Series separators** — thin visible divider lines between model series groups (X-series, 11-series, A0x, A1x, S2x) for easier reading
+- **Collapsible matrix toolbar** — inventory-style clickable section header to hide/show brand filter and legend chips
+- **Auto-fit model column** — frozen model column width auto-sizes to the longest model name
+- **Live clock** — footer timestamp updates every second automatically
+- **Professional splash screen** — geometric inventory cube icon drawn with QPainter, dynamic version badge from `APP_VERSION`, rounded card with emerald glow
+- **Custom app icon** — isometric cube icon as `.ico` (multi-resolution 16–256px) and `.png`, used for window, taskbar, installer, and README
+- **Full actions toolbar** — New Product, Export CSV, Import CSV, Report, Bulk Edit, Refresh buttons in inventory dashboard
+- **Model reorder** — move up/down buttons in Admin → Models panel (same style as part types)
+- **Per-model colours in settings** — Admin → Part Types → Model Colors card shows all models with their colour overrides; double-click to edit
+- **Import CSV** — toolbar button opens file picker and imports inventory data directly
+
+### Fixed
+- **Theme toggle persistence** — toggling theme now saves to database; closing admin no longer reverts to old theme
+- **Theme toggle UI** — sidebar, header, footer, matrix legend chips, inventory section headers all update correctly
+- **Zoom separators** — separator rows stay at fixed 3px height during zoom
+- **Worker pool crash** — wrapped signal emit in try/except to handle widget deletion during background tasks
+- **QFont warning** — suppressed harmless `QFont::setPointSize` Qt warning via `qInstallMessageHandler`
+- **UAC rejection** — `launch_installer()` returns `bool`; app only quits if UAC was accepted
+- **Download cancel** — cancel button on update download progress dialog
+- **Installer cache** — downloaded installer stored in persistent `%LOCALAPPDATA%` cache instead of temp dir
+- **Cached installer reuse** — if installer already downloaded and SHA256 matches, skip re-download
+- **CSV export** — now opens file save dialog instead of crashing on missing `file_path` argument
+- **Quick action undo** — +1/-1 buttons now show undo toast (same as full stock dialog)
+- **Quick action detail sync** — +1/-1 updates the detail bar instantly (stock count, status badge)
+- **Model reorder** — fixed `reorder()` to preserve brand-specific sort_order base; `get_all()` now sorts by `sort_order` instead of re-sorting naturally
+- **Per-model colour removal** — unselected colours now properly deleted from ALL part types, not just one
+
+### Changed
+- **Schema V14** — 5 new performance indexes on `inventory_items` (active, stock, part_type_id, model+pt, model+pt+color)
+- **Connection pooling** — thread-local cached connections instead of new `sqlite3.connect()` per query
+- **SQLite optimised** — `synchronous=NORMAL`, `cache_size=20MB`, `temp_store=MEMORY` pragmas
+- **Batch inserts** — `_ensure_all_entries()` uses `executemany()` instead of per-row INSERT (10-50x faster)
+- **Deferred health checks** — `run_startup_checks()` moved to background thread after 2s delay
+- **Lazy theme loading** — only generates QSS for active theme at startup, not all 4
+- **Matrix rendering** — pre-indexed item_map for O(1) model lookup; `setUpdatesEnabled(False)` during bulk cell creation
+- **Slim dropdown style** — all QComboBox across the app use minimal bottom-line style (transparent, no box border)
+- **Compact filter bar** — 26px controls, no container frame, category inline, icon-only reset button
+- **Compact actions bar** — 36px toolbar with 6 action buttons, keyboard hints, themed styles
+- **Version unified** — `main.py` and splash screen import `APP_VERSION` from `version.py`
+- **Pre-release version parsing** — strips `-rc1`, `-beta` suffixes before comparing
+- **Manifest validation** — validates URL format, SHA256 hex, version parseability
+- **min_version enforcement** — `check_for_update()` respects `min_version` field
+- **CI/CD pipeline** — release branch → PR → auto-merge to main with retry
+- **CI version stamping** — auto-stamps `version.py`, `file_version_info.txt`, `.iss`, `README.md` badge
+
+---
+
+## [2.3.3] - 2026-04-11
+
+### Fixed
+- German button and column header text no longer truncated (removed hard pixel width caps)
+- Product name column now stretches to fill available space in inventory list
+- Collapsible inventory sections (Overview, Filters, Selected Item) give table more space when hidden
+
+### Changed
+- Release workflow now auto-extracts changelog entry and publishes it to GitHub Release
+
+---
+
+## [2.3.2] - 2026-04-11
+
+### Fixed
+- Update manifest URL corrected — auto-update banner now works for all users
+- GitHub Actions workflow now pushes manifest to `main` branch so the app can find it
+
+---
+
+## [2.3.1] - 2026-04-11
+
+### Fixed
+- German text no longer truncated in matrix table column headers (Stamm-Zahl, Best-Bung, Bestand, Bestellung)
+- German button labels no longer clipped in the detail bar (Anpassen → was "Anpass", Bearbeiten → was "Bearbei")
+- Removed `setMaximumWidth` caps on all action buttons in the product detail bar
+
+### Changed
+- Product name column is now left-aligned and always fills available table width
+- Column widths applied via `Interactive` mode — a long barcode no longer steals space from the name column
+- Inventory page sections (Overview, Filters, Selected Item) are now individually collapsible — hiding a section gives that space to the product table
+- Product table list expands to fill all freed space when sections are collapsed
+
+---
+
+## [2.3.0] - 2026-04-06
+
+### Added
+- Full business module suite: Suppliers, Purchase Orders, Sales, Returns, Customers
+- Price Lists with margin analysis
+- Audit Log with full transaction history
+- Analytics dashboard with charts and KPIs
+- Multi-location inventory support
+- Async background engine with worker pool
+- Controller architecture for clean separation of concerns
+- Web server interface (Flask) for remote access
+- Auto-update system with in-app banner and one-click installer download
+
+### Changed
+- Complete UI overhaul with PRO_DARK and PRO_LIGHT themes
+- Matrix inventory view with per-model stock tracking
+- Sidebar navigation with collapsible sections
+
+---
+
+## [2.2.0] - 2026-02-15
+
+### Added
+- Barcode scanning and generation
+- RTL layout support for Arabic language
+- German (DE) full translation
+
+### Fixed
+- Database migration stability improvements
+
+---
+
+## [2.1.0] - 2026-01-10
+
+### Added
+- Category-based matrix view for phone repair shops
+- Theme system with DARK / LIGHT / PRO_DARK / PRO_LIGHT presets
+- i18n framework with EN / DE / AR support
+
+---
+
+## [2.0.0] - 2025-12-01
+
+### Added
+- Initial public release
+- SQLite inventory with full CRUD
+- PyInstaller Windows build

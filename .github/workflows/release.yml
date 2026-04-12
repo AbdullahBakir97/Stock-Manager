@@ -9,7 +9,8 @@ jobs:
   build-and-sign:
     runs-on: windows-latest
     permissions:
-      contents: write   # required to create GitHub Releases and push back to repo
+      contents: write       # create releases, push commits
+      pull-requests: write  # create and merge release PRs
 
     steps:
       # ── 1. Checkout ──────────────────────────────────────────────────────────

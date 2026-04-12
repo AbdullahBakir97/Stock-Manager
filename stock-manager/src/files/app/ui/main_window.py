@@ -8,10 +8,10 @@ from PyQt6.QtWidgets import (
     QApplication,
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLineEdit, QSizePolicy, QStackedWidget,
-    QMessageBox, QSpinBox,
+    QMessageBox, QSpinBox, QPushButton,
 )
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QKeySequence, QShortcut
+from PyQt6.QtGui import QKeySequence, QShortcut, QFont, QWheelEvent
 
 from app.core.database import init_db, get_connection, ensure_matrix_entries
 from app.core.health import run_startup_checks
@@ -88,14 +88,17 @@ class MainWindow(QMainWindow):
 
         _sp(15, t("startup_db"))
         init_db()
-        self._health = run_startup_checks()
+        # Defer health checks to background — they're informational, not blocking
+        self._health = None
+        QTimer.singleShot(2000, self._deferred_health_check)
 
         cfg = ShopConfig.get()
         if cfg.theme in ("pro_dark", "pro_light", "dark", "light"):
             THEME.set_theme(cfg.theme)
 
         _sp(30, t("startup_config"))
-        THEME.warm_cache()
+        # Only pre-generate QSS for the active theme (not all 4)
+        _ = THEME.stylesheet()
 
         _title = cfg.name if cfg.name else t("app_title")
         self.setWindowTitle(_title)
@@ -267,6 +270,7 @@ class MainWindow(QMainWindow):
 
         # Sidebar navigation
         self._sidebar.nav_clicked.connect(self._nav_ctrl.go)
+        self._nav_ctrl.navigated.connect(self._on_page_changed)
 
         # Inventory page
         tbl = self._inv_page.table
@@ -291,6 +295,10 @@ class MainWindow(QMainWindow):
         tbl.quick_out.connect(self._quick_stock_out)
         self._inv_page.dashboard.action_new_product.connect(self._add_product)
         self._inv_page.dashboard.action_export.connect(self._export_csv)
+        self._inv_page.dashboard.action_import.connect(self._import_csv)
+        self._inv_page.dashboard.action_report.connect(self._open_reports)
+        self._inv_page.dashboard.action_bulk_edit.connect(self._open_bulk_edit)
+        self._inv_page.dashboard.action_refresh.connect(self._refresh_all)
         self._inv_page.filter_bar.filters_changed.connect(self._on_filters_changed)
 
         # Keyboard shortcuts
@@ -312,6 +320,14 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+6"),     self).activated.connect(lambda: self._nav_ctrl.go("nav_returns"))
         QShortcut(QKeySequence("Ctrl+7"),     self).activated.connect(lambda: self._nav_ctrl.go("nav_suppliers"))
         QShortcut(QKeySequence("Escape"),     self).activated.connect(self._escape_handler)
+
+        # Zoom shortcuts
+        QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(self._zoom_in)
+        QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(self._zoom_out)
+        QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(self._zoom_reset)
+
+        # Footer zoom controls
+        self._footer.zoom_changed.connect(self._apply_zoom)
 
         # Global barcode buffer
         self._global_bc_buf: list[str] = []
@@ -491,18 +507,55 @@ class MainWindow(QMainWindow):
             self._footer.hide_filter()
 
     def _export_csv(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog
         try:
+            path, _ = QFileDialog.getSaveFileName(
+                self, t("msg_export_title"), "inventory_export.csv",
+                "CSV Files (*.csv);;All Files (*)",
+            )
+            if not path:
+                return
             from app.services.export_service import ExportService
             import os
-            path = ExportService().export_inventory_csv()
-            if path and os.path.exists(path):
-                self._show_status(t("status_exported", path=path), 5000, level="ok")
+            result = ExportService().export_inventory_csv(path)
+            if result and os.path.exists(result):
+                self._show_status(t("status_exported", path=result), 5000, level="ok")
                 QMessageBox.information(self, t("msg_export_title"),
-                                        t("msg_export_body", path=path))
+                                        t("msg_export_body", path=result))
             else:
                 self._show_status(t("msg_export_failed"), 3000, level="err")
         except Exception as e:
             QMessageBox.critical(self, t("msg_error"), str(e))
+
+    def _import_csv(self) -> None:
+        """Open a file picker and import inventory from CSV."""
+        from PyQt6.QtWidgets import QFileDialog
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import CSV", "",
+            "CSV Files (*.csv);;All Files (*)",
+        )
+        if not path:
+            return
+        try:
+            from app.services.import_service import ImportService
+            result = ImportService().import_inventory_csv(path)
+            count = result.get("imported", 0) if isinstance(result, dict) else 0
+            self._show_status(f"Imported {count} items from CSV", 5000, level="ok")
+            self._refresh_all()
+        except Exception as e:
+            QMessageBox.critical(self, t("msg_error"), str(e))
+
+    def _open_reports(self) -> None:
+        """Navigate to the Reports page."""
+        self._nav_ctrl.go("nav_reports")
+
+    def _open_bulk_edit(self) -> None:
+        """Select all items and open bulk price dialog."""
+        self._nav_ctrl.go("nav_inventory")
+        self._inv_page.table.selectAll()
+        selected = self._inv_page.table.get_selected_items()
+        if selected:
+            self._bulk_price(selected)
 
     # ── Events ───────────────────────────────────────────────────────────────
 
@@ -537,11 +590,49 @@ class MainWindow(QMainWindow):
                 self._add_product(preset_barcode=bc)
 
     def _toggle_mode(self) -> None:
+        # Persist the new theme to DB so admin dialog doesn't revert it
+        ShopConfig.invalidate()
+        cfg = ShopConfig.get()
+        cfg.theme = THEME.theme_key
+        cfg.save()
+        ShopConfig.invalidate()
+
+        # Gradient background repaint
         self._bg.update()
+
+        # Inventory page: table, dashboard, section headers
         self._inv_page.table.viewport().update()
         self._inv_page.dashboard.apply_theme()
+        self._inv_page.apply_theme()
         if self._cp:
             self._inv_page.select_product(self._cp)
+
+        # Sidebar: force unpolish/polish all nav buttons so QSS re-applies
+        self._sidebar.style().unpolish(self._sidebar)
+        self._sidebar.style().polish(self._sidebar)
+        for btn in self._sidebar.findChildren(QPushButton):
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)
+        self._sidebar.update()
+
+        # Header bar
+        self._header.style().unpolish(self._header)
+        self._header.style().polish(self._header)
+        for child in self._header.findChildren(QWidget):
+            child.style().unpolish(child)
+            child.style().polish(child)
+        self._header.update()
+
+        # Footer bar
+        self._footer.style().unpolish(self._footer)
+        self._footer.style().polish(self._footer)
+        for child in self._footer.findChildren(QWidget):
+            child.style().unpolish(child)
+            child.style().polish(child)
+        self._footer.update()
+
+        # Matrix tabs: rebuild legend chips with new theme colors
+        self._nav_ctrl.apply_theme_to_matrix_tabs()
 
     # ── CRUD (delegated to controllers) ──────────────────────────────────────
 
@@ -577,8 +668,104 @@ class MainWindow(QMainWindow):
             self._inv_page.select_product(None)
             self._inv_page.table.clearSelection()
 
+    def _on_page_changed(self, key: str) -> None:
+        """Reset zoom and show/hide zoom controls based on page type."""
+        # Reset zoom to 100% when switching pages
+        if self._footer.zoom_pct != 100:
+            self._footer.set_zoom(100)
+
+        # Pages with tables: inventory + all category matrix tabs
+        has_table = key == "nav_inventory" or key.startswith("cat_")
+        self._footer.set_zoom_visible(has_table)
+
+    def _deferred_health_check(self) -> None:
+        """Run health checks in background after app is fully loaded."""
+        POOL.submit("health_check", run_startup_checks,
+                    lambda result: setattr(self, '_health', result))
+
     def _open_help(self) -> None:
         HelpDialog(self).exec()
+
+    # ── Zoom ────────────────────────────────────────────────────────────────
+
+    def _zoom_in(self) -> None:
+        self._footer.set_zoom(self._footer.zoom_pct + 10)
+
+    def _zoom_out(self) -> None:
+        self._footer.set_zoom(self._footer.zoom_pct - 10)
+
+    def _zoom_reset(self) -> None:
+        self._footer.set_zoom(100)
+
+    def _apply_zoom(self, pct: int) -> None:
+        """Apply zoom level to all table widgets by scaling fonts and row heights."""
+        factor = pct / 100.0
+
+        # Scale the application-wide base font
+        base_font = QFont("Segoe UI", max(8, int(10 * factor)))
+        QApplication.instance().setFont(base_font)
+
+        # Scale product table
+        tbl = self._inv_page.table
+        tbl.verticalHeader().setDefaultSectionSize(int(48 * factor))
+        tbl_font = QFont("Segoe UI", max(8, int(10 * factor)))
+        tbl.setFont(tbl_font)
+        tbl.horizontalHeader().setFont(tbl_font)
+        for i, w in enumerate(tbl._WIDTHS):
+            if i != 1:  # skip stretch column
+                tbl.setColumnWidth(i, int(w * factor))
+        tbl.viewport().update()
+
+        # Scale all matrix tabs (data table + frozen model column)
+        for tab in self._nav_ctrl.matrix_tabs:
+            container = tab._container
+            mtx = container.data_table
+            model_tbl = container._model_table
+            mtx_font = QFont("Segoe UI", max(8, int(10 * factor)))
+            mtx.setFont(mtx_font)
+            mtx.horizontalHeader().setFont(mtx_font)
+            model_tbl.setFont(mtx_font)
+            model_tbl.horizontalHeader().setFont(mtx_font)
+            # Scale column widths
+            from app.ui.components.matrix_widget import _COL_W, _base
+            model_w = int(_COL_W["model"] * factor)
+            mtx.setColumnWidth(0, model_w)
+            model_tbl.setColumnWidth(0, model_w)
+            model_tbl.setFixedWidth(model_w + 2)
+            if mtx._cat:
+                for ti in range(len(mtx._cat.part_types)):
+                    b = _base(ti)
+                    mtx.setColumnWidth(b,     int(_COL_W["stamm"] * factor))
+                    mtx.setColumnWidth(b + 1, int(_COL_W["bestbung"] * factor))
+                    mtx.setColumnWidth(b + 2, int(_COL_W["stock"] * factor))
+                    mtx.setColumnWidth(b + 3, int(_COL_W["inventur"] * factor))
+            # Scale row heights in both tables (skip separator rows)
+            for r in range(mtx.rowCount()):
+                cur_h = mtx.rowHeight(r)
+                if cur_h <= 5:
+                    # Separator row — keep at 3px, don't scale
+                    continue
+                default_h = 48 if r > 0 else 36
+                h = int(default_h * factor)
+                mtx.setRowHeight(r, h)
+                if r < model_tbl.rowCount():
+                    model_tbl.setRowHeight(r, h)
+            mtx.viewport().update()
+            model_tbl.viewport().update()
+
+        self._show_status(f"Zoom: {pct}%", 1500)
+
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        """Ctrl+Scroll to zoom in/out."""
+        if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            delta = event.angleDelta().y()
+            if delta > 0:
+                self._zoom_in()
+            elif delta < 0:
+                self._zoom_out()
+            event.accept()
+        else:
+            super().wheelEvent(event)
 
     # ── Close ────────────────────────────────────────────────────────────────
 

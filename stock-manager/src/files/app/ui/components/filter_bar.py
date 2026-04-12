@@ -43,262 +43,82 @@ class FilterBar(QWidget):
     def _build_ui(self) -> None:
         tk = THEME.tokens
 
-        # Main vertical layout (search bar + advanced row stacked)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(0)
+        layout.setSpacing(4)
 
-        container = QFrame()
-        container.setObjectName("filter_bar_container")
-        container.setStyleSheet(f"""
-            QFrame#filter_bar_container {{
-                background: {tk.card};
-                border: 1px solid {tk.border};
-                border-radius: 10px;
-            }}
-        """)
+        # ── Main row: search + dropdowns + buttons (no container frame) ──
+        row = QHBoxLayout()
+        row.setContentsMargins(0, 0, 0, 0)
+        row.setSpacing(6)
 
-        row = QHBoxLayout(container)
-        row.setContentsMargins(12, 8, 12, 8)
-        row.setSpacing(12)
+        _H = 26
 
-        # ── Search Input (stretch=3) ────────────────────────
+        # Search (compact, no border frame)
         self._search = QLineEdit()
-        self._search.setObjectName("filter_search_input")
-        self._search.setPlaceholderText(f"🔍 {t('filter_search_placeholder')}")
-        self._search.setMinimumHeight(38)
-        self._search.setMaximumHeight(38)
-        self._search.setStyleSheet(f"""
-            QLineEdit#filter_search_input {{
-                background: {tk.card2};
-                color: {tk.t1};
-                border: 1px solid {tk.border};
-                border-radius: 8px;
-                padding: 8px 14px;
-                font-size: 13px;
-                font-family: "Segoe UI", "Helvetica", sans-serif;
-            }}
-            QLineEdit#filter_search_input:focus {{
-                border: 2px solid {tk.blue};
-                padding: 7px 13px;
-                background: {tk.card2};
-            }}
-            QLineEdit#filter_search_input::placeholder {{
-                color: {tk.t3};
-            }}
-        """)
-        row.addWidget(self._search, stretch=3)
+        self._search.setObjectName("search_bar")
+        self._search.setPlaceholderText(t("filter_search_placeholder"))
+        self._search.setFixedHeight(_H)
+        self._search.setMaximumWidth(280)
+        row.addWidget(self._search, stretch=1)
 
-        # ── Status Filter Dropdown (fixed 150px) ────────────
+        # Status
         self._status = QComboBox()
-        self._status.setObjectName("filter_status_combo")
-        self._status.setMinimumWidth(150)
-        self._status.setMaximumWidth(150)
-        self._status.setMinimumHeight(38)
-        self._status.setMaximumHeight(38)
+        self._status.setObjectName("filter_combo")
+        self._status.setFixedHeight(_H)
         self._populate_status()
-        self._style_combo(self._status)
-        row.addWidget(self._status, stretch=0)
+        row.addWidget(self._status)
 
-        # ── Sort By Dropdown (fixed 160px) ──────────────────
+        # Sort
         self._sort = QComboBox()
-        self._sort.setObjectName("filter_sort_combo")
-        self._sort.setMinimumWidth(160)
-        self._sort.setMaximumWidth(160)
-        self._sort.setMinimumHeight(38)
-        self._sort.setMaximumHeight(38)
+        self._sort.setObjectName("filter_combo")
+        self._sort.setFixedHeight(_H)
         self._populate_sort()
-        self._style_combo(self._sort)
-        row.addWidget(self._sort, stretch=0)
+        row.addWidget(self._sort)
 
-        # ── Advanced toggle button ────────────────────────────
-        self._adv_toggle = QPushButton(t("filter_advanced"))
-        self._adv_toggle.setObjectName("filter_adv_toggle")
-        self._adv_toggle.setMinimumHeight(38)
-        self._adv_toggle.setMaximumHeight(38)
-        self._adv_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._adv_toggle.setCheckable(True)
-        self._adv_toggle.setStyleSheet(f"""
-            QPushButton#filter_adv_toggle {{
-                background: transparent;
-                color: {tk.t2};
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton#filter_adv_toggle:hover {{
-                background: {_rgba(tk.blue, '10')};
-                color: {tk.blue};
-            }}
-            QPushButton#filter_adv_toggle:checked {{
-                background: {_rgba(tk.blue, '15')};
-                color: {tk.blue};
-            }}
-        """)
-        row.addWidget(self._adv_toggle, stretch=0)
+        # Category
+        self._category = QComboBox()
+        self._category.setObjectName("filter_combo")
+        self._category.setFixedHeight(_H)
+        self._populate_categories()
+        row.addWidget(self._category)
 
-        # ── Reset Button (subtle, active when filters set) ───
-        self._reset_btn = QPushButton()
-        self._reset_btn.setObjectName("filter_reset_btn")
-        self._reset_btn.setText(t("filter_reset"))
-        self._reset_btn.setMinimumHeight(38)
-        self._reset_btn.setMaximumHeight(38)
+        row.addStretch()
+
+        # Reset (visible text button)
+        self._reset_btn = QPushButton(t("filter_reset"))
+        self._reset_btn.setObjectName("btn_ghost")
+        self._reset_btn.setFixedHeight(_H)
         self._reset_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._reset_btn.setStyleSheet(f"""
-            QPushButton#filter_reset_btn {{
-                background: transparent;
-                color: {tk.t2};
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 12px;
-                font-weight: 600;
-            }}
-            QPushButton#filter_reset_btn:hover {{
-                background: {_rgba(tk.red, '10')};
-                color: {tk.red};
-            }}
-            QPushButton#filter_reset_btn:pressed {{
-                background: {_rgba(tk.red, '20')};
-            }}
-        """)
-        row.addWidget(self._reset_btn, stretch=0)
+        row.addWidget(self._reset_btn)
 
-        # ── Active Filter Count Badge ───────────────────────
+        layout.addLayout(row)
+
+        # ── Hidden advanced toggle (keep for compat but not shown) ──
+        self._adv_toggle = QPushButton()
+        self._adv_toggle.hide()
+        self._adv_toggle.setCheckable(True)
+
+        # ── Active filter count badge (hidden — for compat) ──
         self._count_badge = QLabel()
-        self._count_badge.setObjectName("filter_count_badge")
-        font = QFont()
-        font.setPointSize(10)
-        font.setWeight(QFont.Weight.Bold)
-        self._count_badge.setFont(font)
-        self._count_badge.setStyleSheet(f"""
-            QLabel#filter_count_badge {{
-                background: {_rgba(tk.blue, '25')};
-                color: {tk.blue};
-                border-radius: 12px;
-                padding: 4px 10px;
-                min-width: 32px;
-                text-align: center;
-            }}
-        """)
-        self._count_badge.setMinimumHeight(24)
-        self._count_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._count_badge.hide()
-        row.addWidget(self._count_badge, stretch=0)
 
-        layout.addWidget(container)
-
-        # ── Advanced filter row (collapsible) ──────────────────
+        # ── Hidden advanced frame (for compat) ──
         self._adv_frame = QFrame()
-        self._adv_frame.setObjectName("filter_adv_container")
-        self._adv_frame.setStyleSheet(f"""
-            QFrame#filter_adv_container {{
-                background: {tk.card};
-                border: 1px solid {tk.border};
-                border-radius: 10px;
-                margin-top: 6px;
-            }}
-        """)
         self._adv_frame.hide()
 
-        adv_row = QHBoxLayout(self._adv_frame)
-        adv_row.setContentsMargins(16, 10, 16, 10)
-        adv_row.setSpacing(0)
-
-        # ── Category group ──
-        cat_group = QHBoxLayout()
-        cat_group.setSpacing(8)
-
-        cat_lbl = QLabel(t("filter_category_label"))
-        cat_lbl.setObjectName("filter_adv_label")
-        cat_lbl.setStyleSheet(f"""
-            color: {tk.t2}; font-size: 12px; font-weight: 600;
-        """)
-        cat_group.addWidget(cat_lbl)
-        self._cat_lbl = cat_lbl
-
-        self._category = QComboBox()
-        self._category.setObjectName("filter_cat_combo")
-        self._category.setMinimumWidth(150)
-        self._category.setMinimumHeight(36)
-        self._category.setMaximumHeight(36)
-        self._populate_categories()
-        self._style_combo(self._category)
-        cat_group.addWidget(self._category)
-
-        adv_row.addLayout(cat_group)
-        adv_row.addSpacing(24)
-
-        # ── Separator ──
-        sep = QFrame()
-        sep.setFrameShape(QFrame.Shape.VLine)
-        sep.setStyleSheet(f"color: {tk.border};")
-        sep.setFixedHeight(28)
-        adv_row.addWidget(sep)
-        adv_row.addSpacing(24)
-
-        # ── Price range group ──
-        price_group = QHBoxLayout()
-        price_group.setSpacing(8)
-
-        price_lbl = QLabel(t("filter_price_label"))
-        price_lbl.setObjectName("filter_adv_price_label")
-        price_lbl.setStyleSheet(f"""
-            color: {tk.t2}; font-size: 12px; font-weight: 600;
-        """)
-        price_group.addWidget(price_lbl)
-        self._price_lbl = price_lbl
-
-        spin_style = f"""
-            QDoubleSpinBox {{
-                background: {tk.card2};
-                color: {tk.t1};
-                border: 1px solid {tk.border};
-                border-radius: 6px;
-                padding: 4px 10px;
-                font-size: 12px;
-            }}
-            QDoubleSpinBox:focus {{
-                border: 2px solid {tk.blue};
-            }}
-        """
-
+        # ── Price range (hidden spinboxes — for compat with get_filters) ──
         self._price_min = QDoubleSpinBox()
         self._price_min.setRange(0, 99999)
         self._price_min.setValue(0)
         self._price_min.setDecimals(0)
-        self._price_min.setPrefix(t("filter_price_from") + " ")
-        self._price_min.setSpecialValueText(t("filter_price_min"))
-        self._price_min.setMinimumHeight(36)
-        self._price_min.setMaximumHeight(36)
-        self._price_min.setMinimumWidth(120)
-        self._price_min.setStyleSheet(spin_style)
-        price_group.addWidget(self._price_min)
-
-        dash_lbl = QLabel("–")
-        dash_lbl.setStyleSheet(f"color: {tk.t3}; font-size: 16px; font-weight: 600;")
-        dash_lbl.setFixedWidth(16)
-        dash_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        price_group.addWidget(dash_lbl)
+        self._price_min.hide()
 
         self._price_max = QDoubleSpinBox()
         self._price_max.setRange(0, 99999)
         self._price_max.setValue(0)
         self._price_max.setDecimals(0)
-        self._price_max.setPrefix(t("filter_price_to") + " ")
-        self._price_max.setSpecialValueText(t("filter_price_max"))
-        self._price_max.setMinimumHeight(36)
-        self._price_max.setMaximumHeight(36)
-        self._price_max.setMinimumWidth(120)
-        self._price_max.setStyleSheet(spin_style)
-        price_group.addWidget(self._price_max)
-
-        adv_row.addLayout(price_group)
-        adv_row.addStretch()
-
-        layout.addWidget(self._adv_frame)
+        self._price_max.hide()
 
     def _populate_categories(self) -> None:
         """Populate category dropdown from database."""
@@ -337,22 +157,19 @@ class FilterBar(QWidget):
                 background: {tk.card2};
                 color: {tk.t1};
                 border: 1px solid {tk.border};
-                border-radius: 8px;
-                padding: 6px 12px;
+                border-radius: 6px;
+                padding: 4px 10px;
                 font-size: 12px;
-                font-family: "Segoe UI", "Helvetica", sans-serif;
             }}
             QComboBox:hover {{
                 border: 1px solid {tk.blue};
-                background: {_rgba(tk.card2, '80')};
             }}
             QComboBox:focus {{
-                border: 2px solid {tk.blue};
-                padding: 5px 11px;
+                border: 1px solid {tk.blue};
             }}
             QComboBox::drop-down {{
                 border: none;
-                width: 24px;
+                width: 20px;
                 image: none;
             }}
             QComboBox::down-arrow {{
@@ -473,15 +290,8 @@ class FilterBar(QWidget):
 
     def retranslate(self) -> None:
         """Update all text for language change. Called from main_window."""
-        self._search.setPlaceholderText(f"🔍 {t('filter_search_placeholder')}")
+        self._search.setPlaceholderText(t("filter_search_placeholder"))
         self._reset_btn.setText(t("filter_reset"))
-        self._adv_toggle.setText(t("filter_advanced"))
-        self._cat_lbl.setText(t("filter_category_label"))
-        self._price_lbl.setText(t("filter_price_label"))
-        self._price_min.setPrefix(t("filter_price_from") + " ")
-        self._price_min.setSpecialValueText(t("filter_price_min"))
-        self._price_max.setPrefix(t("filter_price_to") + " ")
-        self._price_max.setSpecialValueText(t("filter_price_max"))
 
         for combo, data_attr, populate_fn in [
             (self._status, "currentData", self._populate_status),

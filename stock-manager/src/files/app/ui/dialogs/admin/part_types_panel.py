@@ -292,6 +292,41 @@ class PartTypesPanel(QWidget):
         self._clr_data: list[dict] = []
         outer.addWidget(color_card)
 
+        # ── Per-model colors card ──
+        mc_card = QFrame()
+        mc_card.setObjectName("admin_form_card")
+        mc_lay = QVBoxLayout(mc_card)
+        mc_lay.setContentsMargins(16, 12, 16, 12)
+        mc_lay.setSpacing(6)
+
+        mc_hdr_row = QHBoxLayout()
+        self._mc_hdr = QLabel("MODEL COLORS")
+        self._mc_hdr.setObjectName("admin_form_card_title")
+        mc_hdr_row.addWidget(self._mc_hdr)
+        mc_hdr_row.addStretch()
+        mc_lay.addLayout(mc_hdr_row)
+
+        self._mc_hint = QLabel("Select a part type to manage per-model colors")
+        self._mc_hint.setObjectName("admin_form_card_desc")
+        mc_lay.addWidget(self._mc_hint)
+
+        self._mc_table = QTableWidget(0, 2)
+        self._mc_table.setHorizontalHeaderLabels(["MODEL", "COLORS"])
+        mh = self._mc_table.horizontalHeader()
+        mh.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        mh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self._mc_table.setColumnWidth(0, 200)
+        self._mc_table.verticalHeader().setVisible(False)
+        self._mc_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self._mc_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self._mc_table.setAlternatingRowColors(True)
+        self._mc_table.setMinimumHeight(200)
+        self._mc_table.cellDoubleClicked.connect(self._on_mc_dbl_click)
+        self._mc_model_ids: list[int] = []
+        self._mc_model_names: list[str] = []
+        mc_lay.addWidget(self._mc_table, 1)
+        outer.addWidget(mc_card)
+
         # ── Bottom: Barcodes for selected part type ──
         btm_card = QFrame()
         btm_card.setObjectName("admin_form_card")
@@ -358,6 +393,7 @@ class PartTypesPanel(QWidget):
     def _on_pt_select(self) -> None:
         pt = self._current_pt()
         self._refresh_colors(pt)
+        self._refresh_model_colors(pt)
         self._refresh_barcodes(pt)
 
     def _update_kpis(self) -> None:
@@ -703,6 +739,254 @@ class PartTypesPanel(QWidget):
         _cat_repo.remove_pt_color(color_id)
         if pt:
             self._refresh_colors(pt)
+
+    # ── Per-model colors ─────────────────────────────────────────────────────
+
+    def _refresh_model_colors(self, pt: PartTypeConfig | None) -> None:
+        """Show models that have items for this part type, with their color overrides."""
+        self._mc_table.setRowCount(0)
+        self._mc_model_ids.clear()
+        self._mc_model_names.clear()
+
+        if not pt or not self._cat:
+            self._mc_hdr.setText("MODEL COLORS")
+            self._mc_hint.setText("Select a part type to manage per-model colors")
+            self._mc_hint.show()
+            return
+
+        self._mc_hdr.setText(f"MODEL COLORS — {pt.name}  (double-click to edit)")
+
+        # Only get models that have inventory items for this part type
+        from app.core.database import get_connection
+        with get_connection() as conn:
+            models = conn.execute(
+                "SELECT DISTINCT pm.id, pm.name FROM phone_models pm "
+                "JOIN inventory_items ii ON ii.model_id = pm.id "
+                "WHERE ii.part_type_id = ? "
+                "ORDER BY pm.sort_order, pm.name",
+                (pt.id,),
+            ).fetchall()
+
+        if not models:
+            self._mc_hint.setText("No models found for this part type")
+            self._mc_hint.show()
+            return
+        self._mc_hint.hide()
+
+        # Global colors for this part type
+        global_colors = [c["color_name"] for c in _cat_repo.get_pt_colors(pt.id)]
+        tk = THEME.tokens
+
+        for model in models:
+            mid = model["id"]
+            mname = model["name"]
+
+            override = _cat_repo.get_model_pt_colors(mid, pt.id)
+            if override:
+                color_text = ", ".join(override)
+                is_custom = True
+            else:
+                color_text = ", ".join(global_colors) if global_colors else "—"
+                is_custom = False
+
+            row = self._mc_table.rowCount()
+            self._mc_table.insertRow(row)
+            self._mc_model_ids.append(mid)
+            self._mc_model_names.append(mname)
+
+            # Model name
+            name_it = QTableWidgetItem(mname)
+            name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            self._mc_table.setItem(row, 0, name_it)
+
+            # Colors display
+            clr_it = QTableWidgetItem(color_text)
+            clr_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            if is_custom:
+                clr_it.setForeground(QColor(tk.green))
+            else:
+                clr_it.setForeground(QColor(tk.t3))
+            self._mc_table.setItem(row, 1, clr_it)
+            self._mc_table.setRowHeight(row, 36)
+
+    def _on_mc_dbl_click(self, row: int, _col: int) -> None:
+        if row < len(self._mc_model_ids):
+            self._edit_model_colors(self._mc_model_ids[row], self._mc_model_names[row])
+
+    def _edit_model_colors(self, model_id: int, model_name: str) -> None:
+        """Open the same color toggle popup as the matrix right-click."""
+        pt = self._current_pt()
+        if not pt or not self._cat:
+            return
+
+        # Get all global colors for this part type
+        all_colors = _cat_repo.get_pt_colors(pt.id)
+        if not all_colors:
+            QMessageBox.information(self, "Colors", "No colors defined for this part type.")
+            return
+
+        # Get current per-model override (empty = use all global)
+        current = set(_cat_repo.get_model_pt_colors(model_id, pt.id))
+        use_all = len(current) == 0
+
+        _ALL_HEX = {
+            "Black": "#333333", "Blue": "#2563EB", "Silver": "#A0A0B0",
+            "Gold": "#D4A520", "Green": "#10B981", "Purple": "#8B5CF6",
+            "White": "#E0E0E0", "Red": "#EF4444", "Pink": "#EC4899",
+            "Yellow": "#F59E0B", "Orange": "#F97316",
+        }
+
+        tk = THEME.tokens
+        dlg = QDialog(self)
+        dlg.setWindowTitle(f"{model_name} — Colors")
+        dlg.setMinimumWidth(360)
+        THEME.apply(dlg)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(20, 20, 20, 16)
+        lay.setSpacing(12)
+
+        hdr = QLabel(f"{model_name}")
+        hdr.setObjectName("dlg_header")
+        lay.addWidget(hdr)
+
+        hint = QLabel("Select which colors this model should have:")
+        hint.setStyleSheet(f"font-size:12px; color:{tk.t3};")
+        lay.addWidget(hint)
+
+        # Color toggle buttons
+        grid = QHBoxLayout()
+        grid.setSpacing(8)
+        selected: dict[str, bool] = {}
+        btn_map: dict[str, QPushButton] = {}
+
+        for clr in all_colors:
+            name = clr["color_name"]
+            hex_val = _ALL_HEX.get(name, "#888888")
+            is_on = use_all or name in current
+            selected[name] = is_on
+            btn = QPushButton()
+            btn.setFixedSize(44, 44)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setToolTip(name)
+            btn_map[name] = btn
+
+            def _toggle(_, c=name, b=btn, h=hex_val):
+                selected[c] = not selected[c]
+                is_light = QColor(h).lightness() > 180
+                brd = "#666" if is_light else "transparent"
+                if selected[c]:
+                    b.setStyleSheet(
+                        f"QPushButton {{ background:{h}; border:3px solid {tk.green}; border-radius:8px; }}"
+                    )
+                else:
+                    b.setStyleSheet(
+                        f"QPushButton {{ background:{h}; border:2px solid {brd}; border-radius:8px; }}"
+                        f"QPushButton:hover {{ border:3px solid {tk.green}; }}"
+                    )
+
+            is_light = QColor(hex_val).lightness() > 180
+            brd = "#666" if is_light else "transparent"
+            if is_on:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background:{hex_val}; border:3px solid {tk.green}; border-radius:8px; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background:{hex_val}; border:2px solid {brd}; border-radius:8px; }}"
+                    f"QPushButton:hover {{ border:3px solid {tk.green}; }}"
+                )
+            btn.clicked.connect(_toggle)
+            grid.addWidget(btn)
+
+        grid.addStretch()
+        lay.addLayout(grid)
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+
+        sel_all = QPushButton("Select All")
+        sel_all.setObjectName("btn_ghost")
+        sel_all.setFixedHeight(32)
+        def _select_all():
+            for c in selected:
+                selected[c] = True
+                b = btn_map[c]
+                h = _ALL_HEX.get(c, "#888888")
+                b.setStyleSheet(
+                    f"QPushButton {{ background:{h}; border:3px solid {tk.green}; border-radius:8px; }}"
+                )
+        sel_all.clicked.connect(_select_all)
+        btn_row.addWidget(sel_all)
+
+        reset_btn = QPushButton("Use Default")
+        reset_btn.setObjectName("btn_ghost")
+        reset_btn.setFixedHeight(32)
+        def _reset():
+            all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]
+            for ptid in all_pt_ids:
+                _cat_repo.clear_model_pt_colors(model_id, ptid)
+            from app.core.database import ensure_matrix_entries
+            ensure_matrix_entries()
+            dlg.accept()
+            self._refresh_model_colors(pt)
+        reset_btn.clicked.connect(_reset)
+        btn_row.addWidget(reset_btn)
+        btn_row.addStretch()
+
+        cancel = QPushButton(t("op_cancel"))
+        cancel.setObjectName("btn_ghost")
+        cancel.setFixedHeight(32)
+        cancel.clicked.connect(dlg.reject)
+        btn_row.addWidget(cancel)
+
+        confirm = QPushButton("Save")
+        confirm.setObjectName("btn_primary")
+        confirm.setFixedHeight(32)
+        def _save():
+            chosen = [c for c, v in selected.items() if v]
+            from app.core.database import get_connection
+            chosen_set = set(chosen)
+            all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]
+            with get_connection() as conn:
+                for ptid in all_pt_ids:
+                    conn.execute(
+                        "DELETE FROM model_part_type_colors WHERE model_id=? AND part_type_id=?",
+                        (model_id, ptid),
+                    )
+                    for name in chosen:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO model_part_type_colors "
+                            "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                            (model_id, ptid, name),
+                        )
+                    rows = conn.execute(
+                        "SELECT id, color FROM inventory_items "
+                        "WHERE model_id=? AND part_type_id=? AND color != ''",
+                        (model_id, ptid),
+                    ).fetchall()
+                    for row in rows:
+                        if row["color"] not in chosen_set:
+                            conn.execute(
+                                "DELETE FROM inventory_items WHERE id=? "
+                                "AND stock=0 AND min_stock=0 "
+                                "AND (inventur IS NULL OR inventur=0)",
+                                (row["id"],),
+                            )
+                    for name in chosen:
+                        conn.execute(
+                            "INSERT OR IGNORE INTO inventory_items "
+                            "(model_id, part_type_id, color) VALUES (?,?,?)",
+                            (model_id, ptid, name),
+                        )
+            dlg.accept()
+            self._refresh_model_colors(pt)
+        confirm.clicked.connect(_save)
+        btn_row.addWidget(confirm)
+        lay.addLayout(btn_row)
+
+        dlg.exec()
 
     # ── CRUD ─────────────────────────────────────────────────────────────────
 

@@ -6,6 +6,7 @@ from PyQt6.QtGui import QFont, QIcon
 from PyQt6.QtCore import Qt
 from app.core.logger import get_logger
 from app.core.database import DB_PATH
+from app.core.version import APP_VERSION
 
 _log = get_logger(__name__)
 
@@ -24,6 +25,14 @@ def _handle_exception(exc_type, exc_value, exc_traceback):
     _log.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
+def _qt_message_handler(msg_type, context, msg):
+    """Suppress harmless Qt warnings (QFont pointSize=-1)."""
+    if "QFont::setPointSize" in msg:
+        return  # suppress — cosmetic Qt quirk with pixel-based CSS fonts
+    # Let everything else through to stderr
+    sys.stderr.write(f"{msg}\n")
+
+
 def main():
     # ── Initialize logging ──────────────────────────────────────────────────
     frozen = getattr(sys, "frozen", False)
@@ -33,6 +42,9 @@ def main():
 
     sys.excepthook = _handle_exception
 
+    from PyQt6.QtCore import qInstallMessageHandler
+    qInstallMessageHandler(_qt_message_handler)
+
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
@@ -40,14 +52,14 @@ def main():
     app.setApplicationName("Stock Manager Pro")
     app.setApplicationDisplayName("Stock Manager Pro")
     app.setOrganizationName("StockPro")
-    app.setApplicationVersion("2.0.0")
+    app.setApplicationVersion(APP_VERSION)
 
     font = QFont("Segoe UI", 10)
     font.setHintingPreference(QFont.HintingPreference.PreferFullHinting)
     font.setWeight(QFont.Weight.Normal)
     app.setFont(font)
 
-    icon = QIcon(_icon_path("icon_logo.ico"))
+    icon = QIcon(_icon_path("icon_cube.ico"))
     app.setWindowIcon(icon)
 
     # ── Splash screen ────────────────────────────────────────────────────────

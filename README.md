@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="files/img/logo.png" alt="Stock Manager Pro" width="80"/>
+<img src="stock-manager/src/files/img/icon_cube.png" alt="Stock Manager Pro" width="80"/>
 
 # Stock Manager Pro
 
@@ -10,9 +10,9 @@ Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
-[![SQLite](https://img.shields.io/badge/SQLite-Schema_V12-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
+[![SQLite](https://img.shields.io/badge/SQLite-Schema_V14-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.3.0-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.2-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Architecture](#-architecture) · [Project Structure](#-project-structure) · [Contributing](#-contributing)
@@ -55,9 +55,14 @@ Stock Manager Pro is a professional, fully offline desktop inventory management 
 ### Platform
 - **Zero-freeze UI** — every DB operation runs off the main thread via `WorkerPool`
 - **Multilingual** — English, German (DE), Arabic (AR) with live switching and full RTL layout
-- **Four themes** — Dark, Light, Pro Dark (emerald/charcoal), Pro Light (emerald/white)
-- **Auto-updater** — manifest-based version check with download progress
-- **Auto-backup** — 5-minute scheduled backup with configurable retention
+- **Four themes** — Dark, Light, Pro Dark (emerald/charcoal), Pro Light (emerald/white) — toggle updates all components
+- **Excel-like zoom** — Ctrl+Scroll / Ctrl+Plus/Minus zoom (50-200%) with footer slider
+- **Sticky model column** — frozen model names when scrolling horizontally in matrix view
+- **Per-model colours** — assign different product colours per model+part-type combination
+- **Series separators** — visual dividers between model series (X-series, 11-series, A0x, A1x, S2x)
+- **Auto-updater** — manifest-based version check with SHA256 verification, CI/CD auto-release via PR
+- **Auto-backup** — scheduled backup with configurable retention
+- **Optimised database** — thread-local connection pool, batch inserts, performance indexes, tuned pragmas
 - **Undo transactions** — reverse any IN/OUT/ADJUST operation
 - **30+ pytest modules** — in-memory SQLite fixtures, full migration chain tested
 - **Offline & private** — SQLite WAL, no telemetry, no cloud sync
@@ -144,7 +149,7 @@ Process returns with RESTOCK or WRITE_OFF actions. Automatically reverses the or
 ---
 
 ### Admin Panel — About
-Live system info including schema version (V12), DB size, Python and PyQt6 build details, and an interactive Update Banner preview.
+Live system info including schema version (V14), DB size, Python and PyQt6 build details, and an interactive Update Banner preview.
 
 ![Admin About](files/img/scr-admin-about.png)
 
@@ -266,7 +271,7 @@ Build time ~3–5 minutes. Output ~180 MB (includes Python runtime, PyQt6, all d
 ├──────────────────────────────────────────────────────────────┤
 │  Core Layer  —  app/core/                                    │
 │  Database · Theme · i18n · Config · Logger · Colors         │
-│  SQLite WAL · Schema V12 · 22 tables                        │
+│  SQLite WAL · Schema V14 · 23 tables                        │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -299,9 +304,9 @@ QTimer.singleShot(0, lambda: self._apply_ss(root, stylesheet))
 | `BulkOpsController` | Bulk edit, bulk price change |
 | `InventoryOpsController` | Inventory filter, selection, detail bar sync |
 
-### Database — Schema V12
+### Database — Schema V14
 
-Full automatic migration chain from V1 through V12 runs on every startup:
+Full automatic migration chain from V1 through V14 runs on every startup:
 
 | Migration | What was added |
 |---|---|
@@ -315,8 +320,10 @@ Full automatic migration chain from V1 through V12 runs on every startup:
 | V10 | `customers` table; `customer_id` FK on `sales` |
 | V11 | `purchase_orders`, `purchase_order_lines`, `returns` |
 | V12 | `suppliers` with rating; `supplier_items`; `inventory_audits`; `audit_lines`; `price_lists`; `price_list_items` |
+| V13 | `model_part_type_colors` — per-model product colour overrides |
+| V14 | Performance indexes on `inventory_items` (active, stock, model+pt, model+pt+color) |
 
-**22 tables total:** `app_config`, `categories`, `part_types`, `phone_models`, `part_type_colors`, `inventory_items`, `inventory_transactions`, `suppliers`, `supplier_items`, `locations`, `location_stock`, `stock_transfers`, `customers`, `sales`, `sale_items`, `purchase_orders`, `purchase_order_lines`, `returns`, `inventory_audits`, `audit_lines`, `price_lists`, `price_list_items`
+**23 tables total:** `app_config`, `categories`, `part_types`, `phone_models`, `part_type_colors`, `model_part_type_colors`, `inventory_items`, `inventory_transactions`, `suppliers`, `supplier_items`, `locations`, `location_stock`, `stock_transfers`, `customers`, `sales`, `sale_items`, `purchase_orders`, `purchase_order_lines`, `returns`, `inventory_audits`, `audit_lines`, `price_lists`, `price_list_items`
 
 ---
 
@@ -559,6 +566,9 @@ PyInstaller==6.19.0
 | Delete product | `Del` |
 | Generate barcode | `Ctrl+B` |
 | Export PDF report | `Ctrl+P` |
+| Zoom in | `Ctrl+=` or `Ctrl+Scroll Up` |
+| Zoom out | `Ctrl+-` or `Ctrl+Scroll Down` |
+| Reset zoom | `Ctrl+0` |
 | Admin settings | `Ctrl+Alt+A` |
 | Force refresh | `F5` |
 
@@ -598,7 +608,7 @@ Access: `Ctrl+Alt+A` · or the ⚙ icon in the header bar
 | **Suppliers** | Supplier CRUD in admin context |
 | **Locations** | Warehouse bin / shelf location management |
 | **Customers** | Customer profile management |
-| **About** | App version, schema V12, DB size, OS info, update check |
+| **About** | App version, schema V14, DB size, OS info, update check |
 
 ---
 
@@ -659,12 +669,13 @@ pytest tests/ -v
 
 **Adding a new feature:**
 1. Model → `app/models/`
-2. Migration → `app/core/database.py` (V13+)
+2. Migration → `app/core/database.py` (V14+)
 3. Repository → `app/repositories/`
 4. Service → `app/services/`
 5. UI → `app/ui/pages/` or `app/ui/dialogs/`
 6. Translations → `app/core/i18n.py` (EN + DE + AR)
 7. Wire into `main_window.py` via the appropriate controller
+8. Tag + push → GitHub Actions builds, signs, and releases automatically
 
 ---
 
@@ -686,7 +697,47 @@ The async engine ensures the UI never blocks regardless of database size. If you
 
 ## 📈 Version History
 
-### v2.3.0 — April 2026 (current)
+### v2.3.4 — April 2026 (current)
+
+**Matrix & Navigation:**
+- Sticky frozen model column when scrolling horizontally
+- Part-type banner bar above column headers
+- Excel-like zoom (50-200%) with Ctrl+Scroll, footer slider, auto-reset on page switch
+- Per-model product colours — right-click model or Admin → Part Types → Model Colors
+- Series separators between model groups (X-series, A0x, A1x, S2x)
+- Collapsible matrix toolbar (inventory-style section header)
+- Auto-fit model column width to longest name
+
+**UI & UX:**
+- Professional splash screen with geometric cube icon + dynamic version badge
+- Custom isometric cube app icon (.ico multi-resolution + .png)
+- Slim dropdown style across entire app (minimal bottom-line, no box borders)
+- Compact filter bar (26px, inline category, icon reset)
+- Full actions toolbar (New Product, Export, Import, Report, Bulk Edit, Refresh)
+- Live clock in footer bar
+- Quick +1/-1 now shows undo toast and updates detail bar instantly
+- Model reorder buttons (up/down) in Admin → Models panel
+
+**Performance:**
+- Thread-local connection pooling (reuses connections per thread)
+- Optimised SQLite pragmas (synchronous=NORMAL, cache_size=20MB, temp_store=MEMORY)
+- 5 new performance indexes on inventory_items (Schema V14)
+- Batch INSERT via executemany() in ensure_matrix_entries (10-50x faster)
+- Matrix rendering: pre-indexed item_map O(1) lookup + setUpdatesEnabled
+- Deferred health checks to background thread
+- Lazy theme loading (only active theme QSS at startup)
+
+**Update Pipeline:**
+- Theme toggle now persists to database (no revert on admin close)
+- UAC rejection detection — app stays open if user cancels
+- Download cancel button + persistent installer cache
+- Pre-release version parsing, manifest validation, min_version enforcement
+- CI/CD: release branch → PR → auto-merge to main with retry
+- CI: auto-stamps version.py, file_version_info.txt, .iss, README badge
+
+**Schema V14** — performance indexes + model_part_type_colors table
+
+### v2.3.0 — April 2026
 - Zero-freeze async engine via `WorkerPool` (QThreadPool + keyed cancellation)
 - `main_window.py` decomposed 2,263 → 572 lines via 7 controllers
 - Schema V12 with 22 tables — 7 new migration paths since v2.2

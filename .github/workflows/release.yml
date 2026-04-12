@@ -121,6 +121,79 @@ jobs:
           with open(path, "w", encoding="utf-8") as f:
               f.write(content)
 
+      # ── 6b. Stamp version into source files ──────────────────────────────────
+      - name: Stamp version into source files
+        shell: python
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          import re, os
+
+          version = os.environ["VERSION"]
+          parts = [int(x) for x in version.split(".")]
+          while len(parts) < 4:
+              parts.append(0)
+
+          # 1. version.py — single source of truth for runtime
+          vpy = "stock-manager/src/files/app/core/version.py"
+          with open(vpy, "r", encoding="utf-8") as f:
+              content = f.read()
+          content = re.sub(
+              r'APP_VERSION\s*=\s*".*?"',
+              f'APP_VERSION = "{version}"',
+              content,
+          )
+          with open(vpy, "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Stamped {vpy} -> {version}")
+
+          # 2. file_version_info.txt — Windows PE resource
+          fvi = "stock-manager/src/installer/file_version_info.txt"
+          with open(fvi, "r", encoding="utf-8") as f:
+              content = f.read()
+          tup = f"({parts[0]}, {parts[1]}, {parts[2]}, {parts[3]})"
+          content = re.sub(r"filevers=\(.*?\)", f"filevers={tup}", content)
+          content = re.sub(r"prodvers=\(.*?\)", f"prodvers={tup}", content)
+          content = re.sub(
+              r"StringStruct\(u'FileVersion',\s*u'.*?'\)",
+              f"StringStruct(u'FileVersion',      u'{version}.0')",
+              content,
+          )
+          content = re.sub(
+              r"StringStruct\(u'ProductVersion',\s*u'.*?'\)",
+              f"StringStruct(u'ProductVersion',   u'{version}')",
+              content,
+          )
+          with open(fvi, "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Stamped {fvi} -> {tup}")
+
+          # 3. StockManagerPro.iss — installer source version
+          iss = "stock-manager/src/installer/StockManagerPro.iss"
+          with open(iss, "r", encoding="utf-8") as f:
+              content = f.read()
+          content = re.sub(
+              r'#define AppVersion ".*?"',
+              f'#define AppVersion "{version}"',
+              content,
+          )
+          with open(iss, "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Stamped {iss} -> {version}")
+
+          # 4. README.md — version badge
+          readme = "README.md"
+          with open(readme, "r", encoding="utf-8") as f:
+              content = f.read()
+          content = re.sub(
+              r"Version-[\d.]+-10B981",
+              f"Version-{version}-10B981",
+              content,
+          )
+          with open(readme, "w", encoding="utf-8") as f:
+              f.write(content)
+          print(f"Stamped {readme} -> {version}")
+
       # ── 7. PyInstaller build ─────────────────────────────────────────────────
       - name: Build with PyInstaller
         working-directory: stock-manager/src
@@ -183,16 +256,97 @@ jobs:
               json.dump(manifest, f, indent=2)
               f.write("\n")
 
-      # ── 11. Commit changelog + manifest back to main ──────────────────────────
-      - name: Commit release artifacts
+      # ── 11. Push stamped files to release branch ─────────────────────────────
+      - name: Create release branch
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md stock-manager/update_manifest.json
+
+          # The CI checked out a tag (detached HEAD), which may be on dev,
+          # not main. We push stamped files to a release branch, then merge
+          # into main — the standard release workflow used by most teams.
+
+          RELEASE_BRANCH="release/v${VERSION}"
+          RELEASE_FILES=(
+            CHANGELOG.md
+            README.md
+            stock-manager/update_manifest.json
+            stock-manager/src/files/app/core/version.py
+            stock-manager/src/installer/file_version_info.txt
+            stock-manager/src/installer/StockManagerPro.iss
+          )
+
+          # Save stamped files to a temp directory
+          TMPDIR=$(mktemp -d)
+          for f in "${RELEASE_FILES[@]}"; do
+            if [ -f "$f" ]; then
+              mkdir -p "$TMPDIR/$(dirname "$f")"
+              cp "$f" "$TMPDIR/$f"
+            fi
+          done
+
+          # Create release branch from origin/main
+          git fetch origin main
+          git checkout -B "$RELEASE_BRANCH" origin/main
+
+          # Copy stamped files onto main's tree
+          for f in "${RELEASE_FILES[@]}"; do
+            if [ -f "$TMPDIR/$f" ]; then
+              mkdir -p "$(dirname "$f")"
+              cp "$TMPDIR/$f" "$f"
+            fi
+          done
+          rm -rf "$TMPDIR"
+
+          git add "${RELEASE_FILES[@]}"
           git diff --cached --quiet && echo "Nothing to commit" && exit 0
-          git commit -m "chore: release v${{ steps.version.outputs.VERSION }} — stamp changelog & manifest"
-          git push origin HEAD:main
+          git commit -m "chore: release v${VERSION} — stamp changelog, manifest & version files"
+
+          # Push release branch
+          git push origin "$RELEASE_BRANCH" --force
+          echo "Release branch pushed: $RELEASE_BRANCH"
+
+      # ── 11b. Create PR and auto-merge release → main ─────────────────────────
+      - name: Create and merge release PR
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_BRANCH="release/v${VERSION}"
+
+          # Create the PR
+          PR_URL=$(gh pr create \
+            --base main \
+            --head "$RELEASE_BRANCH" \
+            --title "Release v${VERSION}" \
+            --body "## Release v${VERSION}
+
+          Automated release PR — stamps version files, changelog, and update manifest.
+
+          **Changes:**
+          - \`version.py\` → \`${VERSION}\`
+          - \`file_version_info.txt\` → \`${VERSION}\`
+          - \`StockManagerPro.iss\` → \`${VERSION}\`
+          - \`README.md\` version badge → \`${VERSION}\`
+          - \`CHANGELOG.md\` — \[Unreleased\] stamped
+          - \`update_manifest.json\` — download URL + SHA256
+
+          ---
+          *Auto-generated by the release pipeline.*")
+
+          echo "PR created: $PR_URL"
+
+          # Auto-merge the PR (merge commit for clean history)
+          gh pr merge "$RELEASE_BRANCH" \
+            --merge \
+            --auto \
+            --subject "chore: release v${VERSION} (#$(gh pr view "$RELEASE_BRANCH" --json number -q .number))" \
+            --delete-branch
+
+          echo "PR auto-merged and release branch deleted"
 
       # ── 12. Upload installer artifact ─────────────────────────────────────────
       - name: Upload installer artifact

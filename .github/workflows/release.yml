@@ -265,10 +265,6 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # The CI checked out a tag (detached HEAD), which may be on dev,
-          # not main. We push stamped files to a release branch, then merge
-          # into main — the standard release workflow used by most teams.
-
           RELEASE_BRANCH="release/v${VERSION}"
           RELEASE_FILES=(
             CHANGELOG.md
@@ -289,8 +285,10 @@ jobs:
           done
 
           # Create release branch from origin/main
+          # -f forces checkout even though previous steps modified files in the
+          # working tree — those files are already saved to TMPDIR above.
           git fetch origin main
-          git checkout -B "$RELEASE_BRANCH" origin/main
+          git checkout -fB "$RELEASE_BRANCH" origin/main
 
           # Copy stamped files onto main's tree
           for f in "${RELEASE_FILES[@]}"; do

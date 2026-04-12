@@ -157,10 +157,10 @@ def _part_type_bg(accent_hex: str, is_dark: bool) -> QColor:
         b = int(0.15 * c.blue()  + 0.85 * 15)
         return QColor(r, g, b)
     else:
-        # Blend accent into #FFFFFF base at 12%
-        r = int(0.12 * c.red()   + 0.88 * 255)
-        g = int(0.12 * c.green() + 0.88 * 255)
-        b = int(0.12 * c.blue()  + 0.88 * 255)
+        # Blend accent into #F5F5F5 base at 28% — strong enough to be visible on white
+        r = int(0.28 * c.red()   + 0.72 * 245)
+        g = int(0.28 * c.green() + 0.72 * 245)
+        b = int(0.28 * c.blue()  + 0.72 * 245)
         return QColor(r, g, b)
 
 
@@ -991,9 +991,9 @@ class FrozenMatrixContainer(QWidget):
                 g = int(0.30 * hdr_bg.green() + 0.70 * 15)
                 b = int(0.30 * hdr_bg.blue()  + 0.70 * 15)
             else:
-                r = int(0.25 * hdr_bg.red()   + 0.75 * 255)
-                g = int(0.25 * hdr_bg.green() + 0.75 * 255)
-                b = int(0.25 * hdr_bg.blue()  + 0.75 * 255)
+                r = int(0.35 * hdr_bg.red()   + 0.65 * 245)
+                g = int(0.35 * hdr_bg.green() + 0.65 * 245)
+                b = int(0.35 * hdr_bg.blue()  + 0.65 * 245)
 
             # Calculate actual pixel width from the data table's columns
             base = _base(ti)

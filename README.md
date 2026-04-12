@@ -339,7 +339,7 @@ Stock-manager/
         ├── requirements.txt
         ├── app/
         │   ├── core/
-        │   │   ├── database.py           # Schema V12, migrations V1→V12
+        │   │   ├── database.py           # Schema V14, migrations V1→V14
         │   │   ├── theme.py              # 4 themes, zero-freeze deferred apply
         │   │   ├── i18n.py               # EN / DE / AR translations
         │   │   ├── colors.py             # 24-colour PALETTE
@@ -435,7 +435,7 @@ Stock-manager/
         │       │   ├── reports_page.py
         │       │   └── barcode_gen_page.py
         │       │
-        │       ├── components/           # 22 reusable UI components
+        │       ├── components/           # 23 reusable UI components
         │       │   ├── dashboard_widget.py   # KPI summary cards
         │       │   ├── header_bar.py         # Glass search bar
         │       │   ├── footer_bar.py         # Status + filter hint
@@ -444,20 +444,21 @@ Stock-manager/
         │       │   ├── language_switcher.py  # Animated dropdown
         │       │   ├── update_banner.py      # Slide-in update panel
         │       │   ├── notification_panel.py # Alert counts + badge
+        │       │   ├── product_detail.py     # Product detail panel
         │       │   ├── product_detail_bar.py # Sparkline + quick actions
         │       │   ├── product_table.py      # Responsive columns
         │       │   ├── transaction_table.py
         │       │   ├── responsive_table.py
         │       │   ├── toast.py              # Floating notifications
         │       │   ├── loading_overlay.py
-        │       │   ├── splash_screen.py
+        │       │   ├── splash_screen.py      # Geometric cube + version badge
         │       │   ├── charts.py
         │       │   ├── empty_state.py
         │       │   ├── collapsible_section.py
         │       │   ├── mini_txn_list.py
         │       │   ├── barcode_line_edit.py
         │       │   ├── filter_bar.py
-        │       │   └── matrix_widget.py
+        │       │   └── matrix_widget.py      # Frozen col, zoom, per-model colors
         │       │
         │       ├── tabs/
         │       │   ├── matrix_tab.py
@@ -510,6 +511,14 @@ Stock-manager/
         │   └── … (30+ total)
         │
         └── img/                          # Screenshots & assets
+            ├── icon_cube.ico             # App icon (multi-resolution)
+            ├── icon_cube.png             # 256px isometric cube
+            ├── icon_cube_16.png
+            ├── icon_cube_32.png
+            ├── icon_cube_48.png
+            ├── icon_cube_64.png
+            ├── icon_cube_128.png
+            ├── icon_cube_256.png
             ├── scr-dashboard.png
             ├── scr-inventory-v2.png
             ├── scr-sales.png

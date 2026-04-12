@@ -220,13 +220,15 @@ class UpdateBanner(QFrame):
         self._download_btn.setEnabled(False)
         self._download_btn.setText(t("update_downloading"))
 
-        # Progress dialog (non-blocking via QProgressDialog)
+        # Progress dialog with cancel button
+        self._download_cancelled = False
         self._progress_dlg = QProgressDialog(
             t("update_downloading"),
-            None,    # no cancel button
+            t("op_cancel"),
             0, 100,
             self.window(),
         )
+        self._progress_dlg.canceled.connect(self._on_download_cancel)
         self._progress_dlg.setWindowTitle(t("update_available"))
         self._progress_dlg.setWindowModality(Qt.WindowModality.ApplicationModal)
         self._progress_dlg.setMinimumDuration(0)
@@ -263,21 +265,28 @@ class UpdateBanner(QFrame):
             self._download_btn.setEnabled(True)
             self._download_btn.setText(t("update_now"))
 
+    def _on_download_cancel(self) -> None:
+        self._download_cancelled = True
+        self._download_btn.setEnabled(True)
+        self._download_btn.setText(t("update_now"))
+        log.info("UpdateBanner: download cancelled by user")
+
     def _on_download_error(self, msg: str) -> None:
         self._progress_dlg.close()
         self._download_btn.setEnabled(True)
         self._download_btn.setText(t("update_now"))
-        QMessageBox.critical(
-            self.window(),
-            t("update_error"),
-            t("update_download_fail", reason=msg),
-        )
+        if not self._download_cancelled:
+            QMessageBox.critical(
+                self.window(),
+                t("update_error"),
+                t("update_download_fail", reason=msg),
+            )
         log.error("UpdateBanner: download failed: %s", msg)
 
     def _launch_installer(self) -> None:
-        """Launch the installer then quit the app."""
+        """Launch the installer then quit the app only if UAC was accepted."""
         try:
-            self._svc.launch_installer(self._installer_path)
+            success = self._svc.launch_installer(self._installer_path)
         except Exception as exc:
             QMessageBox.critical(
                 self.window(),
@@ -287,5 +296,10 @@ class UpdateBanner(QFrame):
             log.error("UpdateBanner: launch_installer failed: %s", exc)
             return
 
-        # Give the installer a moment to start, then quit
-        QTimer.singleShot(800, QApplication.quit)
+        if success:
+            # Installer is running — quit the app so it can upgrade
+            QTimer.singleShot(800, QApplication.quit)
+        else:
+            # UAC was rejected or launch failed — stay running
+            self._download_btn.setEnabled(True)
+            self._download_btn.setText(t("update_now"))

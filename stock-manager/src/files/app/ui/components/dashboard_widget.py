@@ -159,6 +159,10 @@ class DashboardWidget(QWidget):
 
     action_new_product = pyqtSignal()
     action_export = pyqtSignal()
+    action_import = pyqtSignal()
+    action_report = pyqtSignal()
+    action_bulk_edit = pyqtSignal()
+    action_refresh = pyqtSignal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -204,85 +208,50 @@ class DashboardWidget(QWidget):
         main_layout.addStretch()
 
     def _build_actions_bar(self, tk) -> QFrame:
-        """Build the compact quick actions bar."""
-        actions_container = QFrame()
-        actions_container.setObjectName("dashboard_actions")
-        actions_container.setStyleSheet(f"""
-            QFrame#dashboard_actions {{
-                background: {tk.card};
-                border: 1px solid {tk.border};
-                border-radius: 10px;
-                padding: 14px 16px;
-            }}
-        """)
+        """Build a sleek full toolbar with icon buttons."""
+        bar = QFrame()
+        bar.setObjectName("dashboard_actions")
 
-        actions_layout = QHBoxLayout(actions_container)
-        actions_layout.setContentsMargins(0, 0, 0, 0)
-        actions_layout.setSpacing(12)
+        lay = QHBoxLayout(bar)
+        lay.setContentsMargins(10, 0, 10, 0)
+        lay.setSpacing(6)
 
-        # New Product button (primary)
-        btn_new = QPushButton(f"➕ {t('dash_new_product')}")
-        btn_new.setMinimumHeight(38)
-        btn_new.setMaximumWidth(180)
-        btn_new.setStyleSheet(self._primary_button_style(tk))
-        btn_new.clicked.connect(self.action_new_product.emit)
-        actions_layout.addWidget(btn_new)
+        # Button specs: (icon, label, signal, style_name)
+        buttons = [
+            ("➕", t("dash_new_product"), self.action_new_product, "dash_btn_primary"),
+            ("📥", t("dash_export_csv"), self.action_export, "dash_btn"),
+            ("📤", t("dash_import") if t("dash_import") != "dash_import" else "Import", self.action_import, "dash_btn"),
+            ("📄", t("dash_report") if t("dash_report") != "dash_report" else "Report", self.action_report, "dash_btn"),
+            ("✏️", t("dash_bulk_edit") if t("dash_bulk_edit") != "dash_bulk_edit" else "Bulk Edit", self.action_bulk_edit, "dash_btn"),
+        ]
 
-        # Export CSV button (secondary)
-        btn_export = QPushButton(f"📥 {t('dash_export_csv')}")
-        btn_export.setMinimumHeight(38)
-        btn_export.setMaximumWidth(180)
-        btn_export.setStyleSheet(self._secondary_button_style(tk))
-        btn_export.clicked.connect(self.action_export.emit)
-        actions_layout.addWidget(btn_export)
+        self._action_btns: list[QPushButton] = []
+        for icon, label, signal, obj_name in buttons:
+            btn = QPushButton(f" {icon}  {label} ")
+            btn.setObjectName(obj_name)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.clicked.connect(signal.emit)
+            lay.addWidget(btn)
+            self._action_btns.append(btn)
 
-        # Stretch to push buttons to left
-        actions_layout.addStretch()
+        lay.addStretch()
 
-        return actions_container
+        # Keyboard hint
+        hint = QLabel("Ctrl+N")
+        hint.setStyleSheet(f"color:{tk.t4}; font-size:9px; background:transparent;")
+        lay.addWidget(hint)
 
-    def _primary_button_style(self, tk) -> str:
-        """Generate stylesheet for primary (blue) button."""
-        hover_color = "#2563EB" if tk.is_dark else "#1D4ED8"
-        return f"""
-            QPushButton {{
-                background: {tk.blue};
-                color: #FFFFFF;
-                border: none;
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 12px;
-                padding: 8px 16px;
-            }}
-            QPushButton:hover {{
-                background: {hover_color};
-            }}
-            QPushButton:pressed {{
-                background: {hover_color};
-                opacity: 0.9;
-            }}
-        """
+        lay.addSpacing(8)
 
-    def _secondary_button_style(self, tk) -> str:
-        """Generate stylesheet for secondary (outline) button."""
-        return f"""
-            QPushButton {{
-                background: {tk.card2};
-                color: {tk.t1};
-                border: 1px solid {tk.border2};
-                border-radius: 8px;
-                font-weight: 600;
-                font-size: 12px;
-                padding: 8px 16px;
-            }}
-            QPushButton:hover {{
-                background: {tk.border};
-                border-color: {tk.border2};
-            }}
-            QPushButton:pressed {{
-                background: {tk.border2};
-            }}
-        """
+        # Refresh button (right side)
+        btn_ref = QPushButton(f" 🔄  {t('tooltip_refresh')}  F5 ")
+        btn_ref.setObjectName("dash_btn")
+        btn_ref.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn_ref.clicked.connect(self.action_refresh.emit)
+        lay.addWidget(btn_ref)
+        self._action_btns.append(btn_ref)
+
+        return bar
 
     def update_data(self, summary: dict) -> None:
         """
@@ -383,12 +352,15 @@ class DashboardWidget(QWidget):
             self.update()  # single repaint for the whole dashboard
 
     def _rebuild_actions_buttons(self) -> None:
-        """Rebuild action buttons with new translations (internal helper)."""
-        container = self.findChild(QFrame, "dashboard_actions")
-        if not container:
-            return
-
-        buttons = container.findChildren(QPushButton)
-        if len(buttons) >= 2:
-            buttons[0].setText(f"➕ {t('dash_new_product')}")
-            buttons[1].setText(f"📥 {t('dash_export_csv')}")
+        """Rebuild action button labels with new translations."""
+        labels = [
+            f"➕  {t('dash_new_product')}",
+            f"📥  {t('dash_export_csv')}",
+            f"📤  {t('dash_import') if t('dash_import') != 'dash_import' else 'Import'}",
+            f"📄  {t('dash_report') if t('dash_report') != 'dash_report' else 'Report'}",
+            f"✏️  {t('dash_bulk_edit') if t('dash_bulk_edit') != 'dash_bulk_edit' else 'Bulk Edit'}",
+            f"🔄  {t('tooltip_refresh')}",
+        ]
+        for i, btn in enumerate(self._action_btns):
+            if i < len(labels):
+                btn.setText(labels[i])

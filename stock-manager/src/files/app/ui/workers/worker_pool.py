@@ -68,10 +68,16 @@ class _Task(QRunnable):
         try:
             value = self._fn()
             if not self._cancelled.is_set():
-                self._signals.result.emit(value)
+                try:
+                    self._signals.result.emit(value)
+                except RuntimeError:
+                    pass  # widget deleted before signal delivered
         except Exception as exc:            # noqa: BLE001
             if not self._cancelled.is_set():
-                self._signals.error.emit(str(exc))
+                try:
+                    self._signals.error.emit(str(exc))
+                except RuntimeError:
+                    pass  # widget deleted before signal delivered
 
 
 # ── Pool ──────────────────────────────────────────────────────────────────────

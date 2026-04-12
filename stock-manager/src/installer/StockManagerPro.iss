@@ -47,7 +47,7 @@ DisableProgramGroupPage  = yes
 ; Output
 OutputDir                = Output
 OutputBaseFilename       = StockManagerPro-{#AppVersion}-setup
-SetupIconFile            = ..\files\img\icon_logo.ico
+SetupIconFile            = ..\files\img\icon_cube.ico
 UninstallDisplayIcon     = {app}\{#AppExeName}
 UninstallDisplayName     = {#AppName} {#AppVersion}
 
@@ -118,10 +118,10 @@ Source: "{#SrcDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cre
 ; ─────────────────────────────────────────────────────────────────────────────
 [Icons]
 ; Start Menu
-Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_logo.ico"
+Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_cube.ico"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 ; Desktop (optional)
-Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_logo.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_cube.ico"; Tasks: desktopicon
 
 ; ─────────────────────────────────────────────────────────────────────────────
 [Registry]

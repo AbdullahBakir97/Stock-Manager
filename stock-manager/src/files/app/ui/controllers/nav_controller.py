@@ -135,3 +135,8 @@ class NavController(QObject):
     def retranslate_matrix_tabs(self) -> None:
         for tab in self.matrix_tabs:
             tab.retranslate()
+
+    def apply_theme_to_matrix_tabs(self) -> None:
+        """Re-apply inline theme styles on all dynamic matrix tabs."""
+        for tab in self.matrix_tabs:
+            tab.apply_theme()

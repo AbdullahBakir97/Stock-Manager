@@ -41,8 +41,8 @@ class ModelRepository(BaseRepository):
                     "SELECT * FROM phone_models"
                 ).fetchall()
             models = [self._build(r) for r in rows]
-            # Always sort naturally — Apple: X/XS/XR first, then numbered
-            models.sort(key=lambda m: _brand_sort_key(m.brand, m.name))
+            # Sort by sort_order (set by admin reorder or initial natural sort)
+            models.sort(key=lambda m: m.sort_order)
             return models
 
     def get_brands(self) -> list[str]:
@@ -134,12 +134,15 @@ class ModelRepository(BaseRepository):
             )
 
     def reorder(self, brand: str, ordered_ids: list[int]) -> None:
-        """Update sort_order for models of a brand based on provided id order."""
+        """Update sort_order for models of a brand based on provided id order.
+        Preserves brand-specific base offset so brands don't interleave."""
+        bases = {"Apple": 1, "Samsung": 100, "Xiaomi": 300}
+        base = bases.get(brand, 400)
         with self._conn() as conn:
-            for i, mid in enumerate(ordered_ids, start=1):
+            for i, mid in enumerate(ordered_ids):
                 conn.execute(
                     "UPDATE phone_models SET sort_order=? WHERE id=? AND brand=?",
-                    (i, mid, brand),
+                    (base + i, mid, brand),
                 )
 
     def _build(self, row) -> PhoneModel:

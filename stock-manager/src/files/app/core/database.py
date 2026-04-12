@@ -42,13 +42,33 @@ def _db_path() -> str:
 DB_PATH: str = _db_path()
 
 
-# ── Connection ────────────────────────────────────────────────────────────────
+# ── Connection (thread-local pool) ────────────────────────────────────────────
+
+import threading
+_local = threading.local()
+
 
 def get_connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    """Return a thread-local cached connection.
+    Reuses the same connection per thread to avoid the overhead of
+    sqlite3.connect() + PRAGMA setup on every query (~15ms saved per call).
+    """
+    conn = getattr(_local, "conn", None)
+    if conn is not None:
+        try:
+            conn.execute("SELECT 1")  # verify connection is alive
+            return conn
+        except (sqlite3.ProgrammingError, sqlite3.OperationalError):
+            conn = None
+
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")     # safe with WAL, 2x faster writes
+    conn.execute("PRAGMA cache_size = -20000")       # 20MB page cache
+    conn.execute("PRAGMA temp_store = MEMORY")       # temp tables in RAM
+    _local.conn = conn
     return conn
 
 
@@ -92,6 +112,17 @@ _DDL = """
         color_code   TEXT NOT NULL DEFAULT '',
         sort_order   INTEGER NOT NULL DEFAULT 0,
         UNIQUE(part_type_id, color_name)
+    );
+
+    -- Per-model part type product-color overrides.
+    -- When rows exist for (model_id, part_type_id) they REPLACE the global
+    -- part_type_colors for that model; when absent, global colors apply.
+    CREATE TABLE IF NOT EXISTS model_part_type_colors (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_id     INTEGER NOT NULL REFERENCES phone_models(id) ON DELETE CASCADE,
+        part_type_id INTEGER NOT NULL REFERENCES part_types(id) ON DELETE CASCADE,
+        color_name   TEXT NOT NULL,
+        UNIQUE(model_id, part_type_id, color_name)
     );
 
     -- Phone models (shared across all categories)
@@ -353,7 +384,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "12"
+_SCHEMA_VERSION = "14"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -670,6 +701,41 @@ def _migrate_v11_to_v12(conn: sqlite3.Connection) -> None:
     _log.info("V11 to V12 migration completed")
 
 
+def _migrate_v12_to_v13(conn: sqlite3.Connection) -> None:
+    """V13: Recreate model_part_type_colors with color_name column
+    (replaces old accent_color column)."""
+    _log.info("Migrating database schema from V12 to V13")
+    conn.execute("DROP TABLE IF EXISTS model_part_type_colors")
+    conn.execute("""
+        CREATE TABLE model_part_type_colors (
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_id     INTEGER NOT NULL REFERENCES phone_models(id) ON DELETE CASCADE,
+            part_type_id INTEGER NOT NULL REFERENCES part_types(id) ON DELETE CASCADE,
+            color_name   TEXT NOT NULL,
+            UNIQUE(model_id, part_type_id, color_name)
+        )
+    """)
+    _log.info("V12 to V13 migration completed")
+
+
+def _migrate_v13_to_v14(conn: sqlite3.Connection) -> None:
+    """V14: Performance indexes for inventory queries."""
+    _log.info("Migrating database schema from V13 to V14")
+    conn.executescript("""
+        CREATE INDEX IF NOT EXISTS idx_inv_items_active
+            ON inventory_items(is_active);
+        CREATE INDEX IF NOT EXISTS idx_inv_items_stock
+            ON inventory_items(stock);
+        CREATE INDEX IF NOT EXISTS idx_inv_items_pt_id
+            ON inventory_items(part_type_id);
+        CREATE INDEX IF NOT EXISTS idx_inv_items_model_pt
+            ON inventory_items(model_id, part_type_id);
+        CREATE INDEX IF NOT EXISTS idx_inv_items_model_pt_color
+            ON inventory_items(model_id, part_type_id, color);
+    """)
+    _log.info("V13 to V14 migration completed")
+
+
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
     _log.info("Migrating database schema from V3 to V4 (consolidate products + stock_entries)")
@@ -895,6 +961,14 @@ def init_db() -> None:
                 _migrate_v11_to_v12(conn)
                 current = "12"
 
+            if current == "12":
+                _migrate_v12_to_v13(conn)
+                current = "13"
+
+            if current == "13":
+                _migrate_v13_to_v14(conn)
+                current = "14"
+
             # Always persist the final version after migrations
             conn.execute(
                 "INSERT OR REPLACE INTO app_config (key, value) VALUES ('schema_version', ?)",
@@ -1035,7 +1109,7 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
             display_pt_map[r["key"]] = r["id"]
             display_pt_ids.add(r["id"])
 
-    # Load colors per part type from part_type_colors table
+    # Load colors per part type from part_type_colors table (global defaults)
     pt_colors: dict[int, list[str]] = {}  # pt_id → [color_name, ...]
     try:
         for r in conn.execute("SELECT part_type_id, color_name FROM part_type_colors ORDER BY sort_order").fetchall():
@@ -1043,26 +1117,38 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
     except Exception:
         pass  # table might not exist yet during initial schema creation
 
-    def _insert_item(mid: int, pt_id: int):
-        """Insert inventory items — colored rows for stock + colorless parent for barcode."""
-        colors = pt_colors.get(pt_id, [])
+    # Load per-model color overrides: (model_id, pt_id) → [color_name, ...]
+    model_pt_colors: dict[tuple[int, int], list[str]] = {}
+    try:
+        for r in conn.execute("SELECT model_id, part_type_id, color_name FROM model_part_type_colors").fetchall():
+            model_pt_colors.setdefault((r["model_id"], r["part_type_id"]), []).append(r["color_name"])
+    except Exception:
+        pass
+
+    # Collect all inserts into a batch list for executemany()
+    _batch_inserts: list[tuple[int, int, str]] = []
+
+    def _queue_item(mid: int, pt_id: int):
+        """Queue inventory items for batch insert."""
+        colors = model_pt_colors.get((mid, pt_id), pt_colors.get(pt_id, []))
         if colors:
-            # Create colored rows (for individual stock tracking)
+            color_set = set(colors)
             for color in colors:
-                conn.execute(
-                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,?)",
-                    (mid, pt_id, color),
-                )
-            # Also create colorless parent row (this gets the barcode for scanning)
-            conn.execute(
-                "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
+                _batch_inserts.append((mid, pt_id, color))
+            _batch_inserts.append((mid, pt_id, ""))  # colorless parent row
+            # Remove zero-stock rows for colors NOT in the active set
+            existing = conn.execute(
+                "SELECT id, color FROM inventory_items "
+                "WHERE model_id=? AND part_type_id=? AND color != '' "
+                "AND stock=0 AND min_stock=0 "
+                "AND (inventur IS NULL OR inventur=0)",
                 (mid, pt_id),
-            )
+            ).fetchall()
+            for row in existing:
+                if row["color"] not in color_set:
+                    conn.execute("DELETE FROM inventory_items WHERE id=?", (row["id"],))
         else:
-            conn.execute(
-                "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
-                (mid, pt_id),
-            )
+            _batch_inserts.append((mid, pt_id, ""))
 
     # All non-display part types
     all_pts = conn.execute("SELECT id FROM part_types").fetchall()
@@ -1075,7 +1161,7 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
 
         # Non-display part types: create for ALL models
         for pt_id in non_display_pt_ids:
-            _insert_item(mid, pt_id)
+            _queue_item(mid, pt_id)
 
         # Display part types: brand-aware + model-specific exclusions
         if DISPLAY_BRAND_MAP and display_pt_map:
@@ -1094,16 +1180,20 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
                         continue
                     pt_id = display_pt_map.get(key)
                     if pt_id:
-                        _insert_item(mid, pt_id)
+                        _queue_item(mid, pt_id)
             else:
                 for pt_id in display_pt_ids:
-                    _insert_item(mid, pt_id)
+                    _queue_item(mid, pt_id)
         else:
             for pt_id in display_pt_ids:
-                conn.execute(
-                    "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,'')",
-                    (mid, pt_id),
-                )
+                _batch_inserts.append((mid, pt_id, ""))
+
+    # Execute all queued inserts in a single batch (10-50x faster than individual INSERTs)
+    if _batch_inserts:
+        conn.executemany(
+            "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,?)",
+            _batch_inserts,
+        )
 
 
 def ensure_matrix_entries() -> None:

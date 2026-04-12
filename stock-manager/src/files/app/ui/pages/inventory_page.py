@@ -282,6 +282,12 @@ class InventoryPage(QWidget):
 
     # ── Retranslate ──────────────────────────────────────────────────────────
 
+    def apply_theme(self) -> None:
+        """Re-apply inline styles after a theme toggle."""
+        self._hdr_dash.apply_theme()
+        self._hdr_filter.apply_theme()
+        self._hdr_detail.apply_theme()
+
     def retranslate(self) -> None:
         self.dashboard.retranslate()
         self.filter_bar.retranslate()

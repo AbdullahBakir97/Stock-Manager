@@ -272,12 +272,45 @@ QLabel#notif_badge {{
     border: 2px solid {t.card};
 }}
 
-/* ── Dashboard actions panel ─────────────────────────────── */
+/* ── Dashboard actions toolbar ────────────────────────────── */
 QFrame#dashboard_actions {{
     background: {t.card};
     border: 1px solid {t.border};
     border-radius: {br_card};
-    padding: 14px 16px;
+    padding: 6px 8px;
+    min-height: 36px;
+    max-height: 44px;
+}}
+QPushButton#dash_btn_primary {{
+    background: {acc};
+    color: #FFFFFF;
+    border: none;
+    border-radius: {br_btn};
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    min-height: 30px;
+}}
+QPushButton#dash_btn_primary:hover {{ background: {acc_CC}; }}
+QPushButton#dash_btn_primary:pressed {{ background: {acc_99}; }}
+
+QPushButton#dash_btn {{
+    background: transparent;
+    color: {t.t2};
+    border: 1px solid {t.border};
+    border-radius: {br_btn};
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    min-height: 28px;
+}}
+QPushButton#dash_btn:hover {{
+    background: {t.card2};
+    border-color: {t.border2};
+    color: {t.t1};
+}}
+QPushButton#dash_btn:pressed {{
+    background: {t.border};
 }}
 
 /* ── Summary cards ────────────────────────────────────────── */
@@ -664,20 +697,39 @@ QListWidget::item:selected {{ background: {acc}; color: #FFFFFF; }}
 
 /* ── ComboBox ────────────────────────────────────────────── */
 QComboBox {{
-    background: {inp_bg}; color: {t.t1};
-    border: 1px solid {t.border}; border-radius: {br_input};
-    padding: 8px 12px; font-size: 13px;
-    min-height: 36px;
+    background: transparent;
+    color: {t.t2};
+    border: none;
+    border-bottom: 1px solid {t.border};
+    border-radius: 0;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 500;
 }}
-QComboBox:focus {{ border-color: {acc}; }}
-/* No QComboBox::drop-down or ::down-arrow — let Qt draw native arrows */
+QComboBox:hover {{
+    color: {t.t1};
+    border-bottom: 1px solid {acc};
+}}
+QComboBox:focus {{
+    color: {t.t1};
+    border-bottom: 2px solid {acc};
+    padding-bottom: 2px;
+}}
+QComboBox::drop-down {{
+    border: none;
+    width: 18px;
+}}
+QComboBox::down-arrow {{
+    image: none;
+}}
 QComboBox QAbstractItemView {{
     background: {t.card};
     color: {t.t1};
     border: 1px solid {t.border};
-    border-radius: {br_input};
+    border-radius: 6px;
     outline: none;
     padding: 4px;
+    font-size: 12px;
     selection-background-color: {_rgba(acc, '30')};
     selection-color: {t.t1};
 }}
@@ -989,6 +1041,41 @@ QLabel#footer_version {{
 }}
 QLabel#footer_sync {{
     font-size: 11px; color: {t.green}; font-weight: 500;
+}}
+QLabel#footer_zoom_btn {{
+    background: transparent; color: {t.t3};
+    font-size: 11px; font-weight: 700;
+}}
+QLabel#footer_zoom_btn:hover {{
+    color: {t.t1};
+}}
+QLabel#footer_zoom_pct {{
+    background: transparent;
+    font-size: 9px; color: {t.t3}; font-weight: 500;
+    font-family: 'JetBrains Mono', monospace;
+}}
+QLabel#footer_zoom_pct:hover {{
+    color: {t.t1};
+}}
+QSlider#footer_zoom_slider {{
+    background: transparent;
+}}
+QSlider#footer_zoom_slider::groove:horizontal {{
+    background: {t.border};
+    height: 2px; border-radius: 1px;
+}}
+QSlider#footer_zoom_slider::handle:horizontal {{
+    background: {t.t3};
+    width: 7px; height: 7px;
+    margin: -3px 0;
+    border-radius: 3px;
+}}
+QSlider#footer_zoom_slider::handle:horizontal:hover {{
+    background: {acc};
+}}
+QLabel#footer_filter_indicator {{
+    font-size: 11px; color: {acc}; font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
 }}
 QProgressBar#footer_progress {{
     background: {t.card2}; border: none; border-radius: 2px; max-height: 4px;

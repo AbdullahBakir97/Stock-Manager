@@ -23,6 +23,8 @@ a = Analysis(
     pathex=['files'],
     binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries + fitz_binaries,
     datas=[
+        ('files/img/icon_cube.ico',  'img'),
+        ('files/img/icon_cube.png',  'img'),
         ('files/img/icon_logo.ico', 'img'),
         ('files/img/logo.png',      'img'),
         ('files/img/icons',         'img/icons'),
@@ -204,7 +206,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='files/img/icon_logo.ico',
+    icon='files/img/icon_cube.ico',
     version_file='../installer/file_version_info.txt',
 )
 

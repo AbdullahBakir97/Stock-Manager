@@ -165,6 +165,44 @@ class CategoryRepository(BaseRepository):
         with self._conn() as conn:
             conn.execute("DELETE FROM part_type_colors WHERE id=?", (color_id,))
 
+    # ── Per-model product-color overrides ───────────────────────────────────
+
+    def get_model_pt_colors(self, model_id: int, part_type_id: int) -> list[str]:
+        """Return per-model product colors (e.g. ['Black','Silver']).
+        Empty list means no override — caller should fall back to global."""
+        with self._conn() as conn:
+            rows = conn.execute(
+                "SELECT color_name FROM model_part_type_colors "
+                "WHERE model_id=? AND part_type_id=?",
+                (model_id, part_type_id),
+            ).fetchall()
+            return [r["color_name"] for r in rows]
+
+    def set_model_pt_colors(self, model_id: int, part_type_id: int,
+                            color_names: list[str]) -> None:
+        """Replace all per-model colors for a model+part_type."""
+        with self._conn() as conn:
+            conn.execute(
+                "DELETE FROM model_part_type_colors "
+                "WHERE model_id=? AND part_type_id=?",
+                (model_id, part_type_id),
+            )
+            for name in color_names:
+                conn.execute(
+                    "INSERT OR IGNORE INTO model_part_type_colors "
+                    "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                    (model_id, part_type_id, name),
+                )
+
+    def clear_model_pt_colors(self, model_id: int, part_type_id: int) -> None:
+        """Remove all per-model color overrides (falls back to global)."""
+        with self._conn() as conn:
+            conn.execute(
+                "DELETE FROM model_part_type_colors "
+                "WHERE model_id=? AND part_type_id=?",
+                (model_id, part_type_id),
+            )
+
     def _pt(self, row) -> PartTypeConfig:
         return PartTypeConfig(
             id=row["id"], category_id=row["category_id"],

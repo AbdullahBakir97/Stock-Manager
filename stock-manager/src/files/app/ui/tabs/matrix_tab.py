@@ -6,17 +6,18 @@ Charging Ports, Back Covers — whatever is active in the DB.
 """
 from __future__ import annotations
 
-from PyQt6.QtCore import QSize
+from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtWidgets import (
-    QVBoxLayout, QHBoxLayout, QComboBox, QLabel,
+    QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QWidget,
     QPushButton, QDialog, QMessageBox,
 )
+from app.core.theme import THEME
 
 from app.models.category import CategoryConfig
 from app.repositories.category_repo import CategoryRepository
 from app.repositories.model_repo import ModelRepository
 from app.repositories.item_repo import ItemRepository
-from app.ui.components.matrix_widget import MatrixWidget
+from app.ui.components.matrix_widget import FrozenMatrixContainer
 from app.ui.dialogs.matrix_dialogs import AddModelDialog
 from app.core.icon_utils import get_button_icon
 from app.ui.tabs.base_tab import BaseTab
@@ -25,6 +26,64 @@ from app.core.i18n import t
 _cat_repo   = CategoryRepository()
 _model_repo = ModelRepository()
 _item_repo  = ItemRepository()
+
+
+class _MatrixSectionHeader(QWidget):
+    """Clickable row: label + chevron — click anywhere to expand/collapse.
+    Same style as inventory page section headers."""
+
+    toggled = pyqtSignal(bool)
+
+    def __init__(self, title: str, parent=None):
+        super().__init__(parent)
+        self._expanded = True
+        self.setFixedHeight(24)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(6, 0, 6, 0)
+        lay.setSpacing(4)
+
+        self._lbl = QLabel(title.upper())
+        self._lbl.setObjectName("inv_section_lbl")
+        lay.addWidget(self._lbl)
+        lay.addStretch()
+
+        self._btn = QPushButton("▾")
+        self._btn.setObjectName("inv_section_btn")
+        self._btn.setFixedSize(20, 20)
+        self._btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self._btn.clicked.connect(self._on_click)
+        lay.addWidget(self._btn)
+
+        self._apply_style()
+
+    def _apply_style(self):
+        tk = THEME.tokens
+        self._lbl.setStyleSheet(
+            f"font-size:10px; font-weight:700; color:{tk.t4}; letter-spacing:0.8px;"
+        )
+        self._btn.setStyleSheet(f"""
+            QPushButton#inv_section_btn {{
+                background: transparent; color: {tk.t4};
+                border: none; font-size: 11px; border-radius: 4px;
+            }}
+            QPushButton#inv_section_btn:hover {{
+                background: {tk.border}; color: {tk.t1};
+            }}
+        """)
+
+    def _on_click(self):
+        self._expanded = not self._expanded
+        self._btn.setText("▾" if self._expanded else "▸")
+        self.toggled.emit(self._expanded)
+
+    def mousePressEvent(self, _event):
+        self._on_click()
+
+    def apply_theme(self):
+        self._apply_style()
 
 
 class MatrixTab(BaseTab):
@@ -42,9 +101,14 @@ class MatrixTab(BaseTab):
         lay.setContentsMargins(0, 4, 0, 0)
         lay.setSpacing(4)
 
-        # ── Compact toolbar ───────────────────────────────────────────────────
-        tb = QHBoxLayout()
-        tb.setContentsMargins(4, 0, 4, 0)
+        # ── Collapsible toolbar header (same style as inventory sections) ─────
+        self._tb_header = _MatrixSectionHeader(t("disp_filter_brand").upper() + " & LEGEND")
+        self._tb_header.toggled.connect(self._on_toolbar_toggle)
+        lay.addWidget(self._tb_header)
+
+        self._toolbar_widget = QWidget()
+        tb = QHBoxLayout(self._toolbar_widget)
+        tb.setContentsMargins(4, 4, 4, 4)
         tb.setSpacing(8)
 
         self._brand_lbl = QLabel(t("disp_filter_brand"))
@@ -87,14 +151,19 @@ class MatrixTab(BaseTab):
 
         tb.addWidget(self._add_btn)
         tb.addWidget(self._ref_btn)
-        lay.addLayout(tb)
+        lay.addWidget(self._toolbar_widget)
 
-        # ── Matrix (takes maximum space) ──────────────────────────────────────
-        self._table = MatrixWidget(refresh_cb=self.refresh, parent=self)
-        lay.addWidget(self._table, 1)
+        # ── Frozen matrix container (model column sticky + data scrollable) ──
+        self._container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
+        self._table = self._container.data_table  # for compatibility
+        lay.addWidget(self._container, 1)
 
         self._populate_brand_combo()
         self.refresh()
+
+    def _on_toolbar_toggle(self, expanded: bool) -> None:
+        """Collapse/expand the toolbar widget — table takes freed space."""
+        self._toolbar_widget.setVisible(expanded)
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -165,9 +234,25 @@ class MatrixTab(BaseTab):
                 is_active=self._cat.is_active,
                 part_types=[pt for pt in self._cat.part_types if pt.id in used_pt_ids],
             )
-            self._table.load(filtered_cat, models, item_map)
+            self._container.load(filtered_cat, models, item_map)
         else:
-            self._table.load(self._cat, models, item_map)
+            self._container.load(self._cat, models, item_map)
+
+    def apply_theme(self) -> None:
+        """Rebuild legend chip inline styles with current theme colors."""
+        if self._cat:
+            for i, chip in enumerate(self._legend_chips):
+                if i < len(self._cat.part_types):
+                    pt = self._cat.part_types[i]
+                    rv = int(pt.accent_color[1:3], 16)
+                    gv = int(pt.accent_color[3:5], 16)
+                    bv = int(pt.accent_color[5:7], 16)
+                    chip.setStyleSheet(
+                        f"color:{pt.accent_color}; font-size:7pt; font-weight:700; "
+                        f"background:rgba({rv},{gv},{bv},35); border-radius:3px; padding:1px 5px;"
+                    )
+        # Refresh the matrix table to pick up new theme colors
+        self.refresh()
 
     def retranslate(self) -> None:
         self._brand_lbl.setText(t("disp_filter_brand"))
@@ -175,5 +260,5 @@ class MatrixTab(BaseTab):
         self._brand_combo.blockSignals(True)
         self._brand_combo.setItemText(0, t("disp_all_brands"))
         self._brand_combo.blockSignals(False)
-        self._table.retranslate()
+        self._container.retranslate()
         self.refresh()

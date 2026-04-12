@@ -11,10 +11,13 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt
 
+from PyQt6.QtGui import QIcon
+from PyQt6.QtCore import QSize
+
 from app.repositories.model_repo import ModelRepository
 from app.models.phone_model import PhoneModel
 from app.ui.dialogs.matrix_dialogs import AddModelDialog
-from app.core.icon_utils import get_colored_icon
+from app.core.icon_utils import get_colored_icon, get_button_icon
 from app.core.theme import THEME
 from app.core.i18n import t
 
@@ -97,25 +100,22 @@ class ModelsPanel(QWidget):
         card_lay.addLayout(toolbar)
 
         # ── Table ──────────────────────────────────────────────────────────────
-        self._table = QTableWidget(0, 4)
+        self._table = QTableWidget(0, 3)
         self._table.setHorizontalHeaderLabels([
             t("mdl_col_brand"),
             t("mdl_col_model"),
-            t("mdl_col_edit") or "",
-            t("mdl_col_delete") or "",
+            "",
         ])
-        self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
-        self._table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self._table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
-        self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
+        hh = self._table.horizontalHeader()
+        hh.setSectionResizeMode(0, QHeaderView.ResizeMode.Interactive)
+        hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         self._table.setColumnWidth(0, 140)
-        self._table.setColumnWidth(2, 44)
-        self._table.setColumnWidth(3, 44)
+        self._table.setColumnWidth(2, 200)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.setSelectionMode(QTableWidget.SelectionMode.ExtendedSelection)
-        self._table.setRowHeight(0, 48)
         card_lay.addWidget(self._table)
 
         outer.addWidget(card)
@@ -173,6 +173,7 @@ class ModelsPanel(QWidget):
                             or search in m.brand.lower()]
 
         self._table.setRowCount(0)
+        tk = THEME.tokens
         for model in self._models:
             row = self._table.rowCount()
             self._table.insertRow(row)
@@ -182,23 +183,38 @@ class ModelsPanel(QWidget):
             self._table.setItem(row, 0, self._ro(model.brand, model.id))
             self._table.setItem(row, 1, self._ro(model.name, model.id))
 
-            # Edit button
-            edit_btn = QPushButton()
-            edit_btn.setObjectName("admin_edit_btn")
-            edit_btn.setIcon(get_colored_icon("edit", THEME.tokens.blue))
-            edit_btn.setToolTip(t("mdl_btn_rename"))
-            edit_btn.setFixedSize(40, 40)
-            edit_btn.clicked.connect(lambda checked, mid=model.id: self._rename_by_id(mid))
-            self._table.setCellWidget(row, 2, edit_btn)
+            # Action buttons in a single cell widget (edit, up, down, delete)
+            action_w = QWidget()
+            action_w.setFixedSize(196, 40)
+            action_lay = QHBoxLayout(action_w)
+            action_lay.setContentsMargins(4, 2, 4, 2)
+            action_lay.setSpacing(8)
 
-            # Delete button
-            del_btn = QPushButton()
-            del_btn.setObjectName("admin_del_btn")
-            del_btn.setIcon(get_colored_icon("delete", THEME.tokens.red))
-            del_btn.setToolTip(t("mdl_btn_delete"))
-            del_btn.setFixedSize(40, 40)
-            del_btn.clicked.connect(lambda checked, mid=model.id: self._delete_by_id(mid))
-            self._table.setCellWidget(row, 3, del_btn)
+            for icon_name, obj_name, tip, cb in [
+                ("edit",   "admin_edit_btn", t("mdl_btn_rename"),
+                 lambda _, mid=model.id: self._rename_by_id(mid)),
+                ("up",     "admin_edit_btn", "Move Up",
+                 lambda _, r=row: self._move_up(r)),
+                ("down",   "admin_edit_btn", "Move Down",
+                 lambda _, r=row: self._move_down(r)),
+                ("delete", "admin_del_btn", t("mdl_btn_delete"),
+                 lambda _, mid=model.id: self._delete_by_id(mid)),
+            ]:
+                btn = QPushButton()
+                btn.setObjectName(obj_name)
+                if icon_name in ("up", "down"):
+                    btn.setIcon(get_button_icon(icon_name))
+                else:
+                    color = tk.blue if icon_name == "edit" else tk.red
+                    btn.setIcon(get_colored_icon(icon_name, color))
+                btn.setIconSize(QSize(15, 15))
+                btn.setToolTip(tip)
+                btn.setFixedSize(36, 36)
+                btn.setCursor(Qt.CursorShape.PointingHandCursor)
+                btn.clicked.connect(cb)
+                action_lay.addWidget(btn)
+
+            self._table.setCellWidget(row, 2, action_w)
 
         self._update_kpis()
 
@@ -272,6 +288,40 @@ class ModelsPanel(QWidget):
             names = ", ".join(m.name for m in blocked)
             QMessageBox.warning(self, t("mdl_btn_delete"),
                                 t("mdl_delete_blocked") + f"\n{names}")
+        self._refresh()
+
+    def _move_up(self, row: int) -> None:
+        if row <= 0 or row >= len(self._models):
+            return
+        model = self._models[row]
+        # Get all models for this brand (unfiltered, sorted by sort_order)
+        brand_models = _model_repo.get_all(brand=model.brand)
+        ids = [m.id for m in brand_models]
+        try:
+            idx = ids.index(model.id)
+        except ValueError:
+            return
+        if idx <= 0:
+            return
+        ids[idx - 1], ids[idx] = ids[idx], ids[idx - 1]
+        _model_repo.reorder(model.brand, ids)
+        self._refresh()
+
+    def _move_down(self, row: int) -> None:
+        if row < 0 or row >= len(self._models):
+            return
+        model = self._models[row]
+        # Get all models for this brand (unfiltered, sorted by sort_order)
+        brand_models = _model_repo.get_all(brand=model.brand)
+        ids = [m.id for m in brand_models]
+        try:
+            idx = ids.index(model.id)
+        except ValueError:
+            return
+        if idx >= len(ids) - 1:
+            return
+        ids[idx], ids[idx + 1] = ids[idx + 1], ids[idx]
+        _model_repo.reorder(model.brand, ids)
         self._refresh()
 
     def reload(self) -> None:

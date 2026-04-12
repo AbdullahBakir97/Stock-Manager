@@ -118,14 +118,16 @@ def ctx_view_txns(win: MainWindow, item: InventoryItem) -> None:
 def quick_stock_in(win: MainWindow, item_id: int) -> None:
     """Increment stock by 1 with lightweight row update."""
     try:
-        _stock_svc.stock_in(item_id, 1, "Quick +1")
+        res = _stock_svc.stock_in(item_id, 1, "Quick +1")
         updated_item = _item_repo.get_by_id(item_id)
-        if updated_item and win._inv_page.table.update_row_by_id(updated_item):
-            win._refresh_summary()
-        else:
-            win._refresh_products()
-            win._refresh_summary()
+        if updated_item:
+            win._inv_page.table.update_row_by_id(updated_item)
+            if win._cp and win._cp.id == item_id:
+                win._cp = updated_item
+                win._inv_page.detail.set_product(updated_item)
+        win._refresh_summary()
         win._show_status(t("status_quick_in"), 2000, level="ok")
+        _offer_undo_toast(win, item_id, "IN", res)
     except Exception as e:
         QMessageBox.warning(win, t("msg_error"), str(e))
 
@@ -133,14 +135,16 @@ def quick_stock_in(win: MainWindow, item_id: int) -> None:
 def quick_stock_out(win: MainWindow, item_id: int) -> None:
     """Decrement stock by 1 with lightweight row update."""
     try:
-        _stock_svc.stock_out(item_id, 1, "Quick -1")
+        res = _stock_svc.stock_out(item_id, 1, "Quick -1")
         updated_item = _item_repo.get_by_id(item_id)
-        if updated_item and win._inv_page.table.update_row_by_id(updated_item):
-            win._refresh_summary()
-        else:
-            win._refresh_products()
-            win._refresh_summary()
+        if updated_item:
+            win._inv_page.table.update_row_by_id(updated_item)
+            if win._cp and win._cp.id == item_id:
+                win._cp = updated_item
+                win._inv_page.detail.set_product(updated_item)
+        win._refresh_summary()
         win._show_status(t("status_quick_out"), 2000, level="ok")
+        _offer_undo_toast(win, item_id, "OUT", res)
     except Exception as e:
         QMessageBox.warning(win, t("msg_error"), str(e))
 

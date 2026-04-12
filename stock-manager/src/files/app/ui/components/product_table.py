@@ -43,7 +43,7 @@ class ProductTable(QTableWidget):
 
     _COL_KEYS = ["col_num", "col_item", "col_color", "col_barcode", "col_price",
                  "col_stock", "col_min", "col_best_bung", "col_status", "col_actions"]
-    _WIDTHS    = [40, 200, 50, 110, 80, 70, 56, 80, 80, 90]
+    _WIDTHS    = [40, 200, 70, 110, 80, 80, 60, 80, 80, 90]
 
     def __init__(self, parent=None):
         super().__init__(parent)

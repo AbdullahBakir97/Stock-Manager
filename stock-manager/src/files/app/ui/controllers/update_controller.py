@@ -27,7 +27,7 @@ from app.ui.components.update_banner import UpdateBanner, _get_skipped_version
 
 
 class UpdateController(QObject):
-    """Manages background update checks and banner lifecycle."""
+    """Manages background update checks, silent pre-download, and banner lifecycle."""
 
     # Emitted whenever the pending-update state changes (callers refresh badge)
     badge_changed = pyqtSignal()
@@ -41,11 +41,12 @@ class UpdateController(QObject):
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
-        self._layout       = content_layout
-        self._parent_w     = parent_widget
+        self._layout          = content_layout
+        self._parent_w        = parent_widget
         self._banner: UpdateBanner | None = None
-        self._workers: list[UpdateCheckWorker] = []
-        self.pending = None    # UpdateManifest | None — public; callers read this
+        self._workers: list   = []   # check + download workers
+        self._dl_worker       = None # active download worker (at most one)
+        self.pending          = None # UpdateManifest | None — public
 
     # ── Timer wiring (call once from MainWindow.__init__) ────────────────────
 
@@ -74,6 +75,7 @@ class UpdateController(QObject):
             if self._banner and self._banner.isVisible():
                 return
             self.show_banner(manifest)
+            self._start_background_download(manifest)   # ← silent pre-download
             if worker in self._workers:
                 self._workers.remove(worker)
 
@@ -85,6 +87,49 @@ class UpdateController(QObject):
         worker.up_to_date.connect(_cleanup)
         worker.error.connect(lambda _: _cleanup())
         worker.start()
+
+    def _start_background_download(self, manifest) -> None:
+        """
+        Silently download the installer in the background as soon as an update
+        is detected.  No progress UI — the download runs quietly so that when
+        the user clicks "Install Now" in the banner the file is already cached
+        and SHA256-verified; install starts immediately.
+
+        If a download is already in progress or the installer is already cached
+        (UpdateService.download() detects this via checksum comparison) the
+        worker exits almost instantly with the cached path.
+        """
+        from app.ui.workers.update_worker import UpdateDownloadWorker
+
+        if self._dl_worker and self._dl_worker.isRunning():
+            return  # already downloading
+
+        dl = UpdateDownloadWorker(manifest, parent=self)
+        self._dl_worker = dl
+        self._workers.append(dl)
+
+        def _on_done(installer_path: str) -> None:
+            # Tell the banner the file is ready — button becomes "Install Now"
+            if self._banner is not None:
+                try:
+                    self._banner.set_installer_ready(installer_path)
+                except RuntimeError:
+                    pass   # banner was deleted
+            if dl in self._workers:
+                self._workers.remove(dl)
+
+        def _on_error(msg: str) -> None:
+            # Silent failure — user can still trigger manual download via banner
+            import logging
+            logging.getLogger(__name__).debug(
+                "Background download failed (will retry on click): %s", msg
+            )
+            if dl in self._workers:
+                self._workers.remove(dl)
+
+        dl.finished.connect(_on_done)
+        dl.error.connect(_on_error)
+        dl.start()
 
     def show_banner(self, manifest) -> None:
         """

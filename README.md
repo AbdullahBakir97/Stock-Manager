@@ -1,137 +1,190 @@
-<p align="center">
-  <img src="files/img/logo.png" width="120" alt="Stock Manager Pro Logo" />
-</p>
+<div align="center">
 
-<h1 align="center">Stock Manager Pro v2</h1>
+<img src="stock-manager/src/files/img/icon_cube.png" alt="Stock Manager Pro" width="80"/>
 
-<p align="center">
-  <strong>A professional, modular desktop inventory management application for Windows.</strong><br/>
-  Built with Python and PyQt6 — fast, offline, multilingual, and enterprise-ready.
-</p>
+# Stock Manager Pro
 
-<p align="center">
-  <img src="https://img.shields.io/badge/platform-Windows%2010%2F11-0078D4?style=flat-square&logo=windows" alt="Windows 10/11" />
-  <img src="https://img.shields.io/badge/python-3.11%2B-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+" />
-  <img src="https://img.shields.io/badge/PyQt6-6.x-41CD52?style=flat-square&logo=qt" alt="PyQt6 6.x" />
-  <img src="https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square" alt="MIT License" />
-  <img src="https://img.shields.io/badge/version-2.0.0-blue?style=flat-square" alt="Version 2.0.0" />
-  <img src="https://img.shields.io/badge/status-Active%20Development-orange?style=flat-square" alt="Active Development" />
-</p>
+**Professional desktop inventory management for Windows**
+
+Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
+
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
+[![SQLite](https://img.shields.io/badge/SQLite-Schema_V14-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-2.3.4-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+[![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+
+[Features](#-features) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Architecture](#-architecture) · [Project Structure](#-project-structure) · [Contributing](#-contributing)
+
+</div>
 
 ---
 
-## 📋 Table of Contents
+## Overview
 
-- [Features](#features)
-- [What's New in v2](#whats-new-in-v2)
-- [Screenshots](#screenshots)
-- [System Requirements](#system-requirements)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Build Instructions](#build-instructions)
-- [Project Architecture](#project-architecture)
-- [Project Structure](#project-structure)
-- [Tech Stack](#tech-stack)
-- [Keyboard Shortcuts](#keyboard-shortcuts)
-- [Admin Panel Guide](#admin-panel-guide)
-- [Barcode Workflow](#barcode-workflow)
-- [PDF Reports](#pdf-reports)
-- [Data & Privacy](#data--privacy)
-- [Contributing](#contributing)
-- [Troubleshooting](#troubleshooting)
-- [License](#license)
+Stock Manager Pro is a professional, fully offline desktop inventory management application for small-to-medium repair shops, retail stores, and warehouses. It ships with a complete business operations suite — from a full POS terminal and purchase order lifecycle to stocktake audits, price lists, supplier CRM, and multi-location stock tracking — all built on a zero-freeze async engine with a clean controller architecture.
+
+> **Designed for resale.** Every architecture decision prioritises reusability and extensibility so the codebase can serve as the foundation for a general-purpose stock management platform.
 
 ---
 
 ## ✨ Features
 
-### Core Inventory Management
-- **Full inventory management** — Add, edit, delete products with detailed attributes (brand, type, color, barcode)
-- **Stock operations** — Stock In, Stock Out, and manual Adjust with timestamped notes and complete history
-- **Low stock alerts** — Configurable threshold per product with real-time dashboard highlighting
-- **Transaction history** — Complete audit log of every stock movement with user tracking and timestamps
-- **Multi-location support** — Manage stock across multiple categories and product types
+### Core Inventory
+- Unified inventory across categories, part types, phone models, and colour variants
+- Matrix grid view — bulk stock operations in a spreadsheet-style interface
+- Stock In / Out / Adjust with timestamped notes and full undo support
+- Per-item configurable minimum stock thresholds with real-time alerts
+- Product photos, expiry dates, and warranty tracking per item
+- Barcode generation (Code128/EAN) and USB scanner interception
 
-### Barcode Management (New in v2)
-- **Barcode scanning** — Plug in any USB scanner; input is intercepted automatically
-- **Barcode generation** — Create and print custom barcodes for all products using industry-standard formats
-- **Barcode assignment** — Dedicated dialog for assigning/reassigning barcodes to products
-- **Batch barcode operations** — Generate multiple barcodes at once for printing
+### Business Modules
+| Module | Highlights |
+|---|---|
+| **Sales / POS** | Full cart-based POS, customer lookup, discounts, PDF receipts |
+| **Purchase Orders** | DRAFT → SENT → PARTIAL → RECEIVED lifecycle, auto stock-in on receipt |
+| **Returns** | RESTOCK or WRITE_OFF actions, refund tracking, sale linkage |
+| **Suppliers** | Supplier CRM, cost prices, lead days, linked inventory items |
+| **Price Lists** | Create, draft, activate and bulk-apply pricing configurations |
+| **Audit / Stocktake** | Cycle-based counted vs system qty comparison with variance reporting |
+| **Customers** | Customer profiles linked to sales and purchase history |
+| **Locations** | Multi-location stock with transfers between warehouse positions |
+| **Reports** | PDF inventory and transaction reports |
 
-### Matrix Operations (New in v2)
-- **Grid-based view** — Visual matrix display for bulk stock operations
-- **Bulk updates** — Modify multiple products simultaneously in spreadsheet-like interface
-- **Data export** — Export matrix data for analysis in external tools
-
-### Reporting & Export (New in v2)
-- **PDF report generation** — Create professional reports with formatting, tables, and summaries
-- **Export to PDF** — Generate detailed inventory reports with custom date ranges
-- **Print-ready formatting** — Professional layouts suitable for printing or archival
-
-### Admin Panel (New in v2)
-- **Shop settings** — Configure company name, location, currency, and other global preferences
-- **Category management** — Create, edit, delete product categories
-- **Part types** — Manage product types and classifications
-- **Models management** — Define product models and variants
-- **Color picker** — Professional color selection interface with preset colors
-- **Scan settings** — Configure barcode scanner behavior and sensitivity
-- **User roles** — Admin and operator role management
-
-### User Experience
-- **Multilingual support** — English, German (DE), Arabic (AR) with live switching and RTL layout support
-- **Offline & private** — All data stored locally in SQLite; no internet required
-- **Dark/Light themes** — Professional UI themes optimized for desktop use
-- **Setup wizard** — Guided initial configuration for new installations
-- **Search & filtering** — Advanced search with multiple filter criteria
-
----
-
-## 🎯 What's New in v2
-
-### Architecture & Code Quality
-- **Service-oriented architecture** — Cleaner separation of concerns with dedicated services (StockService, ScanService, AlertService)
-- **Repository pattern** — Abstracted data access layer for better testability and maintainability
-- **Model layer** — Domain objects (Product, Item, Category, Transaction, ScanSession) for type safety
-- **Modular UI components** — Reusable components with custom Qt delegates for performance
-
-### New Capabilities
-- ✅ **Barcode generation** — Not just scanning; now generate and print barcodes in bulk
-- ✅ **PDF report exports** — Professional report generation with customizable templates
-- ✅ **Matrix/grid operations** — Bulk stock management in spreadsheet-like view
-- ✅ **Enhanced admin panel** — Comprehensive settings for shop, categories, models, and scanning
-- ✅ **Scan sessions** — Organized scanning workflows for efficient stock counting
-- ✅ **Color picker widget** — Professional color selection with presets and custom colors
-- ✅ **Setup wizard** — Interactive first-time setup for new users
-
-### Performance Improvements
-- **Optimized data loading** — Lazy loading for large product catalogs
-- **Custom Qt delegates** — Efficient rendering of large datasets
-- **Caching** — Smart caching of frequently accessed data
-- **Async operations** — Non-blocking long-running operations
+### Platform
+- **Zero-freeze UI** — every DB operation runs off the main thread via `WorkerPool`
+- **Multilingual** — English, German (DE), Arabic (AR) with live switching and full RTL layout
+- **Four themes** — Dark, Light, Pro Dark (emerald/charcoal), Pro Light (emerald/white) — toggle updates all components
+- **Excel-like zoom** — Ctrl+Scroll / Ctrl+Plus/Minus zoom (50-200%) with footer slider
+- **Sticky model column** — frozen model names when scrolling horizontally in matrix view
+- **Per-model colours** — assign different product colours per model+part-type combination
+- **Series separators** — visual dividers between model series (X-series, 11-series, A0x, A1x, S2x)
+- **Auto-updater** — manifest-based version check with SHA256 verification, CI/CD auto-release via PR
+- **Auto-backup** — scheduled backup with configurable retention
+- **Optimised database** — thread-local connection pool, batch inserts, performance indexes, tuned pragmas
+- **Undo transactions** — reverse any IN/OUT/ADJUST operation
+- **30+ pytest modules** — in-memory SQLite fixtures, full migration chain tested
+- **Offline & private** — SQLite WAL, no telemetry, no cloud sync
 
 ---
 
 ## 📸 Screenshots
 
-![Dashboard Screenshot](files/img/screenshot.png)
+### Dashboard
+Real-time KPI cards, 30-day stock movement chart, category breakdown, and low-stock alert panel — loaded asynchronously in two phases.
 
-| Feature | Screenshot |
-|---------|-----------|
-| **Dashboard** | ![Dashboard](files/img/screenshot2.png) |
-| **Stock Operation** | ![Stock Op](files/img/screenshot3.png) |
-| **Low Stock Alerts** | ![Alerts](files/img/screenshot4.png) |
+![Dashboard](files/img/scr-dashboard.png)
+
+---
+
+### Inventory
+Searchable, filterable product table with responsive columns, inline detail panel showing sparkline trend and quick-action buttons (IN / OUT / ADJUST / Edit).
+
+![Inventory](files/img/scr-inventory-v2.png)
+
+---
+
+### Sales & POS
+Full point-of-sale terminal with product picker, cart management, discount support, and automatic PDF receipt generation on checkout.
+
+![Sales & POS](files/img/scr-sales.png)
+
+---
+
+### Analytics
+Single-pass async data fetch, stock health donut chart, category distribution bars, top movers list, and 90-day stock value trend line.
+
+![Analytics](files/img/scr-analytics.png)
+
+---
+
+### Transactions
+Paginated audit log with summary strip (IN / OUT / ADJUST / Net), debounced filter bar, Load More pagination, and column copy via context menu.
+
+![Transactions](files/img/scr-transactions.png)
+
+---
+
+### Purchase Orders
+Full PO lifecycle from DRAFT through SENT → PARTIAL → RECEIVED. Receiving a PO automatically triggers a stock-in operation.
+
+![Purchase Orders](files/img/scr-purchase-orders.png)
+
+---
+
+### Audit & Stocktake
+Cycle-based stocktake with item-by-item counted qty entry, system vs counted variance reporting, and cycle completion summary.
+
+![Audit](files/img/scr-audit.png)
+
+---
+
+### Price Lists
+Create and manage pricing configurations. Apply a bulk percentage markup or push a price list directly to live inventory in one click.
+
+![Price Lists](files/img/scr-price-lists.png)
+
+---
+
+### Suppliers
+Supplier CRM with contact details, star rating, linked inventory items, and open purchase order count per supplier.
+
+![Suppliers](files/img/scr-suppliers.png)
+
+---
+
+### Returns
+Process returns with RESTOCK or WRITE_OFF actions. Automatically reverses the original transaction and records the refund amount.
+
+![Returns](files/img/scr-returns.png)
+
+---
+
+### Admin Panel — Shop Settings
+14-panel admin dialog covering shop info, categories, part types, models, scan config, backup, import/export, DB tools, suppliers, locations, customers, and about.
+
+![Admin Panel](files/img/scr-admin.png)
+
+---
+
+### Admin Panel — About
+Live system info including schema version (V14), DB size, Python and PyQt6 build details, and an interactive Update Banner preview.
+
+![Admin About](files/img/scr-admin-about.png)
+
+---
+
+### Matrix View
+Grid-based bulk operations across model × part-type × colour combinations — the core workflow for phone repair shops.
+
+![Matrix View](files/img/scr-displays.png)
+
+---
+
+### Quick Scan
+USB barcode scanner interception with command barcodes (TAKEOUT / INSERT / CONFIRM) for hands-free stock counting.
+
+![Quick Scan](files/img/scr-quickscan.png)
+
+---
+
+### Barcode Generator
+Generate and export Code128 / EAN barcodes for any product. Batch-print multiple barcodes for labelling new stock.
+
+![Barcode Generator](files/img/scr-barcode.png)
 
 ---
 
 ## 🖥️ System Requirements
 
-| Requirement | Specification |
-|-------------|---------------|
-| **OS** | Windows 10 or Windows 11 |
-| **Python** | 3.11 or higher (for development) |
-| **RAM** | 512 MB minimum, 2 GB recommended |
-| **Disk Space** | 200 MB for application + database storage |
-| **Admin Rights** | Not required |
+| | |
+|---|---|
+| **OS** | Windows 10 or Windows 11 (64-bit) |
+| **RAM** | 512 MB minimum · 2 GB recommended |
+| **Disk** | 250 MB application + database storage |
+| **Python** | 3.11+ (development only) |
+| **Admin rights** | Not required |
 
 ---
 
@@ -139,37 +192,26 @@
 
 ### Option A — Pre-built Executable (Recommended)
 
-1. Download `StockManagerPro.zip` from the [latest release](../../releases/latest)
-2. Extract the zip to any location (e.g., `C:\Apps\StockManagerPro\`)
+1. Download `StockManagerPro.zip` from the [latest release](https://github.com/AbdullahBakir97/Stock-manager/releases)
+2. Extract to any folder (e.g. `C:\Apps\StockManagerPro\`)
 3. Run `StockManagerPro.exe`
 
-**Data Location:** `%LOCALAPPDATA%\StockPro\StockManagerPro\stock_manager.db`
-
-No installation wizard required. No admin rights needed.
+Data is stored at `%LOCALAPPDATA%\StockPro\StockManagerPro\stock_manager.db` — no installation wizard, no admin rights needed.
 
 ### Option B — Run from Source
 
-**Prerequisites:**
-- Python 3.11+
-- Windows 10/11
-- Git
-
-**Steps:**
+**Prerequisites:** Python 3.11+, Git, Windows 10/11
 
 ```bash
-# Clone the repository
 git clone https://github.com/AbdullahBakir97/Stock-manager.git
 cd Stock-manager
 
-# Create virtual environment
 python -m venv venv
 venv\Scripts\activate
 
-# Install dependencies
 pip install -r requirements.txt
 
-# Run the application
-cd files
+cd src/files
 python main.py
 ```
 
@@ -177,95 +219,111 @@ python main.py
 
 ## 🚀 Quick Start
 
-### First-Time Setup
-
-1. **Launch the application** — Run `StockManagerPro.exe`
-2. **Complete the Setup Wizard** — Configure your shop name, location, and preferences
-3. **Add categories** — Go to Admin Panel → Categories to create product categories
-4. **Add product types** — Admin Panel → Part Types to define product classifications
-5. **Create your first product** — Press `Ctrl+N` or use the toolbar button
-6. **Test barcode scanner** — Plug in your USB barcode scanner and scan a product barcode
-
-### Common Tasks
-
-| Task | How To |
-|------|--------|
-| Add a product | Press `Ctrl+N` or click **New Product** button |
-| Record stock in | Select product, press `Ctrl+I`, enter quantity |
-| Record stock out | Select product, press `Ctrl+O`, enter quantity |
-| Generate barcode | Right-click product → Generate Barcode |
-| Export PDF report | File → Export Report or press `Ctrl+P` |
-| Configure admin settings | File → Admin Settings or press `Ctrl+Alt+A` |
-| Switch language | Settings → Language (English / Deutsch / العربية) |
+| Task | How |
+|---|---|
+| First-time setup | Complete the Setup Wizard on first launch |
+| Add a product | `Ctrl+N` or **+ Add Product** button |
+| Stock In | Select product → `Ctrl+I` |
+| Stock Out | Select product → `Ctrl+O` |
+| Adjust stock | Select product → `Ctrl+J` |
+| Open POS | Navigate to **Sales / POS** → New Sale |
+| Generate barcode | Right-click product → Generate Barcode or `Ctrl+B` |
+| Export PDF report | Navigate to **Reports** or `Ctrl+P` |
+| Admin settings | `Ctrl+Alt+A` or the ⚙ header icon |
+| Switch language | Header language switcher (EN / DE / AR) |
+| Undo last operation | Right-click transaction → Undo |
+| Force refresh | `F5` |
 
 ---
 
 ## 🔨 Build Instructions
 
-### Build the Executable
-
 ```bash
-# Navigate to project root
 cd Stock-manager
-
-# Run PyInstaller
-pyinstaller StockManagerPro.spec --noconfirm
-
-# Output location
-# dist/StockManagerPro/StockManagerPro.exe
+pyinstaller src/StockManagerPro.spec --noconfirm
+# Output: src/dist/StockManagerPro/StockManagerPro.exe
 ```
 
-### Build Requirements
-
-```bash
-pip install PyInstaller>=6.19.0
-```
-
-The `StockManagerPro.spec` file handles:
-- Bundling all PyQt6 dependencies
-- Including barcode and PDF libraries
-- Embedding application icons and resources
-- Optimizing binary size
-
-**Build time:** ~2-5 minutes (first build may take longer)
-**Output size:** ~150-200 MB (includes Python runtime)
+Build time ~3–5 minutes. Output ~180 MB (includes Python runtime, PyQt6, all dependencies).
 
 ---
 
-## 🏗️ Project Architecture
+## 🏗️ Architecture
 
-### Layered Architecture
+### Layer Structure
 
 ```
-┌─────────────────────────────────────┐
-│        UI Layer (PyQt6)             │
-│  (Main Window, Dialogs, Tabs)       │
-├─────────────────────────────────────┤
-│      Service Layer                  │
-│  (StockService, ScanService,        │
-│   AlertService, ReportService)      │
-├─────────────────────────────────────┤
-│    Repository Layer                 │
-│  (ProductRepo, TransactionRepo,     │
-│   ItemRepo, CategoryRepo)           │
-├─────────────────────────────────────┤
-│      Model Layer                    │
-│  (Domain Objects: Product, Item,    │
-│   Category, Transaction, etc.)      │
-├─────────────────────────────────────┤
-│      Data Layer (SQLite)            │
-│  (Database abstraction)             │
-└─────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  UI Layer  —  app/ui/                                        │
+│  pages/ · components/ · dialogs/ · tabs/ · controllers/     │
+├──────────────────────────────────────────────────────────────┤
+│  Async Engine  —  app/ui/workers/                            │
+│  WorkerPool · DataWorker · UpdateWorker                      │
+├──────────────────────────────────────────────────────────────┤
+│  Service Layer  —  app/services/                             │
+│  StockService · SaleService · AuditService · …  (21 total)  │
+├──────────────────────────────────────────────────────────────┤
+│  Repository Layer  —  app/repositories/                      │
+│  ItemRepo · SaleRepo · AuditRepo · …  (13 total)            │
+├──────────────────────────────────────────────────────────────┤
+│  Model Layer  —  app/models/                                 │
+│  InventoryItem · Sale · PurchaseOrder · …  (13 total)       │
+├──────────────────────────────────────────────────────────────┤
+│  Core Layer  —  app/core/                                    │
+│  Database · Theme · i18n · Config · Logger · Colors         │
+│  SQLite WAL · Schema V14 · 23 tables                        │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### Design Patterns Used
+### Zero-Freeze Async Engine
 
-- **Repository Pattern** — Data access abstraction
-- **Service Locator** — Centralized service management
-- **Singleton** — Database and configuration instances
-- **Observer** — Real-time UI updates
-- **Factory** — Dialog and component creation
-- **Delegate** — Custom table cell rendering
+The `WorkerPool` singleton (backed by `QThreadPool`) routes every DB operation off the main thread. The main thread only ever applies results — it never queries:
+
+```python
+# Background fetch → main-thread apply, keyed and cancellable
+POOL.submit("analytics_refresh", self._fetch_all_data, self._apply_all_data)
+
+# Debounced for filter inputs — cancels previous if fired again within delay
+POOL.submit_debounced("txn_filter", self.fetch_filtered, self.load_results, delay_ms=100)
+
+# Theme changes deferred to next event-loop tick — eliminates freeze on toggle
+QTimer.singleShot(0, lambda: self._apply_ss(root, stylesheet))
+```
+
+### Controller Pattern
+
+`main_window.py` was decomposed from 2,263 lines to 572 by extracting seven purpose-built controllers:
+
+| Controller | Responsibility |
+|---|---|
+| `NavController` | Registry-based page navigation, sidebar toggle, matrix tab lifecycle |
+| `StartupController` | Two-phase async startup — KPIs first, inventory table second |
+| `UpdateController` | Manifest-based version check, update badge wiring |
+| `AlertController` | Low-stock alert counts, notification panel refresh |
+| `StockOpsController` | IN / OUT / ADJUST dispatch, dialog lifecycle |
+| `BulkOpsController` | Bulk edit, bulk price change |
+| `InventoryOpsController` | Inventory filter, selection, detail bar sync |
+
+### Database — Schema V14
+
+Full automatic migration chain from V1 through V14 runs on every startup:
+
+| Migration | What was added |
+|---|---|
+| V3 | Shop config keys, `setup_complete` flag |
+| V4 | Consolidate `products` + `stock_entries` → `inventory_items` |
+| V5 | Quick Scan command barcodes in `app_config` |
+| V6 | `part_type_colors`; UNIQUE(model, part_type, color) constraint; drop all legacy tables |
+| V7 | `image_path` column on `inventory_items` |
+| V8 | `expiry_date`, `warranty_date`; `locations`, `location_stock`, `stock_transfers` |
+| V9 | `sales`, `sale_items` tables |
+| V10 | `customers` table; `customer_id` FK on `sales` |
+| V11 | `purchase_orders`, `purchase_order_lines`, `returns` |
+| V12 | `suppliers` with rating; `supplier_items`; `inventory_audits`; `audit_lines`; `price_lists`; `price_list_items` |
+| V13 | `model_part_type_colors` — per-model product colour overrides |
+| V14 | Performance indexes on `inventory_items` (active, stock, model+pt, model+pt+color) |
+
+**23 tables total:** `app_config`, `categories`, `part_types`, `phone_models`, `part_type_colors`, `model_part_type_colors`, `inventory_items`, `inventory_transactions`, `suppliers`, `supplier_items`, `locations`, `location_stock`, `stock_transfers`, `customers`, `sales`, `sale_items`, `purchase_orders`, `purchase_order_lines`, `returns`, `inventory_audits`, `audit_lines`, `price_lists`, `price_list_items`
 
 ---
 
@@ -273,96 +331,210 @@ The `StockManagerPro.spec` file handles:
 
 ```
 Stock-manager/
-├── src/
-│   ├── files/
-│   │   ├── main.py                    # Application entry point
-│   │   ├── StockManagerPro.spec       # PyInstaller build configuration
-│   │   │
-│   │   ├── app/
-│   │   │   ├── core/                  # Core utilities & configuration
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── colors.py          # Product color palette
-│   │   │   │   ├── config.py          # Application configuration
-│   │   │   │   ├── database.py        # SQLite database layer
-│   │   │   │   ├── demo_data.py       # Sample data for demo mode
-│   │   │   │   ├── i18n.py            # Internationalization (EN/DE/AR)
-│   │   │   │   ├── icon_utils.py      # Icon loading utilities
-│   │   │   │   ├── scan_config.py     # Barcode scanner configuration
-│   │   │   │   └── theme.py           # Qt stylesheets & design tokens
-│   │   │   │
-│   │   │   ├── models/                # Domain models
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── category.py        # Category model
-│   │   │   │   ├── item.py            # Item/SKU model
-│   │   │   │   ├── phone_model.py     # Product model
-│   │   │   │   ├── product.py         # Product model
-│   │   │   │   ├── scan_session.py    # Scan session model
-│   │   │   │   └── transaction.py     # Stock transaction model
-│   │   │   │
-│   │   │   ├── repositories/          # Data access layer
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── base.py            # Base repository class
-│   │   │   │   ├── category_repo.py   # Category repository
-│   │   │   │   ├── item_repo.py       # Item repository
-│   │   │   │   ├── model_repo.py      # Model repository
-│   │   │   │   ├── product_repo.py    # Product repository
-│   │   │   │   └── transaction_repo.py # Transaction repository
-│   │   │   │
-│   │   │   ├── services/              # Business logic layer
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── alert_service.py   # Low stock alerts
-│   │   │   │   ├── scan_session_service.py # Scan session management
-│   │   │   │   ├── stock_service.py   # Stock operations (In/Out/Adjust)
-│   │   │   │   ├── report_service.py  # PDF report generation
-│   │   │   │   └── barcode_service.py # Barcode generation & scanning
-│   │   │   │
-│   │   │   ├── ui/                    # User interface
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── main_window.py     # Main application window
-│   │   │   │   ├── delegates.py       # Custom Qt delegates for tables
-│   │   │   │   │
-│   │   │   │   ├── components/        # Reusable UI components
-│   │   │   │   │   └── matrix_widget.py # Matrix/grid widget
-│   │   │   │   │
-│   │   │   │   ├── tabs/              # Main window tabs
-│   │   │   │   │   ├── base_tab.py    # Base tab class
-│   │   │   │   │   └── matrix_tab.py  # Matrix operations tab
-│   │   │   │   │
-│   │   │   │   └── dialogs/           # Modal dialogs
-│   │   │   │       ├── product_dialogs.py      # Product CRUD dialogs
-│   │   │   │       ├── matrix_dialogs.py       # Matrix operation dialogs
-│   │   │   │       ├── setup_wizard.py         # First-time setup wizard
-│   │   │   │       ├── barcode_assign_dialog.py # Barcode assignment
-│   │   │   │       │
-│   │   │   │       └── admin/                  # Admin panel dialogs
-│   │   │   │           ├── admin_dialog.py           # Main admin panel
-│   │   │   │           ├── shop_settings_panel.py    # Shop configuration
-│   │   │   │           ├── categories_panel.py       # Category management
-│   │   │   │           ├── part_types_panel.py       # Part type management
-│   │   │   │           ├── models_panel.py           # Model management
-│   │   │   │           ├── color_picker_widget.py    # Color selection
-│   │   │   │           └── scan_settings_panel.py    # Scanner configuration
-│   │   │   │
-│   │   │   └── resources/
-│   │   │       ├── img/
-│   │   │       │   ├── icon_logo.ico          # Application icon
-│   │   │       │   ├── logo.png               # Logo image
-│   │   │       │   └── icons/                 # Toolbar & menu icons
-│   │   │       └── styles/
-│   │   │           └── default.qss            # Qt stylesheets
-│   │   │
-│   │   └── img/                       # Image assets
-│   │       ├── logo.png
-│   │       ├── screenshot.png
-│   │       ├── screenshot2.png
-│   │       ├── screenshot3.png
-│   │       └── screenshot4.png
-│   │
-│   └── .gitignore
-│
-├── requirements.txt                   # Python dependencies
-├── LICENSE                           # MIT License
-└── README.md                         # This file
+└── src/
+    ├── StockManagerPro.spec              # PyInstaller build config
+    ├── README.md
+    └── files/
+        ├── main.py                       # Entry point
+        ├── requirements.txt
+        ├── app/
+        │   ├── core/
+        │   │   ├── database.py           # Schema V14, migrations V1→V14
+        │   │   ├── theme.py              # 4 themes, zero-freeze deferred apply
+        │   │   ├── i18n.py               # EN / DE / AR translations
+        │   │   ├── colors.py             # 24-colour PALETTE
+        │   │   ├── version.py            # APP_VERSION, UPDATE_MANIFEST_URL
+        │   │   ├── health.py             # DB health checks
+        │   │   ├── logger.py             # Structured rotating logger
+        │   │   ├── config.py             # App config key-value store
+        │   │   ├── icon_utils.py         # SVG icon loader
+        │   │   └── scan_config.py        # Barcode scanner configuration
+        │   │
+        │   ├── models/                   # 13 domain dataclasses
+        │   │   ├── item.py               # InventoryItem (core model)
+        │   │   ├── transaction.py        # StockTransaction
+        │   │   ├── sale.py               # Sale, SaleItem
+        │   │   ├── purchase_order.py     # PurchaseOrder, POLineItem
+        │   │   ├── return_item.py        # Return, ReturnAction
+        │   │   ├── supplier.py           # Supplier
+        │   │   ├── customer.py           # Customer
+        │   │   ├── audit.py              # AuditCycle, AuditLine
+        │   │   ├── price_list.py         # PriceList, PriceListItem
+        │   │   ├── location.py           # Location, LocationStock
+        │   │   ├── category.py           # Category
+        │   │   ├── phone_model.py        # PhoneModel
+        │   │   └── scan_session.py       # ScanSession
+        │   │
+        │   ├── repositories/             # 13 SQL-only data access repos
+        │   │   ├── item_repo.py
+        │   │   ├── transaction_repo.py
+        │   │   ├── sale_repo.py
+        │   │   ├── purchase_order_repo.py
+        │   │   ├── return_repo.py
+        │   │   ├── supplier_repo.py
+        │   │   ├── customer_repo.py
+        │   │   ├── audit_repo.py
+        │   │   ├── price_list_repo.py
+        │   │   ├── location_repo.py
+        │   │   ├── category_repo.py
+        │   │   ├── model_repo.py
+        │   │   └── base.py
+        │   │
+        │   ├── services/                 # 21 business-logic services
+        │   │   ├── stock_service.py      # IN / OUT / ADJUST / undo
+        │   │   ├── alert_service.py      # StockAlertCounts
+        │   │   ├── sale_service.py       # Cart checkout, deduction
+        │   │   ├── receipt_service.py    # PDF receipt via fpdf2
+        │   │   ├── purchase_order_service.py
+        │   │   ├── return_service.py
+        │   │   ├── supplier_service.py
+        │   │   ├── customer_service.py
+        │   │   ├── audit_service.py
+        │   │   ├── price_list_service.py # apply_price_list() bulk update
+        │   │   ├── location_service.py
+        │   │   ├── undo_service.py       # Reverse last transaction
+        │   │   ├── backup_service.py     # Retention-managed backup
+        │   │   ├── backup_scheduler.py   # 5-min QTimer off main thread
+        │   │   ├── update_service.py     # Manifest check + download
+        │   │   ├── image_service.py      # Product photo import/resize
+        │   │   ├── export_service.py     # CSV / JSON export
+        │   │   ├── import_service.py     # CSV import + validation
+        │   │   ├── report_service.py     # PDF reports
+        │   │   ├── barcode_gen_service.py
+        │   │   └── scan_session_service.py
+        │   │
+        │   └── ui/
+        │       ├── main_window.py        # 572 lines (was 2,263)
+        │       ├── helpers.py
+        │       ├── delegates.py
+        │       │
+        │       ├── workers/              # Async engine
+        │       │   ├── worker_pool.py    # POOL singleton, keyed cancellation
+        │       │   ├── data_worker.py    # Generic background fetch
+        │       │   └── update_worker.py  # Version-check worker
+        │       │
+        │       ├── controllers/          # 7 purpose-built controllers
+        │       │   ├── nav_controller.py
+        │       │   ├── startup_controller.py
+        │       │   ├── update_controller.py
+        │       │   ├── alert_controller.py
+        │       │   ├── stock_ops.py
+        │       │   ├── bulk_ops.py
+        │       │   └── inventory_ops.py
+        │       │
+        │       ├── pages/                # 11 full-page views
+        │       │   ├── inventory_page.py
+        │       │   ├── transactions_page.py
+        │       │   ├── analytics_page.py
+        │       │   ├── sales_page.py
+        │       │   ├── purchase_orders_page.py
+        │       │   ├── returns_page.py
+        │       │   ├── suppliers_page.py
+        │       │   ├── price_lists_page.py
+        │       │   ├── audit_page.py
+        │       │   ├── reports_page.py
+        │       │   └── barcode_gen_page.py
+        │       │
+        │       ├── components/           # 23 reusable UI components
+        │       │   ├── dashboard_widget.py   # KPI summary cards
+        │       │   ├── header_bar.py         # Glass search bar
+        │       │   ├── footer_bar.py         # Status + filter hint
+        │       │   ├── sidebar.py            # Nav button registry
+        │       │   ├── theme_toggle.py       # Animated sun/moon toggle
+        │       │   ├── language_switcher.py  # Animated dropdown
+        │       │   ├── update_banner.py      # Slide-in update panel
+        │       │   ├── notification_panel.py # Alert counts + badge
+        │       │   ├── product_detail.py     # Product detail panel
+        │       │   ├── product_detail_bar.py # Sparkline + quick actions
+        │       │   ├── product_table.py      # Responsive columns
+        │       │   ├── transaction_table.py
+        │       │   ├── responsive_table.py
+        │       │   ├── toast.py              # Floating notifications
+        │       │   ├── loading_overlay.py
+        │       │   ├── splash_screen.py      # Geometric cube + version badge
+        │       │   ├── charts.py
+        │       │   ├── empty_state.py
+        │       │   ├── collapsible_section.py
+        │       │   ├── mini_txn_list.py
+        │       │   ├── barcode_line_edit.py
+        │       │   ├── filter_bar.py
+        │       │   └── matrix_widget.py      # Frozen col, zoom, per-model colors
+        │       │
+        │       ├── tabs/
+        │       │   ├── matrix_tab.py
+        │       │   ├── quick_scan_tab.py
+        │       │   ├── stock_ops_tab.py
+        │       │   └── base_tab.py
+        │       │
+        │       └── dialogs/
+        │           ├── product_dialogs.py       # ModernDialog, ColorPicker, StockOp
+        │           ├── dialog_base.py
+        │           ├── bulk_price_dialog.py
+        │           ├── price_list_dialogs.py
+        │           ├── help_dialog.py
+        │           ├── matrix_dialogs.py
+        │           ├── barcode_assign_dialog.py
+        │           ├── setup_wizard.py
+        │           └── admin/                   # 14-panel admin dialog
+        │               ├── admin_dialog.py
+        │               ├── shop_settings_panel.py
+        │               ├── categories_panel.py
+        │               ├── part_types_panel.py
+        │               ├── models_panel.py
+        │               ├── scan_settings_panel.py
+        │               ├── backup_panel.py
+        │               ├── import_export_panel.py
+        │               ├── db_tools_panel.py
+        │               ├── suppliers_panel.py
+        │               ├── locations_panel.py
+        │               ├── customers_panel.py
+        │               ├── about_panel.py
+        │               └── color_picker_widget.py
+        │
+        ├── tests/                        # 30+ pytest modules
+        │   ├── conftest.py               # In-memory SQLite fixtures
+        │   ├── test_database.py          # Schema creation
+        │   ├── test_migration.py         # Full V1→V12 chain
+        │   ├── test_item_repo.py
+        │   ├── test_transaction_repo.py
+        │   ├── test_stock_service.py
+        │   ├── test_sale_service.py
+        │   ├── test_audit_service.py
+        │   ├── test_purchase_order_service.py
+        │   ├── test_return_service.py
+        │   ├── test_supplier_service.py
+        │   ├── test_customer_service.py
+        │   ├── test_price_list_service.py
+        │   ├── test_backup_service.py
+        │   ├── test_undo_service.py
+        │   ├── test_export_service.py
+        │   └── … (30+ total)
+        │
+        └── img/                          # Screenshots & assets
+            ├── icon_cube.ico             # App icon (multi-resolution)
+            ├── icon_cube.png             # 256px isometric cube
+            ├── icon_cube_16.png
+            ├── icon_cube_32.png
+            ├── icon_cube_48.png
+            ├── icon_cube_64.png
+            ├── icon_cube_128.png
+            ├── icon_cube_256.png
+            ├── scr-dashboard.png
+            ├── scr-inventory-v2.png
+            ├── scr-sales.png
+            ├── scr-analytics.png
+            ├── scr-transactions.png
+            ├── scr-purchase-orders.png
+            ├── scr-audit.png
+            ├── scr-price-lists.png
+            ├── scr-suppliers.png
+            ├── scr-returns.png
+            ├── scr-admin.png
+            ├── scr-admin-about.png
+            ├── scr-displays.png
+            ├── scr-quickscan.png
+            ├── scr-barcode.png
+            └── icons/
 ```
 
 ---
@@ -370,404 +542,245 @@ Stock-manager/
 ## 🛠️ Tech Stack
 
 | Layer | Technology | Purpose |
-|-------|-----------|---------|
-| **UI Framework** | [PyQt6 6.10+](https://www.riverbankcomputing.com/software/pyqt/) | Cross-platform desktop GUI |
-| **Database** | SQLite 3 | Local relational database |
-| **PDF Generation** | [fpdf2 2.8+](https://py-pdf.github.io/fpdf2/) + [PyMuPDF 1.27+](https://pymupdf.readthedocs.io/) | Report generation |
-| **Barcode** | [python-barcode 0.16+](https://python-barcode.readthedocs.io/) | Barcode generation (Code128, EAN, etc.) |
-| **Image Processing** | [Pillow 12.1+](https://python-pillow.org/) | Image handling for logos and icons |
-| **Security** | [defusedxml 0.7+](https://github.com/tiran/defusedxml) | Safe XML parsing |
-| **Packaging** | [PyInstaller 6.19+](https://pyinstaller.org/) | Windows executable creation |
-| **Development** | Python 3.11+ | Programming language |
-
-### Key Dependencies
+|---|---|---|
+| UI Framework | **PyQt6 6.10** | Cross-platform desktop GUI |
+| Database | **SQLite 3** WAL + FK | Local relational storage |
+| PDF | **fpdf2 2.8** + **PyMuPDF 1.27** | Reports and receipts |
+| Barcodes | **python-barcode 0.16** | Code128 / EAN generation |
+| Images | **Pillow 12.1** | Product photos, icon handling |
+| Packaging | **PyInstaller 6.19** | Windows executable |
+| Testing | **pytest** | 30+ modules, in-memory fixtures |
 
 ```
-PyQt6==6.10.2              # GUI framework
-Pillow==12.1.1             # Image processing
-fpdf2==2.8.7               # PDF generation
-PyMuPDF==1.27.2.2          # Advanced PDF handling
-python-barcode==0.16.1     # Barcode generation
-defusedxml==0.7.1          # Secure XML parsing
-PyInstaller==6.19.0        # Executable packaging
+PyQt6==6.10.2
+Pillow==12.1.1
+fpdf2==2.8.7
+PyMuPDF==1.27.2.2
+python-barcode==0.16.1
+defusedxml==0.7.1
+PyInstaller==6.19.0
 ```
 
 ---
 
 ## ⌨️ Keyboard Shortcuts
 
-| Action | Shortcut | Context |
-|--------|----------|---------|
-| **New Product** | `Ctrl+N` | Main window |
-| **Stock In** | `Ctrl+I` | Main window with product selected |
-| **Stock Out** | `Ctrl+O` | Main window with product selected |
-| **Adjust Stock** | `Ctrl+J` | Main window with product selected |
-| **Search** | `Ctrl+F` | Main window |
-| **Delete Product** | `Del` | Main window with product selected |
-| **Export Report** | `Ctrl+P` | Main window |
-| **Admin Settings** | `Ctrl+Alt+A` | Main window |
-| **Generate Barcode** | `Ctrl+B` | Product detail view |
-| **Refresh** | `F5` | Main window |
-| **Open Admin Panel** | `Ctrl+Alt+S` | Main window |
+| Action | Shortcut |
+|---|---|
+| New product | `Ctrl+N` |
+| Stock In | `Ctrl+I` |
+| Stock Out | `Ctrl+O` |
+| Adjust stock | `Ctrl+J` |
+| Search | `Ctrl+F` |
+| Delete product | `Del` |
+| Generate barcode | `Ctrl+B` |
+| Export PDF report | `Ctrl+P` |
+| Zoom in | `Ctrl+=` or `Ctrl+Scroll Up` |
+| Zoom out | `Ctrl+-` or `Ctrl+Scroll Down` |
+| Reset zoom | `Ctrl+0` |
+| Admin settings | `Ctrl+Alt+A` |
+| Force refresh | `F5` |
+
+---
+
+## 🧪 Running Tests
+
+```bash
+cd src/files
+pytest tests/ -v
+
+# With coverage
+pytest tests/ --cov=app --cov-report=term-missing
+
+# Single suite
+pytest tests/test_stock_service.py -v
+```
+
+All tests use an in-memory SQLite database with the full V12 schema applied — no file system side effects.
 
 ---
 
 ## 👨‍💼 Admin Panel Guide
 
-### Accessing Admin Panel
+Access: `Ctrl+Alt+A` · or the ⚙ icon in the header bar
 
-1. **Keyboard:** Press `Ctrl+Alt+A`
-2. **Menu:** File → Admin Settings
-3. **Button:** Admin button in toolbar
-
-### Shop Settings
-Configure global application settings:
-- **Shop Name** — Your business/organization name
-- **Location** — Shop address or location
-- **Currency** — Currency symbol and decimal precision
-- **Phone** — Contact phone number
-- **Email** — Business email address
-- **Tax Rate** — Default tax percentage
-
-### Categories Management
-Create and organize product categories:
-- Add new categories
-- Edit category names and descriptions
-- Set category-specific settings
-- Delete unused categories
-- Drag-and-drop to reorder
-
-### Part Types
-Define product classifications:
-- Create product types (e.g., Electronics, Accessories, Spare Parts)
-- Assign icons/colors to types
-- Manage type-specific attributes
-
-### Models Management
-Define product variants and models:
-- Create product models within categories
-- Set model specifications
-- Link models to part types
-- Manage model variations
-
-### Color Picker
-Professional color selection:
-- 20+ preset colors
-- Custom color selection with RGB/HEX input
-- Color preview
-- Save favorite colors
-
-### Scan Settings
-Configure barcode scanner behavior:
-- Scanner input delay
-- Barcode format settings
-- Sound/vibration feedback
-- Automatic focus settings
-- Duplicate scan handling
+| Panel | Purpose |
+|---|---|
+| **Shop Settings** | Name, address, phone, email, currency, tax rate, admin PIN, language |
+| **Categories** | Create, edit, reorder inventory categories |
+| **Part Types** | Product type classifications with colour assignments |
+| **Models** | Device models and variants within categories |
+| **Scan Settings** | Scanner input delay, command barcode values, duplicate handling |
+| **Backup** | Manual backup trigger, retention-managed backup list |
+| **Import / Export** | CSV / JSON import and export per entity type |
+| **DB Tools** | VACUUM, integrity check, schema version display |
+| **Suppliers** | Supplier CRUD in admin context |
+| **Locations** | Warehouse bin / shelf location management |
+| **Customers** | Customer profile management |
+| **About** | App version, schema V14, DB size, OS info, update check |
 
 ---
 
 ## 📱 Barcode Workflow
 
-### Scanning Workflow
+**Scanning:** Plug in any USB HID scanner → scan a product barcode → stock operation dispatches automatically via the Quick Scan tab.
 
-1. **Plug in USB barcode scanner** — Device will be auto-detected
-2. **Open barcode scanner dialog** — `Ctrl+S` or Tools → Barcode Scanner
-3. **Scan products** — Point scanner at barcodes
-4. **Automatic stock update** — Stock quantities update in real-time
-5. **Review session** — View all scanned items with quantities
+**Generation:** Select product → `Ctrl+B` → configure format and size → export PNG or print directly.
 
-### Barcode Generation Workflow
-
-1. **Select product** in inventory
-2. **Right-click** → Generate Barcode or press `Ctrl+B`
-3. **Configure barcode** (format, size, text)
-4. **Preview** the barcode
-5. **Print** or **Export as image**
-6. **Assign to product** (automatic)
-
-### Barcode Assignment
-
-For products without barcodes:
-1. **Open** Tools → Assign Barcodes
-2. **Bulk generate** for multiple products
-3. **Manual entry** for specific barcodes
-4. **Verify** assignments in product list
-
----
-
-## 📊 PDF Reports
-
-### Report Types
-
-1. **Inventory Summary** — Current stock levels and valuations
-2. **Transaction History** — All stock movements with timestamps
-3. **Low Stock Alert** — Products below minimum threshold
-4. **Category Report** — Stock by category
-5. **Custom Report** — Date range and product filtering
-
-### Generate Report
-
-1. **File → Export Report** or `Ctrl+P`
-2. **Select report type**
-3. **Choose date range** (optional)
-4. **Filter products** (optional)
-5. **Configure page layout** (orientation, margins)
-6. **Preview** the report
-7. **Save** as PDF or **Print directly**
-
-### Report Features
-
-- Professional company header with logo
-- Date and time stamps
-- Customizable data fields
-- Tables with automatic pagination
-- Summary statistics
-- Barcode scanning support in reports
+**Command barcodes:** Print `CMD-TAKEOUT`, `CMD-INSERT`, and `CMD-CONFIRM` barcodes to control the Quick Scan workflow hands-free. Values are configurable in Admin → Scan Settings.
 
 ---
 
 ## 🔒 Data & Privacy
 
-### Data Storage
-
-All data is stored **locally** on your machine:
+All data stays on your machine:
 
 ```
 %LOCALAPPDATA%\StockPro\StockManagerPro\stock_manager.db
 ```
 
-### Security Features
+- No internet connection required (update check is opt-in)
+- No telemetry, no cloud sync, no user tracking
+- Complete audit log of every stock movement
+- Automatic backup every 5 minutes with configurable retention
+- SQLite WAL mode for crash safety
 
-- ✅ No internet connection required
-- ✅ No cloud sync or telemetry
-- ✅ No user tracking or analytics
-- ✅ Local database encryption (optional)
-- ✅ Admin password protection (configurable)
-- ✅ Full audit logs of all transactions
-
-### Database Backup
-
-Recommended backup strategy:
-1. **Automatic backups** — Configure in Admin → Shop Settings
-2. **Manual backup** — Copy `stock_manager.db` to external drive
-3. **Scheduled backups** — Use Windows Task Scheduler
-
-**Backup location suggestion:** `C:\Backups\StockManager\`
+**Logs:**
+```
+%LOCALAPPDATA%\StockPro\StockManagerPro\logs\
+```
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Here's how to help:
-
-### Development Setup
-
 ```bash
-# Clone and setup
 git clone https://github.com/AbdullahBakir97/Stock-manager.git
 cd Stock-manager
 git checkout dev
-
-# Create feature branch
 git checkout -b feature/your-feature-name
 
-# Install dependencies
-python -m venv venv
-venv\Scripts\activate
+python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt
 
-# Make your changes and test
-python files/main.py
+# Run app
+cd src/files && python main.py
 
-# Commit with descriptive messages
-git add .
-git commit -m "feat: add your feature description"
-git push origin feature/your-feature-name
+# Run tests
+pytest tests/ -v
 ```
 
-### Contribution Guidelines
+**Layer rules (strictly enforced):**
+- UI never imports repositories directly — always go through services
+- Services never import UI — they return data or raise exceptions
+- Repositories contain only SQL and data mapping — no business logic
+- Models are pure dataclasses — no DB access, no side effects
 
-1. **Create a feature branch** from `dev` branch
-2. **Write clear commit messages** (use conventional commits)
-3. **Test your changes** thoroughly
-4. **Update README** if adding new features
-5. **Submit Pull Request** with detailed description
-6. **Wait for review** from maintainers
-
-### Code Standards
-
-- Follow PEP 8 Python style guide
-- Use type hints for function arguments
-- Write docstrings for classes and methods
-- Keep functions small and focused
-- Add comments for complex logic
+**Adding a new feature:**
+1. Model → `app/models/`
+2. Migration → `app/core/database.py` (V14+)
+3. Repository → `app/repositories/`
+4. Service → `app/services/`
+5. UI → `app/ui/pages/` or `app/ui/dialogs/`
+6. Translations → `app/core/i18n.py` (EN + DE + AR)
+7. Wire into `main_window.py` via the appropriate controller
+8. Tag + push → GitHub Actions builds, signs, and releases automatically
 
 ---
 
 ## 🐛 Troubleshooting
 
-### Common Issues
+**Application won't start**
+Delete `%LOCALAPPDATA%\StockPro\` to reset all data and config to defaults. Check that Windows Defender isn't blocking the executable.
 
-#### Application Won't Start
+**Barcode scanner not recognised**
+Verify the scanner is in Keyboard Emulation (HID) mode. Test in Notepad first. Adjust input delay in Admin → Scan Settings.
 
-**Problem:** `StockManagerPro.exe` doesn't launch
+**Database errors**
+Run VACUUM and integrity check in Admin → DB Tools. Restore from a recent backup if needed (Admin → Backup).
 
-**Solutions:**
-- Check Windows Defender/Antivirus isn't blocking the app
-- Run in compatibility mode (Right-click → Properties → Compatibility)
-- Delete `%LOCALAPPDATA%\StockPro\` and restart (will reset to default)
-- Check Event Viewer for error details
-
-#### Barcode Scanner Not Working
-
-**Problem:** Scanner plugged in but not recognized
-
-**Solutions:**
-- Install scanner drivers (often not needed for HID scanners)
-- Check scanner is in "Keyboard Emulation" mode
-- Verify scanner settings in Admin → Scan Settings
-- Test in Notepad first to confirm scanner works
-- Try different USB port
-
-#### Database Corruption
-
-**Problem:** Getting database errors or crashes
-
-**Solutions:**
-- Restart the application
-- Check disk space availability
-- Restore from backup in Admin → Restore Backup
-- Run database repair: File → Tools → Repair Database
-- Reinstall application if all else fails
-
-#### Slow Performance
-
-**Problem:** Application is sluggish with large databases
-
-**Solutions:**
-- Close other applications to free RAM
-- Run database optimization: File → Tools → Optimize Database
-- Reduce number of columns displayed in tables
-- Increase cache in Admin → Performance Settings
-- Archive old transactions (Admin → Archive Transactions)
-
-#### PDF Generation Error
-
-**Problem:** Can't generate or export PDF reports
-
-**Solutions:**
-- Ensure fpdf2 and PyMuPDF are installed: `pip install -r requirements.txt`
-- Check disk space for PDF creation
-- Verify file permissions in Documents folder
-- Try different save location
-- Disable antivirus temporarily during PDF generation
-
-### Logs and Debugging
-
-Application logs are stored at:
-```
-%LOCALAPPDATA%\StockPro\StockManagerPro\logs\
-```
-
-Enable debug mode for detailed logging:
-1. Admin Panel → Advanced Settings
-2. Enable "Debug Mode"
-3. Restart application
-4. Check logs folder for detailed output
-
----
-
-## ❓ FAQ
-
-### General Questions
-
-**Q: Can I use this on Mac or Linux?**
-A: Currently Windows only due to PyQt6 and specific Windows dependencies. Mac/Linux support is planned for future versions.
-
-**Q: Is a network version available?**
-A: Not currently, but multi-user local network support is on the roadmap.
-
-**Q: Can I migrate from another inventory system?**
-A: Yes! Use the import feature in Admin → Data Management → Import CSV.
-
-**Q: How often should I backup my data?**
-A: Daily backup is recommended for active businesses. Use Windows Task Scheduler for automatic backups.
-
-### Technical Questions
-
-**Q: How much data can the database handle?**
-A: SQLite can handle millions of records. Performance degrades around 1-2 million transactions; consider archiving older data.
-
-**Q: Can I customize the UI/themes?**
-A: Yes, edit the Qt stylesheets in `app/resources/styles/`. Restart after making changes.
-
-**Q: How do I uninstall the application?**
-A: Simply delete the `StockManagerPro` folder. Data is stored separately and won't be deleted.
-
-**Q: Can I run multiple instances?**
-A: Not recommended as they'll share the same database and cause conflicts.
-
-### Licensing Questions
-
-**Q: Can I modify the code for my business?**
-A: Yes! Under the MIT License, you can modify and redistribute, but must include the license.
-
-**Q: Can I sell this software?**
-A: Yes, with proper attribution to the original author.
-
----
-
-## 📞 Support & Feedback
-
-- **Issues & Bug Reports:** [GitHub Issues](https://github.com/AbdullahBakir97/Stock-manager/issues)
-- **Feature Requests:** [GitHub Discussions](https://github.com/AbdullahBakir97/Stock-manager/discussions)
-- **Email:** Contact via GitHub profile
-
----
-
-## 📄 License
-
-This project is licensed under the **MIT License** — see [LICENSE](LICENSE) file for complete details.
-
-**Copyright © 2026 Abdullah Bakir**
-
----
-
-## 🙏 Acknowledgments
-
-- **PyQt6** — For the excellent desktop framework
-- **SQLite** — For reliable local database storage
-- **Python Community** — For amazing open-source libraries
+**Performance**
+The async engine ensures the UI never blocks regardless of database size. If you see main-thread freezes please [open an issue](https://github.com/AbdullahBakir97/Stock-manager/issues) with your schema version and OS details.
 
 ---
 
 ## 📈 Version History
 
-### v2.0.0 (April 2026) — Current Dev
-- ✨ Complete architecture refactor to modular design
-- 🏗️ Service-oriented architecture implementation
-- 📄 PDF report generation with multiple templates
-- 🎯 Barcode generation (not just scanning)
-- 📊 Matrix/grid operations for bulk management
-- 👨‍💼 Enhanced admin panel with 6 management sections
-- 🎨 Professional color picker widget
-- 🔧 Setup wizard for new installations
-- ⚡ Performance optimizations with custom delegates
+### v2.3.4 — April 2026 (current)
 
-### v1.0.0 (Previous)
-- Initial release with core inventory management
-- Basic barcode scanning support
-- Multilingual interface (EN/DE/AR)
-- Offline SQLite database
-- Low stock alerts
+**Matrix & Navigation:**
+- Sticky frozen model column when scrolling horizontally
+- Part-type banner bar above column headers
+- Excel-like zoom (50-200%) with Ctrl+Scroll, footer slider, auto-reset on page switch
+- Per-model product colours — right-click model or Admin → Part Types → Model Colors
+- Series separators between model groups (X-series, A0x, A1x, S2x)
+- Collapsible matrix toolbar (inventory-style section header)
+- Auto-fit model column width to longest name
+
+**UI & UX:**
+- Professional splash screen with geometric cube icon + dynamic version badge
+- Custom isometric cube app icon (.ico multi-resolution + .png)
+- Slim dropdown style across entire app (minimal bottom-line, no box borders)
+- Compact filter bar (26px, inline category, icon reset)
+- Full actions toolbar (New Product, Export, Import, Report, Bulk Edit, Refresh)
+- Live clock in footer bar
+- Quick +1/-1 now shows undo toast and updates detail bar instantly
+- Model reorder buttons (up/down) in Admin → Models panel
+
+**Performance:**
+- Thread-local connection pooling (reuses connections per thread)
+- Optimised SQLite pragmas (synchronous=NORMAL, cache_size=20MB, temp_store=MEMORY)
+- 5 new performance indexes on inventory_items (Schema V14)
+- Batch INSERT via executemany() in ensure_matrix_entries (10-50x faster)
+- Matrix rendering: pre-indexed item_map O(1) lookup + setUpdatesEnabled
+- Deferred health checks to background thread
+- Lazy theme loading (only active theme QSS at startup)
+
+**Update Pipeline:**
+- Theme toggle now persists to database (no revert on admin close)
+- UAC rejection detection — app stays open if user cancels
+- Download cancel button + persistent installer cache
+- Pre-release version parsing, manifest validation, min_version enforcement
+- CI/CD: release branch → PR → auto-merge to main with retry
+- CI: auto-stamps version.py, file_version_info.txt, .iss, README badge
+
+**Schema V14** — performance indexes + model_part_type_colors table
+
+### v2.3.0 — April 2026
+- Zero-freeze async engine via `WorkerPool` (QThreadPool + keyed cancellation)
+- `main_window.py` decomposed 2,263 → 572 lines via 7 controllers
+- Schema V12 with 22 tables — 7 new migration paths since v2.2
+- Full business suite: Sales/POS, Purchase Orders, Returns, Suppliers, Audit, Price Lists, Customers, Locations
+- 22 new UI components, 11 pages, 3 async workers
+- 30+ pytest modules with in-memory SQLite fixtures
+- Manifest-based auto-updater with download progress
+- Undo transactions, image attachments, expiry/warranty tracking
+- 14-panel admin dialog with Locations, Customers, Suppliers, DB Tools, Backup, Import/Export, About
+
+### v2.2.0 — April 2026
+- Colour dimension in matrix (model × part type × colour)
+- Natural sorting, scrollable UI improvements, barcode fixes
+
+### v2.1.0 — April 2026
+- Barcode generator, Quick Scan workflow, professional UI overhaul
+
+### v1.0.0 — 2025
+- Core inventory management, basic barcode scanning, multilingual interface, offline SQLite
 
 ---
 
-**Happy Inventory Managing! 🚀**
-
-For the latest updates, visit: [GitHub Repository](https://github.com/AbdullahBakir97/Stock-manager)
-
-## License
+## 📄 License
 
 MIT License — see [LICENSE](LICENSE) for details.
+
+Copyright © 2026 Abdullah Bakir
+
+---
+
+<div align="center">
+
+**[GitHub Repository](https://github.com/AbdullahBakir97/Stock-manager)** · **[Report a Bug](https://github.com/AbdullahBakir97/Stock-manager/issues)** · **[Request a Feature](https://github.com/AbdullahBakir97/Stock-manager/discussions)**
+
+Happy Inventory Managing 🚀
+
+</div>

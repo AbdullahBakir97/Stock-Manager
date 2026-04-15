@@ -4885,6 +4885,7 @@ _COLORS: dict[str, dict[str, str]] = {
     "Olive":    {"DE": "Olivgrün",        "AR": "زيتوني"},
     "Maroon":   {"DE": "Kastanienbraun",  "AR": "كستنائي"},
     "Navy":     {"DE": "Marine",          "AR": "كحلي"},
+    "Without Color": {"DE": "Ohne Farbe",  "AR": "بدون لون"},
     "Black":    {"DE": "Schwarz",         "AR": "أسود"},
     "Charcoal": {"DE": "Anthrazit",       "AR": "فحمي"},
     "Gray":     {"DE": "Grau",            "AR": "رمادي"},

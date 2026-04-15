@@ -1130,7 +1130,12 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
 
     def _queue_item(mid: int, pt_id: int):
         """Queue inventory items for batch insert."""
-        colors = model_pt_colors.get((mid, pt_id), pt_colors.get(pt_id, []))
+        override = model_pt_colors.get((mid, pt_id))
+        # "__NONE__" marker means explicitly no colors for this model
+        if override and "__NONE__" in override:
+            _batch_inserts.append((mid, pt_id, ""))  # only colorless parent
+            return
+        colors = override if override is not None else pt_colors.get(pt_id, [])
         if colors:
             color_set = set(colors)
             for color in colors:
@@ -1194,6 +1199,28 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
             "INSERT OR IGNORE INTO inventory_items (model_id, part_type_id, color) VALUES (?,?,?)",
             _batch_inserts,
         )
+
+    # Clean up stale inventory items: remove display items for brands that
+    # shouldn't have them (e.g. Samsung models with Apple-only part types).
+    # Only deletes zero-stock rows to avoid data loss.
+    if DISPLAY_BRAND_MAP and display_pt_map:
+        for model in models:
+            brand = model["brand"]
+            mid = model["id"]
+            allowed_keys = DISPLAY_BRAND_MAP.get(brand)
+            if allowed_keys is None:
+                continue
+            allowed_pt_ids = {display_pt_map[k] for k in allowed_keys if k in display_pt_map}
+            # Find display part types this brand should NOT have
+            disallowed_pt_ids = display_pt_ids - allowed_pt_ids
+            for pt_id in disallowed_pt_ids:
+                conn.execute(
+                    "DELETE FROM inventory_items "
+                    "WHERE model_id=? AND part_type_id=? "
+                    "AND stock=0 AND min_stock=0 "
+                    "AND (inventur IS NULL OR inventur=0)",
+                    (mid, pt_id),
+                )
 
 
 def ensure_matrix_entries() -> None:

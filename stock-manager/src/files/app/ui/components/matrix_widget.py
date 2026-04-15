@@ -207,7 +207,8 @@ class MatrixWidget(QTableWidget):
         self.customContextMenuRequested.connect(self._on_context_menu)
 
     def load(self, cat: CategoryConfig, models,
-             item_map: dict[tuple[int, str], InventoryItem]) -> None:
+             item_map: dict[tuple[int, str], InventoryItem],
+             brand_boundaries: list[tuple[int, str]] | None = None) -> None:
         self._cat = cat
         self._build_headers(cat)
         tk = THEME.tokens
@@ -259,10 +260,21 @@ class MatrixWidget(QTableWidget):
         for (mid, pt_key, color) in item_map.keys():
             _items_by_model.setdefault(mid, []).append((pt_key, color))
 
-        # Build row list: model rows + color sub-rows + separators between series
+        # Build brand boundary set for quick lookup
+        _brand_at: dict[int, str] = {}
+        if brand_boundaries:
+            for idx, bname in brand_boundaries:
+                _brand_at[idx] = bname
+
+        # Build row list: brand headers + model rows + color sub-rows + separators
         row_data: list[dict] = []
         prev_series = ""
-        for model in models:
+        for mi, model in enumerate(models):
+            # Insert brand header row if this is a brand boundary
+            if mi in _brand_at:
+                prev_series = ""  # reset series tracking for new brand
+                row_data.append({"type": "brand", "brand_name": _brand_at[mi]})
+
             series = _model_series(model.name)
             if prev_series and series != prev_series:
                 row_data.append({"type": "sep"})
@@ -288,8 +300,31 @@ class MatrixWidget(QTableWidget):
         # Separator row color
         sep_bg = QColor(tk.t3)
 
+        # Brand header colors
+        brand_bg = QColor(tk.card2)
+        brand_fg = QColor(tk.t1)
+        _FONT_BRAND = QFont("Segoe UI", 12, QFont.Weight.Bold)
+
         for ri, rd in enumerate(row_data):
             r = ri + self._row_offset
+
+            if rd["type"] == "brand":
+                # Brand header row — full-width colored bar
+                self.setRowHeight(r, 32)
+                bname = rd["brand_name"]
+                for c in range(self.columnCount()):
+                    cell = self._ro("")
+                    cell.setBackground(brand_bg)
+                    if c == 0:
+                        cell = self._ro(f"  {bname}")
+                        cell.setTextAlignment(
+                            Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
+                        )
+                        cell.setFont(_FONT_BRAND)
+                        cell.setForeground(QColor(tk.green))
+                        cell.setBackground(brand_bg)
+                    self.setItem(r, c, cell)
+                continue
 
             if rd["type"] == "sep":
                 # Visible separator line between model series
@@ -704,7 +739,7 @@ class MatrixWidget(QTableWidget):
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
 
-        sel_all = QPushButton(t("clr_select_all") if t("clr_select_all") != "clr_select_all" else "Select All")
+        sel_all = QPushButton("Select All")
         sel_all.setObjectName("btn_ghost")
         sel_all.setFixedHeight(32)
         def _select_all():
@@ -717,6 +752,46 @@ class MatrixWidget(QTableWidget):
                 )
         sel_all.clicked.connect(_select_all)
         btn_row.addWidget(sel_all)
+
+        # "No Colors" — remove all color variants, keep only the base product
+        no_clr_btn = QPushButton("No Colors")
+        no_clr_btn.setObjectName("btn_ghost")
+        no_clr_btn.setFixedHeight(32)
+        no_clr_btn.setToolTip("Remove all colors — only the base product (no color variants)")
+        def _no_colors():
+            from app.core.database import get_connection
+            all_pt_ids = [pt.id for pt in self._cat.part_types] if self._cat else [part_type_id]
+            with get_connection() as conn:
+                for ptid in all_pt_ids:
+                    # Set override to empty list (= explicitly no colors)
+                    conn.execute(
+                        "DELETE FROM model_part_type_colors WHERE model_id=? AND part_type_id=?",
+                        (model_id, ptid),
+                    )
+                    # Insert a special marker: empty string means "no colors"
+                    conn.execute(
+                        "INSERT OR IGNORE INTO model_part_type_colors "
+                        "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                        (model_id, ptid, "__NONE__"),
+                    )
+                    # Delete all colored inventory items (zero stock only)
+                    conn.execute(
+                        "DELETE FROM inventory_items "
+                        "WHERE model_id=? AND part_type_id=? AND color != '' "
+                        "AND stock=0 AND min_stock=0 "
+                        "AND (inventur IS NULL OR inventur=0)",
+                        (model_id, ptid),
+                    )
+                    # Ensure colorless parent row exists
+                    conn.execute(
+                        "INSERT OR IGNORE INTO inventory_items "
+                        "(model_id, part_type_id, color) VALUES (?,?,'')",
+                        (model_id, ptid),
+                    )
+            dlg.accept()
+            self._refresh_cb()
+        no_clr_btn.clicked.connect(_no_colors)
+        btn_row.addWidget(no_clr_btn)
 
         reset_btn = QPushButton("Use Default")
         reset_btn.setObjectName("btn_ghost")
@@ -955,10 +1030,10 @@ class FrozenMatrixContainer(QWidget):
     def data_table(self) -> MatrixWidget:
         return self._table
 
-    def load(self, cat, models, item_map):
+    def load(self, cat, models, item_map, brand_boundaries=None):
         """Load data into both tables and build the banner."""
         self._cat = cat
-        self._table.load(cat, models, item_map)
+        self._table.load(cat, models, item_map, brand_boundaries=brand_boundaries)
 
         # Hide column 0 in data table — shown by frozen side table
         self._table.setColumnHidden(0, True)

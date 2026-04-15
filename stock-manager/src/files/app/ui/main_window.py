@@ -756,12 +756,13 @@ class MainWindow(QMainWindow):
                     mtx.setColumnWidth(b + 1, int(_COL_W["bestbung"] * factor))
                     mtx.setColumnWidth(b + 2, int(_COL_W["stock"] * factor))
                     mtx.setColumnWidth(b + 3, int(_COL_W["inventur"] * factor))
-            # Scale row heights in both tables (skip separator rows)
+            # Scale row heights in both tables (skip separator and brand header rows)
             for r in range(mtx.rowCount()):
                 cur_h = mtx.rowHeight(r)
                 if cur_h <= 5:
-                    # Separator row — keep at 3px, don't scale
-                    continue
+                    continue  # separator row — keep at 3px
+                if cur_h == 32:
+                    continue  # brand header row — keep at 32px
                 default_h = 48 if r > 0 else 36
                 h = int(default_h * factor)
                 mtx.setRowHeight(r, h)

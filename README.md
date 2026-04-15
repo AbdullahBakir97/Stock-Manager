@@ -711,11 +711,14 @@ The async engine ensures the UI never blocks regardless of database size. If you
 **Matrix & Navigation:**
 - Sticky frozen model column when scrolling horizontally
 - Part-type banner bar above column headers
+- Per-brand sections in "All Brands" view — each brand gets own columns and sticky headers
 - Excel-like zoom (50-200%) with Ctrl+Scroll, footer slider, auto-reset on page switch
 - Per-model product colours — right-click model or Admin → Part Types → Model Colors
+- "No Colors" option — remove all colour variants, keep only the base product
 - Series separators between model groups (X-series, A0x, A1x, S2x)
 - Collapsible matrix toolbar (inventory-style section header)
 - Auto-fit model column width to longest name
+- Expanded colour palette (Black, Blue, Silver, Gold, Green, Purple, White, Red, Pink, Yellow, Orange)
 
 **UI & UX:**
 - Professional splash screen with geometric cube icon + dynamic version badge

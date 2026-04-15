@@ -9,7 +9,7 @@ from __future__ import annotations
 from PyQt6.QtCore import Qt, QSize, pyqtSignal
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QWidget,
-    QPushButton, QDialog, QMessageBox,
+    QPushButton, QDialog, QMessageBox, QFrame,
 )
 from app.core.theme import THEME
 
@@ -153,10 +153,30 @@ class MatrixTab(BaseTab):
         tb.addWidget(self._ref_btn)
         lay.addWidget(self._toolbar_widget)
 
-        # ── Frozen matrix container (model column sticky + data scrollable) ──
-        self._container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
-        self._table = self._container.data_table  # for compatibility
-        lay.addWidget(self._container, 1)
+        # ── Content area ──────────────────────────────────────────────────────
+        from PyQt6.QtWidgets import QStackedWidget, QScrollArea
+
+        self._content_stack = QStackedWidget()
+
+        # Page 0: single brand — full height, table scrolls internally
+        self._single_container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
+        self._content_stack.addWidget(self._single_container)
+
+        # Page 1: all brands — outer scroll, each section full-sized
+        self._multi_scroll = QScrollArea()
+        self._multi_scroll.setWidgetResizable(True)
+        self._multi_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self._multi_inner = QWidget()
+        self._multi_lay = QVBoxLayout(self._multi_inner)
+        self._multi_lay.setContentsMargins(0, 0, 0, 0)
+        self._multi_lay.setSpacing(6)
+        self._multi_scroll.setWidget(self._multi_inner)
+        self._content_stack.addWidget(self._multi_scroll)
+
+        self._brand_widgets: list[QWidget] = []
+        self._container = self._single_container
+        self._table = self._single_container.data_table
+        lay.addWidget(self._content_stack, 1)
 
         self._populate_brand_combo()
         self.refresh()
@@ -210,33 +230,100 @@ class MatrixTab(BaseTab):
             self._cat = _cat_repo.get_by_key(self._cat_key)
         if not self._cat:
             return
-        brand    = self._selected_brand()
-        models   = _model_repo.get_all(brand=brand)
-        item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
 
-        # Filter part types to only those that have inventory items for selected brand
+        from app.models.category import CategoryConfig
+        brand = self._selected_brand()
+
         if brand:
-            used_pt_ids = set()
-            for key in item_map.keys():
-                pt_key = key[1]  # (model_id, pt_key, color)
-                for pt in self._cat.part_types:
-                    if pt.key == pt_key:
-                        used_pt_ids.add(pt.id)
-            from app.models.category import CategoryConfig
+            # ── Single brand: full height, table scrolls internally ──
+            self._content_stack.setCurrentIndex(0)
+
+            models = _model_repo.get_all(brand=brand)
+            item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
+            used_pt_keys = {key[1] for key in item_map.keys()}
+            filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+
             filtered_cat = CategoryConfig(
-                id=self._cat.id,
-                key=self._cat.key,
-                name_en=self._cat.name_en,
-                name_de=self._cat.name_de,
-                name_ar=self._cat.name_ar,
-                sort_order=self._cat.sort_order,
-                icon=self._cat.icon,
-                is_active=self._cat.is_active,
-                part_types=[pt for pt in self._cat.part_types if pt.id in used_pt_ids],
+                id=self._cat.id, key=self._cat.key,
+                name_en=self._cat.name_en, name_de=self._cat.name_de,
+                name_ar=self._cat.name_ar, sort_order=self._cat.sort_order,
+                icon=self._cat.icon, is_active=self._cat.is_active,
+                part_types=filtered_pts or self._cat.part_types,
             )
-            self._container.load(filtered_cat, models, item_map)
+            self._single_container.load(filtered_cat, models, item_map)
+            self._container = self._single_container
+            self._table = self._single_container.data_table
         else:
-            self._container.load(self._cat, models, item_map)
+            # ── All brands: outer scroll, each section full-sized ──
+            self._content_stack.setCurrentIndex(1)
+
+            # Clear old sections
+            for w in self._brand_widgets:
+                w.deleteLater()
+            self._brand_widgets.clear()
+            while self._multi_lay.count():
+                item = self._multi_lay.takeAt(0)
+                if item.widget():
+                    item.widget().deleteLater()
+
+            for b in _model_repo.get_brands():
+                self._add_brand_section(b)
+
+            self._multi_lay.addStretch()
+
+    def _add_brand_section(self, brand: str) -> None:
+        """Add one full-sized brand section to the scrollable all-brands page."""
+        from app.models.category import CategoryConfig
+
+        models = _model_repo.get_all(brand=brand)
+        if not models:
+            return
+
+        item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
+        used_pt_keys = {key[1] for key in item_map.keys()}
+        filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+
+        filtered_cat = CategoryConfig(
+            id=self._cat.id, key=self._cat.key,
+            name_en=self._cat.name_en, name_de=self._cat.name_de,
+            name_ar=self._cat.name_ar, sort_order=self._cat.sort_order,
+            icon=self._cat.icon, is_active=self._cat.is_active,
+            part_types=filtered_pts or self._cat.part_types,
+        )
+
+        # Brand header
+        tk = THEME.tokens
+        header = QLabel(f"  {brand}")
+        header.setFixedHeight(28)
+        header.setStyleSheet(
+            f"background:{tk.card2}; color:{tk.t1}; "
+            f"font-size:12px; font-weight:700; "
+            f"border-left:3px solid {tk.green}; padding-left:10px;"
+        )
+        self._multi_lay.addWidget(header)
+        self._brand_widgets.append(header)
+
+        # Matrix container — large minimum height, scrolls internally
+        # so banner + column headers stay STICKY at top of each section
+        container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
+        container.load(filtered_cat, models, item_map)
+
+        # Set height: full content if small, or a generous minimum if large
+        tbl = container.data_table
+        banner_h = 30
+        header_h = tbl.horizontalHeader().height()
+        rows_h = sum(tbl.rowHeight(r) for r in range(tbl.rowCount()))
+        content_h = banner_h + header_h + rows_h + 16
+
+        # If content fits in 500px, show it all; otherwise cap at 500
+        # and let internal scroll handle the rest (headers stay sticky)
+        container.setFixedHeight(min(content_h, 500))
+
+        self._multi_lay.addWidget(container)
+        self._brand_widgets.append(container)
+
+        self._container = container
+        self._table = container.data_table
 
     def apply_theme(self) -> None:
         """Rebuild legend chip inline styles with current theme colors."""

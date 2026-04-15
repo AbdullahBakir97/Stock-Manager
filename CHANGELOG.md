@@ -28,6 +28,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Model reorder** — move up/down buttons in Admin → Models panel (same style as part types)
 - **Per-model colours in settings** — Admin → Part Types → Model Colors card shows all models with their colour overrides; double-click to edit
 - **Import CSV** — toolbar button opens file picker and imports inventory data directly
+- **Per-brand matrix sections** — "All Brands" view shows separate sections per brand, each with its own correct part-type columns; outer scroll with full-sized sections
+- **No Colors option** — "No Colors" button in color picker removes all colour variants for a model, keeping only the base product
+- **Expanded colour palette** — added Red, Pink, Yellow, Orange to available colours in settings and matrix picker
 
 ### Fixed
 - **Theme toggle persistence** — toggling theme now saves to database; closing admin no longer reverts to old theme
@@ -44,6 +47,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **Quick action detail sync** — +1/-1 updates the detail bar instantly (stock count, status badge)
 - **Model reorder** — fixed `reorder()` to preserve brand-specific sort_order base; `get_all()` now sorts by `sort_order` instead of re-sorting naturally
 - **Per-model colour removal** — unselected colours now properly deleted from ALL part types, not just one
+- **Brand display cleanup** — Samsung/Xiaomi no longer show Apple-only part types (stale inventory rows cleaned on startup)
 
 ### Changed
 - **Schema V14** — 5 new performance indexes on `inventory_items` (active, stock, part_type_id, model+pt, model+pt+color)

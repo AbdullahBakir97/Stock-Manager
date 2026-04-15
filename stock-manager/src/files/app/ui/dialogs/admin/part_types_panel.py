@@ -627,6 +627,10 @@ class PartTypesPanel(QWidget):
         "Green": "#10B981",
         "Purple": "#8B5CF6",
         "White": "#E0E0E0",
+        "Red": "#EF4444",
+        "Pink": "#EC4899",
+        "Yellow": "#F59E0B",
+        "Orange": "#F97316",
     }
 
     def _add_color(self) -> None:
@@ -783,8 +787,12 @@ class PartTypesPanel(QWidget):
 
             override = _cat_repo.get_model_pt_colors(mid, pt.id)
             if override:
-                color_text = ", ".join(override)
-                is_custom = True
+                if override == ["__NONE__"]:
+                    color_text = "No Colors"
+                    is_custom = True
+                else:
+                    color_text = ", ".join(c for c in override if c != "__NONE__")
+                    is_custom = True
             else:
                 color_text = ", ".join(global_colors) if global_colors else "—"
                 is_custom = False
@@ -830,6 +838,7 @@ class PartTypesPanel(QWidget):
         use_all = len(current) == 0
 
         _ALL_HEX = {
+            "Without Color": "#808080",
             "Black": "#333333", "Blue": "#2563EB", "Silver": "#A0A0B0",
             "Gold": "#D4A520", "Green": "#10B981", "Purple": "#8B5CF6",
             "White": "#E0E0E0", "Red": "#EF4444", "Pink": "#EC4899",
@@ -919,6 +928,42 @@ class PartTypesPanel(QWidget):
                 )
         sel_all.clicked.connect(_select_all)
         btn_row.addWidget(sel_all)
+
+        # "No Colors" — remove all color variants for this model
+        no_clr_btn = QPushButton("No Colors")
+        no_clr_btn.setObjectName("btn_ghost")
+        no_clr_btn.setFixedHeight(32)
+        no_clr_btn.setToolTip("Remove all colors — only the base product")
+        def _no_colors():
+            from app.core.database import get_connection
+            all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]
+            with get_connection() as conn:
+                for ptid in all_pt_ids:
+                    conn.execute(
+                        "DELETE FROM model_part_type_colors WHERE model_id=? AND part_type_id=?",
+                        (model_id, ptid),
+                    )
+                    conn.execute(
+                        "INSERT OR IGNORE INTO model_part_type_colors "
+                        "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                        (model_id, ptid, "__NONE__"),
+                    )
+                    conn.execute(
+                        "DELETE FROM inventory_items "
+                        "WHERE model_id=? AND part_type_id=? AND color != '' "
+                        "AND stock=0 AND min_stock=0 "
+                        "AND (inventur IS NULL OR inventur=0)",
+                        (model_id, ptid),
+                    )
+                    conn.execute(
+                        "INSERT OR IGNORE INTO inventory_items "
+                        "(model_id, part_type_id, color) VALUES (?,?,'')",
+                        (model_id, ptid),
+                    )
+            dlg.accept()
+            self._refresh_model_colors(pt)
+        no_clr_btn.clicked.connect(_no_colors)
+        btn_row.addWidget(no_clr_btn)
 
         reset_btn = QPushButton("Use Default")
         reset_btn.setObjectName("btn_ghost")

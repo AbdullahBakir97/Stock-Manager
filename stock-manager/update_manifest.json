@@ -2,6 +2,6 @@
   "version": "2.3.4",
   "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.4/StockManagerPro-2.3.4-setup.exe",
   "release_notes": "**Sticky model column** \u2014 frozen left-side table for model names stays visible when scrolling horizontally in the matrix; **Part-type banner bar** \u2014 colour-coded part-type names displayed above column headers via synced QScrollArea; **Excel-like zoom** \u2014 Ctrl+Scroll / Ctrl+Plus/Minus zoom (50\u2013200%) with compact footer slider, auto-reset on page switch, hidden on non-table pages",
-  "release_date": "2026-04-12",
-  "checksum_sha256": "1a6adcd9af218348252616336a544d3ea462c0f49648b9b8e9ba097f04a54fc4"
+  "release_date": "2026-04-15",
+  "checksum_sha256": "2869f44886784273ccd36c26d54b8735ef5a2c037245cd633162b27093717e1d"
 }

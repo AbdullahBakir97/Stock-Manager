@@ -13670,3 +13670,115 @@ AttributeError: 'MatrixTab' object has no attribute '_multi_lay'
 [2026-04-15 16:03:01] [INFO ] [app.core.health] Running startup health checks...
 [2026-04-15 16:03:01] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
 [2026-04-15 16:03:28] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.4)
+[2026-04-16 15:40:17] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:40:17] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 15:40:17] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 15:40:17] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:40:22] [INFO ] [app.core.database] Initializing database
+[2026-04-16 15:40:22] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 15:40:22] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 15:40:24] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 15:40:27] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 15:40:27] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 15:47:42] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:47:42] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 15:47:42] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 15:47:42] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:47:43] [INFO ] [app.core.database] Initializing database
+[2026-04-16 15:47:43] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 15:47:43] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 15:47:44] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 15:47:48] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 15:47:48] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 15:48:16] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 15:55:00] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:55:00] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 15:55:00] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 15:55:00] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 15:55:02] [INFO ] [app.core.database] Initializing database
+[2026-04-16 15:55:02] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 15:55:02] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 15:55:03] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 15:55:06] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 15:55:06] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 15:55:33] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 16:03:40] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:03:40] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 16:03:40] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 16:03:40] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:03:45] [INFO ] [app.core.database] Initializing database
+[2026-04-16 16:03:45] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 16:03:45] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 16:03:46] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 16:03:49] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 16:03:49] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 16:04:16] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 16:34:03] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:34:03] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 16:34:03] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 16:34:03] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:34:05] [INFO ] [app.core.database] Initializing database
+[2026-04-16 16:34:05] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 16:34:05] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 16:34:06] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 16:34:09] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 16:34:09] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 16:34:36] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 16:35:18] [INFO ] [app.services.stock_service] Stock In: item_id=2237, qty=1, before=0, after=1, note=
+[2026-04-16 16:35:24] [INFO ] [app.services.stock_service] Stock In: item_id=2127, qty=1, before=0, after=1, note=
+[2026-04-16 16:35:38] [INFO ] [app.services.stock_service] Stock Out: item_id=2127, qty=1, before=1, after=0, note=undo
+[2026-04-16 16:35:42] [INFO ] [app.services.stock_service] Stock In: item_id=2127, qty=1, before=0, after=1, note=redo
+[2026-04-16 16:35:42] [INFO ] [app.services.stock_service] Stock Out: item_id=2127, qty=1, before=1, after=0, note=undo
+[2026-04-16 16:35:45] [INFO ] [app.services.stock_service] Stock In: item_id=2127, qty=1, before=0, after=1, note=redo
+[2026-04-16 16:35:50] [INFO ] [app.services.stock_service] Stock Out: item_id=2127, qty=1, before=1, after=0, note=undo
+[2026-04-16 16:50:13] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:50:13] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 16:50:13] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 16:50:13] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 16:50:16] [INFO ] [app.core.database] Initializing database
+[2026-04-16 16:50:17] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 16:50:17] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 16:50:19] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 16:50:19] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 16:50:19] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 16:50:49] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 16:51:18] [INFO ] [app.services.stock_service] Stock In: item_id=6, qty=1, before=0, after=1, note=
+[2026-04-16 16:51:22] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=0, after=1, note=
+[2026-04-16 16:51:58] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=1, after=0, note=undo
+[2026-04-16 16:55:23] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=0, after=1, note=
+[2026-04-16 16:55:26] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=1, after=0, note=undo
+[2026-04-16 16:55:38] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=0, after=1, note=redo
+[2026-04-16 17:04:05] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 17:04:05] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 17:04:05] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 17:04:05] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 17:04:07] [INFO ] [app.core.database] Initializing database
+[2026-04-16 17:04:07] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 17:04:07] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 17:04:09] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 17:04:09] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 17:04:09] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 17:04:21] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=1, after=2, note=
+[2026-04-16 17:04:23] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=2, after=1, note=undo
+[2026-04-16 17:04:35] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=1, after=2, note=
+[2026-04-16 17:04:39] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 17:04:39] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=2, after=3, note=
+[2026-04-16 17:04:43] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=3, after=2, note=undo
+[2026-04-16 17:05:00] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=2, after=1, note=undo
+[2026-04-16 17:05:21] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=1, after=2, note=
+[2026-04-16 17:05:23] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=2, after=1, note=undo
+[2026-04-16 17:10:37] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 17:10:37] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-16 17:10:37] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-16 17:10:37] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-16 17:10:38] [INFO ] [app.core.database] Initializing database
+[2026-04-16 17:10:38] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-16 17:10:38] [INFO ] [app.core.database] Database initialization complete
+[2026-04-16 17:10:40] [INFO ] [__main__] Main window displayed successfully
+[2026-04-16 17:10:41] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-16 17:10:41] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-16 17:11:04] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=1, after=2, note=
+[2026-04-16 17:11:06] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=2, after=1, note=undo
+[2026-04-16 17:11:09] [INFO ] [app.services.stock_service] Stock In: item_id=11, qty=1, before=1, after=2, note=redo
+[2026-04-16 17:11:11] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.5)
+[2026-04-16 17:11:11] [INFO ] [app.services.stock_service] Stock Out: item_id=11, qty=1, before=2, after=1, note=undo

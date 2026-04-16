@@ -231,6 +231,10 @@ class MatrixTab(BaseTab):
         if not self._cat:
             return
 
+        # Save scroll position (v-scroll of single mode, v-scroll of multi area)
+        saved_v = self._single_container.data_table.verticalScrollBar().value()
+        saved_v_multi = self._multi_scroll.verticalScrollBar().value()
+
         from app.models.category import CategoryConfig
         brand = self._selected_brand()
 
@@ -270,6 +274,25 @@ class MatrixTab(BaseTab):
                 self._add_brand_section(b)
 
             self._multi_lay.addStretch()
+
+        # Re-apply current zoom so rebuilt rows keep the zoom factor
+        try:
+            main_win = self.window()
+            if main_win and hasattr(main_win, "_footer") and hasattr(main_win, "_apply_zoom"):
+                pct = main_win._footer.zoom_pct
+                if pct != 100:
+                    main_win._apply_zoom(pct)
+        except Exception:
+            pass
+
+        # Restore scroll position (deferred so layout settles first)
+        from PyQt6.QtCore import QTimer
+        def _restore():
+            if brand:
+                self._single_container.data_table.verticalScrollBar().setValue(saved_v)
+            else:
+                self._multi_scroll.verticalScrollBar().setValue(saved_v_multi)
+        QTimer.singleShot(0, _restore)
 
     def _add_brand_section(self, brand: str) -> None:
         """Add one full-sized brand section to the scrollable all-brands page."""

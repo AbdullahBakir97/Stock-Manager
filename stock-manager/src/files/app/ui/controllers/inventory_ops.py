@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from app.ui.main_window import MainWindow
 
 from app.repositories.item_repo import ItemRepository
+from app.services.undo_manager import UNDO, Command
 _item_repo = ItemRepository()
 
 
@@ -49,6 +50,22 @@ def add_product(win: MainWindow, checked: bool = False, preset_barcode: str = ""
         win._refresh_summary()
         win._inv_page.table.select_by_id(pid)
         win._show_status(t("status_product_added", pid=pid), 4000, level="ok")
+
+        # Push undo: undo deletes the product, redo recreates it
+        name = data["type_"]
+        # Undo commands run on worker thread — keep DB-only, no UI calls
+        def _redo(d=data):
+            _item_repo.add_product(
+                brand=d["brand"], name=d["type_"], color=d["color"],
+                stock=d.get("stock", 0), barcode=d["barcode"],
+                min_stock=d["low_stock_threshold"], sell_price=d.get("sell_price"),
+                expiry_date=d.get("expiry_date"), warranty_date=d.get("warranty_date"),
+            )
+        UNDO.push(Command(
+            label=f"Add product: {name}",
+            undo_fn=lambda p=pid: _item_repo.delete(p),
+            redo_fn=_redo,
+        ))
     except Exception as e:
         QMessageBox.critical(win, t("msg_error"), str(e))
 
@@ -66,6 +83,15 @@ def edit_product(win: MainWindow) -> None:
             "Use the category tab to modify this item.",
         )
         return
+    # Snapshot previous values for undo
+    prev = win._cp
+    prev_data = {
+        "id": prev.id, "brand": prev.brand, "name": prev.name, "color": prev.color,
+        "barcode": prev.barcode, "min_stock": prev.min_stock,
+        "sell_price": prev.sell_price, "image_path": prev.image_path,
+        "expiry_date": getattr(prev, "expiry_date", None),
+        "warranty_date": getattr(prev, "warranty_date", None),
+    }
     dlg = ProductDialog(win, product=_to_edit_dict(win._cp))
     if dlg.exec() != QDialog.DialogCode.Accepted:
         return
@@ -95,6 +121,25 @@ def edit_product(win: MainWindow) -> None:
         )
         win._refresh_all()
         win._show_status(t("status_product_updated"), 3000, level="ok")
+
+        # Push undo: snapshot prev + current values (DB ops only, no UI calls)
+        new_data = dict(data)
+        new_data["id"] = prev.id
+        def _restore(vals):
+            _item_repo.update_product(
+                item_id=vals["id"], brand=vals["brand"], name=vals.get("name") or vals.get("type_"),
+                color=vals["color"], barcode=vals["barcode"],
+                min_stock=vals.get("min_stock") or vals.get("low_stock_threshold"),
+                sell_price=vals.get("sell_price"),
+                image_path=vals.get("image_path"),
+                expiry_date=vals.get("expiry_date"),
+                warranty_date=vals.get("warranty_date"),
+            )
+        UNDO.push(Command(
+            label=f"Edit product: {prev.display_name}",
+            undo_fn=lambda p=prev_data: _restore(p),
+            redo_fn=lambda n=new_data: _restore(n),
+        ))
     except Exception as e:
         QMessageBox.critical(win, t("msg_error"), str(e))
 

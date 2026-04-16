@@ -1,7 +1,7 @@
 {
-  "version": "2.3.6",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.6/StockManagerPro-2.3.6-setup.exe",
-  "release_notes": "**Undo/redo UI freeze** \u2014 undo and redo operations now run on the worker pool instead of the main thread, so the window stays fully responsive during the operation; **Undo/redo real-time refresh** \u2014 after an undo/redo, the currently visible tab (inventory, matrix, transactions, analytics) now refreshes in place; you no longer need to switch tabs and come back to see the changes; **Undo/redo button responsiveness** \u2014 undo/redo buttons re-enable immediately after the DB operation completes, before the view refresh; chained undos feel instant",
+  "version": "2.3.7",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.7/StockManagerPro-2.3.7-setup.exe",
+  "release_notes": "v2.3.7 \u2014 see changelog for details",
   "release_date": "2026-04-16",
-  "checksum_sha256": "7b3ecb64d458ebcc3dd815764b777cb092a4ddddc0110a901d903043ad3a4e85"
+  "checksum_sha256": "68f37b2d73a549094ae76f6e3db7ecb05508f78449eaa27bb055c4364038ad33"
 }

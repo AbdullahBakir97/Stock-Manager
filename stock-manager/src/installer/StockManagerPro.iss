@@ -16,7 +16,7 @@
 
 #define AppName      "Stock Manager Pro"
 #ifndef AppVersion
-  #define AppVersion "2.3.4"
+  #define AppVersion "2.3.5"
 #endif
 #define AppPublisher "StockPro Software"
 #define AppURL       "https://github.com/AbdullahBakir97/Stock-Manager"
@@ -118,10 +118,12 @@ Source: "{#SrcDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs cre
 ; ─────────────────────────────────────────────────────────────────────────────
 [Icons]
 ; Start Menu
-Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_cube.ico"
+; PyInstaller 6.x stores data files in {app}\_internal\, not {app}\ directly.
+; The EXE has the icon embedded — omit IconFilename so Windows reads it from the EXE.
+Name: "{group}\{#AppName}";           Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
 Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
 ; Desktop (optional)
-Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; IconFilename: "{app}\img\icon_cube.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}";     Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 ; ─────────────────────────────────────────────────────────────────────────────
 [Registry]

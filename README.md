@@ -12,7 +12,7 @@ Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
 [![SQLite](https://img.shields.io/badge/SQLite-Schema_V14-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.3.4-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+[![Version](https://img.shields.io/badge/Version-2.3.5-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Architecture](#-architecture) · [Project Structure](#-project-structure) · [Contributing](#-contributing)
@@ -711,11 +711,14 @@ The async engine ensures the UI never blocks regardless of database size. If you
 **Matrix & Navigation:**
 - Sticky frozen model column when scrolling horizontally
 - Part-type banner bar above column headers
+- Per-brand sections in "All Brands" view — each brand gets own columns and sticky headers
 - Excel-like zoom (50-200%) with Ctrl+Scroll, footer slider, auto-reset on page switch
 - Per-model product colours — right-click model or Admin → Part Types → Model Colors
+- "No Colors" option — remove all colour variants, keep only the base product
 - Series separators between model groups (X-series, A0x, A1x, S2x)
 - Collapsible matrix toolbar (inventory-style section header)
 - Auto-fit model column width to longest name
+- Expanded colour palette (Black, Blue, Silver, Gold, Green, Purple, White, Red, Pink, Yellow, Orange)
 
 **UI & UX:**
 - Professional splash screen with geometric cube icon + dynamic version badge

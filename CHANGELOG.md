@@ -7,10 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.3.4] - 2026-04-15
+## [2.3.5] - 2026-04-16
 
 
-> Add your next changes here before tagging a release.
+## [2.3.5] - 2026-04-16
+
+### Added
+- **Per-brand matrix sections** — "All Brands" view shows separate sections per brand, each with its own correct part-type columns; outer scroll with full-sized sections and sticky headers
+- **No Colors option** — "No Colors" button in color picker removes all colour variants for a model, keeping only the base product
+- **Expanded colour palette** — added Red, Pink, Yellow, Orange to available colours in settings and matrix picker
+
+### Fixed
+- **Brand display cleanup** — Samsung/Xiaomi no longer show Apple-only part types (stale inventory rows cleaned on startup)
 
 ---
 

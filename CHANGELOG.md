@@ -7,8 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.3.6] - 2026-04-16
+## [2.3.7] - 2026-04-16
 
+
+> Add your next changes here before tagging a release.
+
+---
 
 ## [2.3.6] - 2026-04-16
 

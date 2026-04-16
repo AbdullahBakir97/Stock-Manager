@@ -69,7 +69,16 @@ class _MatrixCellDelegate(QStyledItemDelegate):
         elif isinstance(bg, QColor):
             painter.fillRect(rect, bg)
 
-        # 2) Selection highlight
+        # 2a) Row-wide hover highlight (before selection so selection wins)
+        widget = option.widget
+        if widget is not None:
+            hover_row = getattr(widget, "_hover_row", -1)
+            if hover_row >= 0 and index.row() == hover_row:
+                hov = QColor(THEME.tokens.t1)
+                hov.setAlpha(28)  # subtle — just enough to trace the row
+                painter.fillRect(rect, hov)
+
+        # 2b) Selection highlight
         if option.state & QStyle.StateFlag.State_Selected:
             sel = QColor(THEME.tokens.blue)
             sel.setAlpha(100)
@@ -194,7 +203,8 @@ class MatrixWidget(QTableWidget):
         self._skip_banner = skip_banner_row
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        # Whole-row selection for easier reading across wide matrices
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.verticalHeader().setVisible(False)
         self.verticalHeader().setMinimumSectionSize(1)
         self.setAlternatingRowColors(False)
@@ -202,9 +212,36 @@ class MatrixWidget(QTableWidget):
         self.setFrameShape(QFrame.Shape.NoFrame)
         self.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+        # Row-wide hover highlight
+        self.setMouseTracking(True)
+        self._hover_row = -1
         self.cellDoubleClicked.connect(self._on_dbl)
         self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.customContextMenuRequested.connect(self._on_context_menu)
+
+    # ── Row-wide hover / selection visual feedback ────────────────────────────
+    def mouseMoveEvent(self, event):
+        """Track hovered row; emit a signal so the frozen model column syncs."""
+        idx = self.indexAt(event.pos())
+        row = idx.row() if idx.isValid() else -1
+        if row != self._hover_row:
+            self._hover_row = row
+            # Repaint only the affected rows (old + new)
+            self.viewport().update()
+            # Notify container to highlight the frozen model-table row too
+            parent = self.parent()
+            if parent is not None and hasattr(parent, "_on_data_hover_row"):
+                parent._on_data_hover_row(row)
+        super().mouseMoveEvent(event)
+
+    def leaveEvent(self, event):
+        if self._hover_row != -1:
+            self._hover_row = -1
+            self.viewport().update()
+            parent = self.parent()
+            if parent is not None and hasattr(parent, "_on_data_hover_row"):
+                parent._on_data_hover_row(-1)
+        super().leaveEvent(event)
 
     def load(self, cat: CategoryConfig, models,
              item_map: dict[tuple[int, str], InventoryItem],
@@ -1086,11 +1123,57 @@ class FrozenMatrixContainer(QWidget):
             self._table.verticalScrollBar().setValue
         )
 
+        # Sync row selection → highlight model column when data row is selected
+        self._table.currentCellChanged.connect(self._on_data_current_changed)
+
+        # Enable hover tracking on the model table too
+        self._model_table.setMouseTracking(True)
+        self._model_table._hover_row = -1
+        # Monkey-patch mouse move/leave on the model table to update hover
+        _orig_mm = self._model_table.mouseMoveEvent
+        _orig_le = self._model_table.leaveEvent
+        def _mt_mm(event, self=self, _orig=_orig_mm):
+            idx = self._model_table.indexAt(event.pos())
+            row = idx.row() if idx.isValid() else -1
+            if row != self._model_table._hover_row:
+                self._model_table._hover_row = row
+                self._model_table.viewport().update()
+                # Mirror to data table
+                if self._table._hover_row != row:
+                    self._table._hover_row = row
+                    self._table.viewport().update()
+            _orig(event)
+        def _mt_le(event, self=self, _orig=_orig_le):
+            if self._model_table._hover_row != -1:
+                self._model_table._hover_row = -1
+                self._model_table.viewport().update()
+                if self._table._hover_row != -1:
+                    self._table._hover_row = -1
+                    self._table.viewport().update()
+            _orig(event)
+        self._model_table.mouseMoveEvent = _mt_mm
+        self._model_table.leaveEvent = _mt_le
+
         root.addLayout(tables_row, 1)
 
     @property
     def data_table(self) -> MatrixWidget:
         return self._table
+
+    # ── Hover / selection sync with frozen model column ───────────────────────
+    def _on_data_hover_row(self, row: int) -> None:
+        """Called by data-table mouseMoveEvent to mirror hover onto model table."""
+        if self._model_table._hover_row != row:
+            self._model_table._hover_row = row
+            self._model_table.viewport().update()
+
+    def _on_data_current_changed(self, cur_row, _cc, prev_row, _pc):
+        """Highlight the selected row on both tables by triggering a repaint."""
+        # Model table has no selection, but the delegate reads _hover_row;
+        # we reuse it as a "current row" marker for visual parity. When the
+        # selection changes we ensure the model side mirrors it briefly so
+        # the whole row reads as a unit.
+        self._model_table.viewport().update()
 
     def load(self, cat, models, item_map, brand_boundaries=None):
         """Load data into both tables and build the banner."""

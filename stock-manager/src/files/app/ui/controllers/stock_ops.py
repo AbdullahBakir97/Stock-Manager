@@ -21,10 +21,32 @@ if TYPE_CHECKING:
 from app.repositories.item_repo import ItemRepository
 from app.services.stock_service import StockService
 from app.services.undo_service import UndoService
+from app.services.undo_manager import UNDO, Command
 
 _item_repo = ItemRepository()
 _stock_svc = StockService()
 _undo_svc = UndoService()
+
+
+def _push_stock_undo(item_id: int, op: str, qty: int, item_label: str) -> None:
+    """Push a stock operation onto the global undo stack.
+
+    For IN → undo is stock_out, redo is stock_in.
+    For OUT → undo is stock_in, redo is stock_out.
+    For ADJUST → undo sets the previous value, redo sets the new value.
+    """
+    if op == "IN":
+        UNDO.push(Command(
+            label=f"Stock IN {item_label} (+{qty})",
+            undo_fn=lambda: _stock_svc.stock_out(item_id, qty, "undo"),
+            redo_fn=lambda: _stock_svc.stock_in(item_id, qty, "redo"),
+        ))
+    elif op == "OUT":
+        UNDO.push(Command(
+            label=f"Stock OUT {item_label} (-{qty})",
+            undo_fn=lambda: _stock_svc.stock_in(item_id, qty, "undo"),
+            redo_fn=lambda: _stock_svc.stock_out(item_id, qty, "redo"),
+        ))
 
 
 # ── Stock Dialog Operation ──────────────────────────────────────────────────
@@ -42,12 +64,23 @@ def stock_op(win: MainWindow, op: str) -> None:
         return
     data = dlg.get_data()
     try:
+        qty = data["quantity"]
+        before_stock = item.stock
         if op == "IN":
-            res = _stock_svc.stock_in(item.id, data["quantity"], data["note"])
+            res = _stock_svc.stock_in(item.id, qty, data["note"])
+            _push_stock_undo(item.id, "IN", qty, item.display_name)
         elif op == "OUT":
-            res = _stock_svc.stock_out(item.id, data["quantity"], data["note"])
+            res = _stock_svc.stock_out(item.id, qty, data["note"])
+            _push_stock_undo(item.id, "OUT", qty, item.display_name)
         else:
-            res = _stock_svc.stock_adjust(item.id, data["quantity"], data["note"])
+            res = _stock_svc.stock_adjust(item.id, qty, data["note"])
+            # ADJUST: undo restores the previous stock value, redo sets the new
+            iid, name, prev_st, new_st = item.id, item.display_name, before_stock, qty
+            UNDO.push(Command(
+                label=f"Adjust {name} ({prev_st} → {new_st})",
+                undo_fn=lambda: _stock_svc.stock_adjust(iid, prev_st, "undo"),
+                redo_fn=lambda: _stock_svc.stock_adjust(iid, new_st, "redo"),
+            ))
 
         # ── Targeted UI update (much faster than _refresh_all) ────────────
         updated = _item_repo.get_by_id(item.id)
@@ -125,9 +158,9 @@ def quick_stock_in(win: MainWindow, item_id: int) -> None:
             if win._cp and win._cp.id == item_id:
                 win._cp = updated_item
                 win._inv_page.detail.set_product(updated_item)
+            _push_stock_undo(item_id, "IN", 1, updated_item.display_name)
         win._refresh_summary()
         win._show_status(t("status_quick_in"), 2000, level="ok")
-        _offer_undo_toast(win, item_id, "IN", res)
     except Exception as e:
         QMessageBox.warning(win, t("msg_error"), str(e))
 
@@ -142,9 +175,9 @@ def quick_stock_out(win: MainWindow, item_id: int) -> None:
             if win._cp and win._cp.id == item_id:
                 win._cp = updated_item
                 win._inv_page.detail.set_product(updated_item)
+            _push_stock_undo(item_id, "OUT", 1, updated_item.display_name)
         win._refresh_summary()
         win._show_status(t("status_quick_out"), 2000, level="ok")
-        _offer_undo_toast(win, item_id, "OUT", res)
     except Exception as e:
         QMessageBox.warning(win, t("msg_error"), str(e))
 

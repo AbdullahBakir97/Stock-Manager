@@ -263,6 +263,14 @@ class MainWindow(QMainWindow):
         self._header.lang_changed.connect(self._set_lang)
         self._header.alerts_clicked.connect(self._alert_ctrl.toggle_panel)
         self._header.refresh_clicked.connect(self._refresh_all)
+        self._header.undo_clicked.connect(self._undo_action)
+        self._header.redo_clicked.connect(self._redo_action)
+
+        # Wire undo manager to enable/disable header buttons
+        # Use queued connection so signals from worker threads reach main thread
+        from app.services.undo_manager import UNDO
+        UNDO.changed.connect(self._on_undo_changed, Qt.ConnectionType.QueuedConnection)
+        self._on_undo_changed()  # initial state
         self._header.theme_toggled.connect(self._toggle_mode)
         self._header.admin_clicked.connect(self._open_admin)
         self._header.search.barcode_scanned.connect(self._barcode)
@@ -325,6 +333,11 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(self._zoom_in)
         QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(self._zoom_out)
         QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(self._zoom_reset)
+
+        # Undo / Redo
+        QShortcut(QKeySequence("Ctrl+Z"),       self).activated.connect(self._undo_action)
+        QShortcut(QKeySequence("Ctrl+Y"),       self).activated.connect(self._redo_action)
+        QShortcut(QKeySequence("Ctrl+Shift+Z"), self).activated.connect(self._redo_action)
 
         # Footer zoom controls
         self._footer.zoom_changed.connect(self._apply_zoom)
@@ -714,64 +727,268 @@ class MainWindow(QMainWindow):
     def _zoom_reset(self) -> None:
         self._footer.set_zoom(100)
 
+    # ── Undo / Redo ─────────────────────────────────────────────────────────
+
+    def _undo_action(self) -> None:
+        """Run undo on the worker pool so the UI stays responsive."""
+        from app.services.undo_manager import UNDO
+        if not UNDO.can_undo():
+            return
+        # Disable buttons immediately to prevent double-clicks during the operation
+        self._header.undo_btn.setEnabled(False)
+        self._header.redo_btn.setEnabled(False)
+        self._show_status("Undoing…", 0)
+
+        POOL.submit(
+            "undo_op",
+            UNDO.undo,
+            lambda label: self._on_undo_done(label, "Undo"),
+            on_error=lambda msg: self._on_undo_error("Undo", msg),
+        )
+
+    def _redo_action(self) -> None:
+        """Run redo on the worker pool so the UI stays responsive."""
+        from app.services.undo_manager import UNDO
+        if not UNDO.can_redo():
+            return
+        self._header.undo_btn.setEnabled(False)
+        self._header.redo_btn.setEnabled(False)
+        self._show_status("Redoing…", 0)
+
+        POOL.submit(
+            "undo_op",
+            UNDO.redo,
+            lambda label: self._on_undo_done(label, "Redo"),
+            on_error=lambda msg: self._on_undo_error("Redo", msg),
+        )
+
+    def _on_undo_done(self, label, action: str) -> None:
+        """Called on main thread after undo/redo succeeds.
+
+        Order matters for UX responsiveness:
+        1. Re-enable buttons FIRST so the user can fire another undo immediately
+        2. Show status label
+        3. Defer the (potentially heavy) view refresh to the next event loop tick
+           via QTimer.singleShot(0, ...) so the button state + status update
+           paint before the refresh blocks the main thread.
+        """
+        # 1. Re-enable buttons immediately based on new stack state
+        self._on_undo_changed()
+
+        # 2. Status message
+        if label:
+            self._show_status(f"{action}: {label}", 3000, level="ok")
+
+        # 3. Defer refresh so UI paints button state first
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._post_undo_refresh)
+
+    def _post_undo_refresh(self) -> None:
+        """Refresh the currently visible view after an undo/redo.
+
+        All heavy DB work goes through POOL (async). Only the matrix widget
+        rebuild is main-thread work — that's unavoidable since Qt widgets
+        can only be updated from the main thread.
+        """
+        cur = getattr(self._nav_ctrl, "current", "")
+
+        if cur.startswith("cat_"):
+            # A matrix tab is visible — refresh it directly
+            cat_key = cur[4:]
+            for tab in self._nav_ctrl.matrix_tabs:
+                if tab._cat_key == cat_key:
+                    tab.refresh()
+                    break
+        elif cur == "nav_transactions":
+            POOL.submit("txn_filter",
+                        self._txn_page.fetch_filtered,
+                        self._txn_page.load_results)
+        elif cur == "nav_analytics":
+            POOL.submit("analytics_refresh",
+                        self._analytics_page._fetch_all_data,
+                        self._analytics_page._apply_all_data)
+        else:
+            # Inventory (or any other) — refresh product table WITHOUT debounce
+            filters = self._inv_page.filter_bar.get_filters()
+            POOL.submit(
+                "inventory_filter",
+                lambda: self._inv_page.fetch_filtered(filters),
+                self._on_items_ready,
+            )
+
+        # Always refresh header KPIs + alerts regardless of visible tab
+        self._refresh_summary()
+        try:
+            self._alert_ctrl.refresh()
+        except Exception:
+            pass
+
+        # Sync currently-selected product pointer + detail panel
+        if self._cp:
+            cp_id = self._cp.id
+            POOL.submit(
+                "refresh_selected",
+                lambda: _item_repo.get_by_id(cp_id),
+                self._on_refresh_selected,
+            )
+
+    def _on_refresh_selected(self, item) -> None:
+        """Main-thread callback: update _cp + detail panel after undo/redo."""
+        if item is None:
+            return
+        self._cp = item
+        try:
+            self._inv_page.detail.set_product(item)
+        except Exception:
+            pass
+
+    def _on_undo_error(self, action: str, msg: str) -> None:
+        self._show_status(f"{action} failed: {msg}", 4000, level="err")
+        self._on_undo_changed()
+
+    def _on_undo_changed(self) -> None:
+        """Enable/disable header buttons and update tooltips based on stack state."""
+        from app.services.undo_manager import UNDO
+        self._header.undo_btn.setEnabled(UNDO.can_undo())
+        self._header.redo_btn.setEnabled(UNDO.can_redo())
+        u_lbl = UNDO.undo_label()
+        r_lbl = UNDO.redo_label()
+        self._header.undo_btn.setToolTip(f"Undo: {u_lbl} (Ctrl+Z)" if u_lbl else "Nothing to undo (Ctrl+Z)")
+        self._header.redo_btn.setToolTip(f"Redo: {r_lbl} (Ctrl+Y)" if r_lbl else "Nothing to redo (Ctrl+Y)")
+
     def _apply_zoom(self, pct: int) -> None:
         """Apply zoom level to all table widgets by scaling fonts and row heights."""
         factor = pct / 100.0
 
+        # Keep text readable: never shrink below 9pt body, 8pt header
+        font_pt = max(9, round(11 * factor))
+        header_pt = max(8, round(10 * factor))
+        # Minimum readable row heights
+        min_row = 28
+
         # Scale the application-wide base font
-        base_font = QFont("Segoe UI", max(8, int(10 * factor)))
+        base_font = QFont("Segoe UI", font_pt)
         QApplication.instance().setFont(base_font)
 
         # Scale product table
         tbl = self._inv_page.table
-        tbl.verticalHeader().setDefaultSectionSize(int(48 * factor))
-        tbl_font = QFont("Segoe UI", max(8, int(10 * factor)))
+        tbl_font = QFont("Segoe UI", font_pt)
         tbl.setFont(tbl_font)
         tbl.horizontalHeader().setFont(tbl_font)
         for i, w in enumerate(tbl._WIDTHS):
             if i != 1:  # skip stretch column
                 tbl.setColumnWidth(i, int(w * factor))
+        tbl.verticalHeader().setDefaultSectionSize(max(min_row, int(48 * factor)))
         tbl.viewport().update()
 
-        # Scale all matrix tabs (data table + frozen model column)
+        # Scale all matrix tabs — including ALL brand containers in multi-mode
+        from app.ui.components.matrix_widget import _COL_W, _base, FrozenMatrixContainer
+
         for tab in self._nav_ctrl.matrix_tabs:
-            container = tab._container
-            mtx = container.data_table
-            model_tbl = container._model_table
-            mtx_font = QFont("Segoe UI", max(8, int(10 * factor)))
-            mtx.setFont(mtx_font)
-            mtx.horizontalHeader().setFont(mtx_font)
-            model_tbl.setFont(mtx_font)
-            model_tbl.horizontalHeader().setFont(mtx_font)
-            # Scale column widths
-            from app.ui.components.matrix_widget import _COL_W, _base
-            model_w = int(_COL_W["model"] * factor)
-            mtx.setColumnWidth(0, model_w)
-            model_tbl.setColumnWidth(0, model_w)
-            model_tbl.setFixedWidth(model_w + 2)
-            if mtx._cat:
-                for ti in range(len(mtx._cat.part_types)):
-                    b = _base(ti)
-                    mtx.setColumnWidth(b,     int(_COL_W["stamm"] * factor))
-                    mtx.setColumnWidth(b + 1, int(_COL_W["bestbung"] * factor))
-                    mtx.setColumnWidth(b + 2, int(_COL_W["stock"] * factor))
-                    mtx.setColumnWidth(b + 3, int(_COL_W["inventur"] * factor))
-            # Scale row heights in both tables (skip separator and brand header rows)
-            for r in range(mtx.rowCount()):
-                cur_h = mtx.rowHeight(r)
-                if cur_h <= 5:
-                    continue  # separator row — keep at 3px
-                if cur_h == 32:
-                    continue  # brand header row — keep at 32px
-                default_h = 48 if r > 0 else 36
-                h = int(default_h * factor)
-                mtx.setRowHeight(r, h)
-                if r < model_tbl.rowCount():
-                    model_tbl.setRowHeight(r, h)
-            mtx.viewport().update()
-            model_tbl.viewport().update()
+            # Collect all containers: single-mode + all brand containers
+            containers = [tab._single_container]
+            for w in getattr(tab, "_brand_widgets", []):
+                if isinstance(w, FrozenMatrixContainer):
+                    containers.append(w)
+
+            for container in containers:
+                self._zoom_container(container, factor, font_pt, min_row)
 
         self._show_status(f"Zoom: {pct}%", 1500)
+
+    def _zoom_container(self, container, factor: float, font_pt: int, min_row: int) -> None:
+        """Apply zoom to a single FrozenMatrixContainer (data + model table + banner)."""
+        from app.ui.components.matrix_widget import _COL_W, _base
+
+        mtx = container.data_table
+        model_tbl = container._model_table
+        body_font = QFont("Segoe UI", font_pt)
+        header_font = QFont("Segoe UI", max(8, round(10 * factor)), QFont.Weight.Bold)
+
+        mtx.setFont(body_font)
+        mtx.horizontalHeader().setFont(header_font)
+        model_tbl.setFont(body_font)
+        model_tbl.horizontalHeader().setFont(header_font)
+
+        # Measure widths using the NEW fonts we just applied
+        from PyQt6.QtGui import QFontMetrics
+        fm_header = QFontMetrics(header_font)
+        fm_body = QFontMetrics(body_font)
+
+        # Data column min width = widest header label + generous 48px padding
+        # (QTableWidget header cell has internal padding + sort indicator space)
+        data_headers = ["MIN-STOCK", "Δ DIFFERENCE", "STOCK", "ORDER",
+                        "MIN-VORRAT", "DIFFERENZ", "BESTAND", "BESTELLUNG"]
+        min_data_w = max(fm_header.horizontalAdvance(h) for h in data_headers) + 48
+
+        # Model column min width = longest model name + padding (never below 180)
+        max_model_w = 180
+        for r in range(model_tbl.rowCount()):
+            it = model_tbl.item(r, 0)
+            if it:
+                w = fm_body.horizontalAdvance(it.text()) + 40
+                max_model_w = max(max_model_w, w)
+
+        model_w = max(max_model_w, int(_COL_W["model"] * factor))
+        mtx.setColumnWidth(0, model_w)
+        model_tbl.setColumnWidth(0, model_w)
+        model_tbl.setFixedWidth(model_w + 2)
+        if mtx._cat:
+            for ti in range(len(mtx._cat.part_types)):
+                b = _base(ti)
+                mtx.setColumnWidth(b,     max(min_data_w, int(_COL_W["stamm"] * factor)))
+                mtx.setColumnWidth(b + 1, max(min_data_w, int(_COL_W["bestbung"] * factor)))
+                mtx.setColumnWidth(b + 2, max(min_data_w, int(_COL_W["stock"] * factor)))
+                mtx.setColumnWidth(b + 3, max(min_data_w, int(_COL_W["inventur"] * factor)))
+
+        # Header row height — scale but cap both ways
+        hdr_h = max(28, min(int(30 * factor), 40))
+        mtx.horizontalHeader().setFixedHeight(hdr_h)
+        model_tbl.horizontalHeader().setFixedHeight(hdr_h)
+
+        # Scale row heights with MIN and MAX caps
+        # Model rows (default 48): min 28, max 56 — don't let them balloon
+        # Color sub-rows (default 36): min 24, max 42
+        for r in range(mtx.rowCount()):
+            cur_h = mtx.rowHeight(r)
+            if cur_h <= 5:
+                continue  # separator row
+            if cur_h == 32:
+                continue  # brand header row
+            is_color_row = cur_h < 42
+            if is_color_row:
+                h = max(24, min(int(36 * factor), 42))
+            else:
+                h = max(28, min(int(48 * factor), 56))
+            mtx.setRowHeight(r, h)
+            if r < model_tbl.rowCount():
+                model_tbl.setRowHeight(r, h)
+
+        # Scale the part-type banner bar (container._banner_inner widgets)
+        banner_h = max(20, int(30 * factor))
+        if hasattr(container, "_banner_scroll"):
+            container._banner_scroll.setFixedHeight(banner_h)
+            container._banner_spacer.setFixedWidth(model_w + 2)
+            container._banner_spacer.setFixedHeight(banner_h)
+        if hasattr(container, "_banner_labels"):
+            banner_total_w = 0
+            for i, lbl in enumerate(container._banner_labels):
+                if not mtx._cat or i >= len(mtx._cat.part_types):
+                    continue
+                b = _base(i)
+                w = sum(mtx.columnWidth(b + c) for c in range(4))
+                lbl.setFixedWidth(w)
+                lbl.setFixedHeight(banner_h)
+                banner_total_w += w
+                # Scale banner label font
+                lbl_font = QFont("Segoe UI", max(7, round(10 * factor)), QFont.Weight.Bold)
+                lbl.setFont(lbl_font)
+            if hasattr(container, "_banner_inner") and banner_total_w > 0:
+                container._banner_inner.setFixedWidth(banner_total_w)
+                container._banner_inner.setFixedHeight(banner_h)
+
+        mtx.viewport().update()
+        model_tbl.viewport().update()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Ctrl+Scroll to zoom in/out."""

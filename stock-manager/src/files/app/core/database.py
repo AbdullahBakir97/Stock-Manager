@@ -1131,6 +1131,9 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
     def _queue_item(mid: int, pt_id: int):
         """Queue inventory items for batch insert."""
         override = model_pt_colors.get((mid, pt_id))
+        # "__EXCLUDED__" means this model does not have this part type at all
+        if override and "__EXCLUDED__" in override:
+            return  # skip completely, don't create any rows
         # "__NONE__" marker means explicitly no colors for this model
         if override and "__NONE__" in override:
             _batch_inserts.append((mid, pt_id, ""))  # only colorless parent

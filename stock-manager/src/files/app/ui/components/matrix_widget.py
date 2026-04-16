@@ -629,13 +629,33 @@ class MatrixWidget(QTableWidget):
     def _ctx_threshold(self, item_id: int, model_name: str, dtype_lbl: str, current: int) -> None:
         dlg = ThresholdDialog(model_name, dtype_lbl, current, self, item_id=item_id)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            _item_repo.update_min_stock(item_id, dlg.value())
+            new_val = dlg.value()
+            _item_repo.update_min_stock(item_id, new_val)
+            from app.services.undo_manager import UNDO, Command
+            iid, prev, curr = item_id, current, new_val
+            # Undo commands must be thread-safe — only DB ops, no UI calls.
+            # UI refresh is triggered by MainWindow._on_undo_done on main thread.
+            UNDO.push(Command(
+                label=f"Min-Stock {model_name} · {dtype_lbl} ({prev} → {curr})",
+                undo_fn=lambda: _item_repo.update_min_stock(iid, prev),
+                redo_fn=lambda: _item_repo.update_min_stock(iid, curr),
+            ))
             self._refresh_cb()
 
     def _ctx_order(self, item_id: int, model_name: str, dtype_lbl: str, stock: int) -> None:
         dlg = InventurDialog(model_name, dtype_lbl, stock, self, item_id=item_id)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            _item_repo.update_inventur(item_id, dlg.value())
+            new_val = dlg.value()
+            item = _item_repo.get_by_id(item_id)
+            prev_val = item.inventur if item else 0
+            _item_repo.update_inventur(item_id, new_val)
+            from app.services.undo_manager import UNDO, Command
+            iid, prev, curr = item_id, prev_val, new_val
+            UNDO.push(Command(
+                label=f"Order {model_name} · {dtype_lbl} ({prev} → {curr})",
+                undo_fn=lambda: _item_repo.update_inventur(iid, prev),
+                redo_fn=lambda: _item_repo.update_inventur(iid, curr),
+            ))
             self._refresh_cb()
 
     def _ctx_set_color(self, model_id: int, part_type_id: int,
@@ -861,6 +881,13 @@ class MatrixWidget(QTableWidget):
                             "(model_id, part_type_id, color) VALUES (?,?,?)",
                             (model_id, ptid, name),
                         )
+                    # 4. Reset the colorless parent row to 0 stock
+                    # (it's only used for barcode scanning, should not hold real stock)
+                    conn.execute(
+                        "UPDATE inventory_items SET stock=0, min_stock=0, inventur=NULL "
+                        "WHERE model_id=? AND part_type_id=? AND color=''",
+                        (model_id, ptid),
+                    )
             dlg.accept()
             self._refresh_cb()
         confirm.clicked.connect(_save)
@@ -899,10 +926,19 @@ class MatrixWidget(QTableWidget):
         min_stock  = meta["min_stock"]
         stock      = meta["stock"]
 
+        from app.services.undo_manager import UNDO, Command
+
         if field == "stamm_zahl":
             dlg = ThresholdDialog(model_name, dtype_lbl, min_stock, self, item_id=item_id)
             if dlg.exec() == QDialog.DialogCode.Accepted:
-                _item_repo.update_min_stock(item_id, dlg.value())
+                new_val = dlg.value()
+                _item_repo.update_min_stock(item_id, new_val)
+                iid, prev, curr = item_id, min_stock, new_val
+                UNDO.push(Command(
+                    label=f"Min-Stock {model_name} · {dtype_lbl} ({prev} → {curr})",
+                    undo_fn=lambda: _item_repo.update_min_stock(iid, prev),
+                    redo_fn=lambda: _item_repo.update_min_stock(iid, curr),
+                ))
                 self._refresh_cb()
 
         elif field == "stock":
@@ -913,12 +949,29 @@ class MatrixWidget(QTableWidget):
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 op, qty = dlg.result_data()
                 try:
+                    iid, q = item_id, qty
                     if op == "IN":
-                        _stock_svc.stock_in(item_id, qty)
+                        _stock_svc.stock_in(iid, q)
+                        UNDO.push(Command(
+                            label=f"Stock IN {model_name} · {dtype_lbl} (+{q})",
+                            undo_fn=lambda: _stock_svc.stock_out(iid, q, "undo"),
+                            redo_fn=lambda: _stock_svc.stock_in(iid, q, "redo"),
+                        ))
                     elif op == "OUT":
-                        _stock_svc.stock_out(item_id, qty)
+                        _stock_svc.stock_out(iid, q)
+                        UNDO.push(Command(
+                            label=f"Stock OUT {model_name} · {dtype_lbl} (-{q})",
+                            undo_fn=lambda: _stock_svc.stock_in(iid, q, "undo"),
+                            redo_fn=lambda: _stock_svc.stock_out(iid, q, "redo"),
+                        ))
                     else:
-                        _stock_svc.stock_adjust(item_id, qty)
+                        prev_stock = item.stock
+                        _stock_svc.stock_adjust(iid, q)
+                        UNDO.push(Command(
+                            label=f"Adjust {model_name} · {dtype_lbl} ({prev_stock} → {q})",
+                            undo_fn=lambda p=prev_stock: _stock_svc.stock_adjust(iid, p, "undo"),
+                            redo_fn=lambda n=q: _stock_svc.stock_adjust(iid, n, "redo"),
+                        ))
                     self._refresh_cb()
                 except ValueError as exc:
                     QMessageBox.warning(self, t("disp_stock_err"), str(exc))
@@ -926,7 +979,16 @@ class MatrixWidget(QTableWidget):
         elif field == "inventur":
             dlg = InventurDialog(model_name, dtype_lbl, stock, self, item_id=item_id)
             if dlg.exec() == QDialog.DialogCode.Accepted:
-                _item_repo.update_inventur(item_id, dlg.value())
+                new_val = dlg.value()
+                item_cur = _item_repo.get_by_id(item_id)
+                prev_val = item_cur.inventur if item_cur else 0
+                _item_repo.update_inventur(item_id, new_val)
+                iid, prev, curr = item_id, prev_val, new_val
+                UNDO.push(Command(
+                    label=f"Order {model_name} · {dtype_lbl} ({prev} → {curr})",
+                    undo_fn=lambda: _item_repo.update_inventur(iid, prev),
+                    redo_fn=lambda: _item_repo.update_inventur(iid, curr),
+                ))
                 self._refresh_cb()
 
 

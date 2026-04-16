@@ -28,6 +28,8 @@ class HeaderBar(QFrame):
     lang_changed    = pyqtSignal(str)
     alerts_clicked  = pyqtSignal()
     refresh_clicked = pyqtSignal()
+    undo_clicked    = pyqtSignal()
+    redo_clicked    = pyqtSignal()
     theme_toggled   = pyqtSignal()
     admin_clicked   = pyqtSignal()
 
@@ -104,6 +106,24 @@ class HeaderBar(QFrame):
         self.notif_badge.move(18, -2)
         self.notif_badge.hide()
         right.addWidget(self.notif_btn)
+
+        # Undo
+        self.undo_btn = QPushButton("↶")
+        self.undo_btn.setObjectName("header_icon")
+        self.undo_btn.setFixedSize(34, 34)
+        self.undo_btn.setToolTip("Undo (Ctrl+Z)")
+        self.undo_btn.setEnabled(False)
+        self.undo_btn.clicked.connect(self.undo_clicked.emit)
+        right.addWidget(self.undo_btn)
+
+        # Redo
+        self.redo_btn = QPushButton("↷")
+        self.redo_btn.setObjectName("header_icon")
+        self.redo_btn.setFixedSize(34, 34)
+        self.redo_btn.setToolTip("Redo (Ctrl+Y)")
+        self.redo_btn.setEnabled(False)
+        self.redo_btn.clicked.connect(self.redo_clicked.emit)
+        right.addWidget(self.redo_btn)
 
         # Refresh
         self.refresh_btn = QPushButton()

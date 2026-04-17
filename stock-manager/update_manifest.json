@@ -1,7 +1,7 @@
 {
-  "version": "2.3.7",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.7/StockManagerPro-2.3.7-setup.exe",
-  "release_notes": "v2.3.7 \u2014 see changelog for details",
-  "release_date": "2026-04-16",
-  "checksum_sha256": "68f37b2d73a549094ae76f6e3db7ecb05508f78449eaa27bb055c4364038ad33"
+  "version": "2.3.8",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.8/StockManagerPro-2.3.8-setup.exe",
+  "release_notes": "**Content-aware column widths** \u2014 every table column now sizes to `max(proportional_target, header_text_fit, widest_cell_fit)` at the active font, so headers and model names are ALWAYS fully visible at any zoom level. Applied to matrix, inventory, transactions, and admin tables.; **Per-item font scaling** \u2014 matrix items with individual `setFont` (`_FONT_MODEL` 11pt, `_FONT_COLOR` 9pt, `_FONT_BRAND` 12pt, `_FONT_DATA` 10pt, `_FONT_MONO` 11pt) now scale correctly via a new `BASE_PT_ROLE` marker that remembers each item's 100% point size; **Real-time live zoom on slider drag** \u2014 every slider tick applies zoom through the 16 ms coalescer; drag feels instant with no lag",
+  "release_date": "2026-04-17",
+  "checksum_sha256": "1ce38934b87dfc68dced7ab8935e6e0ce8c1d9cd74edabacc562ab07a67b1efb"
 }

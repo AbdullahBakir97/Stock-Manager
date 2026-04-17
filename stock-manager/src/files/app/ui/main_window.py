@@ -252,6 +252,11 @@ class MainWindow(QMainWindow):
         self._footer = FooterBar()
         outer.addWidget(self._footer, 0)
 
+        # ── Apply UI Scale (whole-app size preset) ONCE at startup ─────────
+        # Read ShopConfig.ui_scale → factor, then resize chrome components.
+        # This is a restart-required setting (unlike the table zoom slider).
+        self._apply_ui_scale_once()
+
         # Initial nav: analytics dashboard
         self._nav_ctrl.go("nav_analytics")
 
@@ -329,18 +334,23 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+7"),     self).activated.connect(lambda: self._nav_ctrl.go("nav_suppliers"))
         QShortcut(QKeySequence("Escape"),     self).activated.connect(self._escape_handler)
 
-        # Zoom shortcuts
-        QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(self._zoom_in)
-        QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(self._zoom_out)
-        QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(self._zoom_reset)
+        # Zoom shortcuts — route to ZoomService (authoritative)
+        from app.services.zoom_service import ZOOM
+        QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(ZOOM.zoom_in)
+        QShortcut(QKeySequence("Ctrl++"),     self).activated.connect(ZOOM.zoom_in)
+        QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(ZOOM.zoom_out)
+        QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(ZOOM.reset)
 
         # Undo / Redo
         QShortcut(QKeySequence("Ctrl+Z"),       self).activated.connect(self._undo_action)
         QShortcut(QKeySequence("Ctrl+Y"),       self).activated.connect(self._redo_action)
         QShortcut(QKeySequence("Ctrl+Shift+Z"), self).activated.connect(self._redo_action)
 
-        # Footer zoom controls
-        self._footer.zoom_changed.connect(self._apply_zoom)
+        # ZoomService → apply to all views. Startup load fires this too.
+        from app.services.zoom_service import ZOOM
+        ZOOM.pct_changed.connect(self._apply_zoom_all, Qt.ConnectionType.QueuedConnection)
+        # Load persisted zoom level from ShopConfig and apply
+        ZOOM.load_from_config()
 
         # Global barcode buffer
         self._global_bc_buf: list[str] = []
@@ -398,7 +408,17 @@ class MainWindow(QMainWindow):
 
         dlg = AdminDialog(self)
         dlg.preview_banner_requested.connect(self._upd_ctrl.show_banner)
+        # Track the live admin dialog so the zoom dispatcher can reach
+        # any QTableWidget inside admin panels
+        self._admin_dialog = dlg
+        # Apply current zoom to admin tables immediately on open
+        try:
+            from app.services.zoom_service import ZOOM
+            self._zoom_admin_tables(dlg, ZOOM.factor)
+        except Exception:
+            pass
         dlg.exec()
+        self._admin_dialog = None
 
         ShopConfig.invalidate()
         cfg = ShopConfig.get()
@@ -718,14 +738,47 @@ class MainWindow(QMainWindow):
 
     # ── Zoom ────────────────────────────────────────────────────────────────
 
+    # ── UI Scale (whole-app size preset, applied once at startup) ───────────
+    def _apply_ui_scale_once(self) -> None:
+        """Read ShopConfig.ui_scale and resize the chrome (sidebar + header +
+        footer + application base font) once at app startup.
+
+        This is the admin-controlled 'whole app size' setting — NOT the
+        table zoom slider. Changes here require restart to take effect.
+        """
+        try:
+            factor = ShopConfig.get().ui_scale_factor
+        except Exception:
+            factor = 1.0
+        if abs(factor - 1.0) < 0.001:
+            return  # No change needed at Normal
+
+        # Application-wide base font (labels, dialogs, dropdowns)
+        base_pt = max(8, int(round(10 * factor)))
+        QApplication.instance().setFont(QFont("Segoe UI", base_pt))
+
+        # Sidebar, header, footer — each knows its base sizes
+        for name in ("_sidebar", "_header", "_footer"):
+            w = getattr(self, name, None)
+            if w is not None and hasattr(w, "apply_ui_scale"):
+                try:
+                    w.apply_ui_scale(factor)
+                except Exception:
+                    pass
+
+    # Legacy wrappers kept for anything still calling the old names —
+    # all routing goes through ZoomService so footer + shortcuts stay in sync.
     def _zoom_in(self) -> None:
-        self._footer.set_zoom(self._footer.zoom_pct + 10)
+        from app.services.zoom_service import ZOOM
+        ZOOM.zoom_in()
 
     def _zoom_out(self) -> None:
-        self._footer.set_zoom(self._footer.zoom_pct - 10)
+        from app.services.zoom_service import ZOOM
+        ZOOM.zoom_out()
 
     def _zoom_reset(self) -> None:
-        self._footer.set_zoom(100)
+        from app.services.zoom_service import ZOOM
+        ZOOM.reset()
 
     # ── Undo / Redo ─────────────────────────────────────────────────────────
 
@@ -856,148 +909,103 @@ class MainWindow(QMainWindow):
         self._header.undo_btn.setToolTip(f"Undo: {u_lbl} (Ctrl+Z)" if u_lbl else "Nothing to undo (Ctrl+Z)")
         self._header.redo_btn.setToolTip(f"Redo: {r_lbl} (Ctrl+Y)" if r_lbl else "Nothing to redo (Ctrl+Y)")
 
-    def _apply_zoom(self, pct: int) -> None:
-        """Apply zoom level to all table widgets by scaling fonts and row heights."""
-        factor = pct / 100.0
+    # ── Table-zoom dispatcher ──────────────────────────────────────────────
+    # The footer slider zooms DATA TABLES ONLY:
+    #   • Matrix tabs (Displays, Batteries, Cases, …)
+    #   • Inventory product table
+    #   • Transaction table
+    #   • Admin panel tables (part types, models, customers, suppliers, …)
+    #
+    # It does NOT affect the sidebar, header, footer, dashboard KPIs, or
+    # analytics charts — those are controlled by the UI Scale admin setting.
 
-        # Keep text readable: never shrink below 9pt body, 8pt header
-        font_pt = max(9, round(11 * factor))
-        header_pt = max(8, round(10 * factor))
-        # Minimum readable row heights
-        min_row = 28
+    def _apply_zoom_all(self, pct: int) -> None:
+        """Apply zoom to the CURRENTLY VISIBLE view only.
 
-        # Scale the application-wide base font
-        base_font = QFont("Segoe UI", font_pt)
-        QApplication.instance().setFont(base_font)
+        Inactive tabs are zoomed lazily when the user navigates to them
+        (matrix_tab.refresh() re-applies the current ZOOM.factor). This
+        keeps slider drags responsive — we don't re-scale hundreds of
+        items in tabs the user can't see.
+        """
+        from app.services.zoom_service import ZOOM
+        factor = ZOOM.factor
 
-        # Scale product table
-        tbl = self._inv_page.table
-        tbl_font = QFont("Segoe UI", font_pt)
-        tbl.setFont(tbl_font)
-        tbl.horizontalHeader().setFont(tbl_font)
-        for i, w in enumerate(tbl._WIDTHS):
-            if i != 1:  # skip stretch column
-                tbl.setColumnWidth(i, int(w * factor))
-        tbl.verticalHeader().setDefaultSectionSize(max(min_row, int(48 * factor)))
-        tbl.viewport().update()
+        targets: list = []
 
-        # Scale all matrix tabs — including ALL brand containers in multi-mode
-        from app.ui.components.matrix_widget import _COL_W, _base, FrozenMatrixContainer
+        nav = getattr(self, "_nav_ctrl", None)
+        cur_key = getattr(nav, "current", "") if nav is not None else ""
 
-        for tab in self._nav_ctrl.matrix_tabs:
-            # Collect all containers: single-mode + all brand containers
-            containers = [tab._single_container]
-            for w in getattr(tab, "_brand_widgets", []):
-                if isinstance(w, FrozenMatrixContainer):
-                    containers.append(w)
+        if cur_key == "nav_inventory":
+            inv = getattr(self, "_inv_page", None)
+            if inv is not None and hasattr(inv, "apply_zoom"):
+                targets.append(inv)
+        elif cur_key == "nav_transactions":
+            txn = getattr(self, "_txn_page", None)
+            if txn is not None and hasattr(txn, "apply_zoom"):
+                targets.append(txn)
+        elif cur_key.startswith("cat_") and nav is not None:
+            # Only zoom the ACTIVE matrix tab (not all 6)
+            cat_key = cur_key[4:]
+            from app.ui.components.matrix_widget import FrozenMatrixContainer
+            for tab in nav.matrix_tabs:
+                if tab._cat_key != cat_key:
+                    continue
+                containers = [getattr(tab, "_single_container", None)]
+                for w in getattr(tab, "_brand_widgets", []):
+                    if isinstance(w, FrozenMatrixContainer):
+                        containers.append(w)
+                for c in containers:
+                    if c is not None and hasattr(c, "apply_zoom"):
+                        targets.append(c)
+                break
 
-            for container in containers:
-                self._zoom_container(container, factor, font_pt, min_row)
+        for w in targets:
+            try:
+                w.apply_zoom(factor)
+            except Exception:
+                pass
+
+        # Admin panel tables (if admin dialog is live)
+        admin_dlg = getattr(self, "_admin_dialog", None)
+        if admin_dlg is not None and admin_dlg.isVisible():
+            self._zoom_admin_tables(admin_dlg, factor)
 
         self._show_status(f"Zoom: {pct}%", 1500)
 
-    def _zoom_container(self, container, factor: float, font_pt: int, min_row: int) -> None:
-        """Apply zoom to a single FrozenMatrixContainer (data + model table + banner)."""
-        from app.ui.components.matrix_widget import _COL_W, _base
+    def _zoom_admin_tables(self, host: QWidget, factor: float) -> None:
+        """Scale every QTableWidget under *host* proportionally.
 
-        mtx = container.data_table
-        model_tbl = container._model_table
-        body_font = QFont("Segoe UI", font_pt)
-        header_font = QFont("Segoe UI", max(8, round(10 * factor)), QFont.Weight.Bold)
-
-        mtx.setFont(body_font)
-        mtx.horizontalHeader().setFont(header_font)
-        model_tbl.setFont(body_font)
-        model_tbl.horizontalHeader().setFont(header_font)
-
-        # Measure widths using the NEW fonts we just applied
-        from PyQt6.QtGui import QFontMetrics
-        fm_header = QFontMetrics(header_font)
-        fm_body = QFontMetrics(body_font)
-
-        # Data column min width = widest header label + generous 48px padding
-        # (QTableWidget header cell has internal padding + sort indicator space)
-        data_headers = ["MIN-STOCK", "Δ DIFFERENCE", "STOCK", "ORDER",
-                        "MIN-VORRAT", "DIFFERENZ", "BESTAND", "BESTELLUNG"]
-        min_data_w = max(fm_header.horizontalAdvance(h) for h in data_headers) + 48
-
-        # Model column min width = longest model name + padding (never below 180)
-        max_model_w = 180
-        for r in range(model_tbl.rowCount()):
-            it = model_tbl.item(r, 0)
-            if it:
-                w = fm_body.horizontalAdvance(it.text()) + 40
-                max_model_w = max(max_model_w, w)
-
-        model_w = max(max_model_w, int(_COL_W["model"] * factor))
-        mtx.setColumnWidth(0, model_w)
-        model_tbl.setColumnWidth(0, model_w)
-        model_tbl.setFixedWidth(model_w + 2)
-        if mtx._cat:
-            for ti in range(len(mtx._cat.part_types)):
-                b = _base(ti)
-                mtx.setColumnWidth(b,     max(min_data_w, int(_COL_W["stamm"] * factor)))
-                mtx.setColumnWidth(b + 1, max(min_data_w, int(_COL_W["bestbung"] * factor)))
-                mtx.setColumnWidth(b + 2, max(min_data_w, int(_COL_W["stock"] * factor)))
-                mtx.setColumnWidth(b + 3, max(min_data_w, int(_COL_W["inventur"] * factor)))
-
-        # Header row height — scale but cap both ways
-        hdr_h = max(28, min(int(30 * factor), 40))
-        mtx.horizontalHeader().setFixedHeight(hdr_h)
-        model_tbl.horizontalHeader().setFixedHeight(hdr_h)
-
-        # Scale row heights with MIN and MAX caps
-        # Model rows (default 48): min 28, max 56 — don't let them balloon
-        # Color sub-rows (default 36): min 24, max 42
-        for r in range(mtx.rowCount()):
-            cur_h = mtx.rowHeight(r)
-            if cur_h <= 5:
-                continue  # separator row
-            if cur_h == 32:
-                continue  # brand header row
-            is_color_row = cur_h < 42
-            if is_color_row:
-                h = max(24, min(int(36 * factor), 42))
-            else:
-                h = max(28, min(int(48 * factor), 56))
-            mtx.setRowHeight(r, h)
-            if r < model_tbl.rowCount():
-                model_tbl.setRowHeight(r, h)
-
-        # Scale the part-type banner bar (container._banner_inner widgets)
-        banner_h = max(20, int(30 * factor))
-        if hasattr(container, "_banner_scroll"):
-            container._banner_scroll.setFixedHeight(banner_h)
-            container._banner_spacer.setFixedWidth(model_w + 2)
-            container._banner_spacer.setFixedHeight(banner_h)
-        if hasattr(container, "_banner_labels"):
-            banner_total_w = 0
-            for i, lbl in enumerate(container._banner_labels):
-                if not mtx._cat or i >= len(mtx._cat.part_types):
-                    continue
-                b = _base(i)
-                w = sum(mtx.columnWidth(b + c) for c in range(4))
-                lbl.setFixedWidth(w)
-                lbl.setFixedHeight(banner_h)
-                banner_total_w += w
-                # Scale banner label font
-                lbl_font = QFont("Segoe UI", max(7, round(10 * factor)), QFont.Weight.Bold)
-                lbl.setFont(lbl_font)
-            if hasattr(container, "_banner_inner") and banner_total_w > 0:
-                container._banner_inner.setFixedWidth(banner_total_w)
-                container._banner_inner.setFixedHeight(banner_h)
-
-        mtx.viewport().update()
-        model_tbl.viewport().update()
+        Used for admin panels — avoids needing an apply_zoom method on
+        each individual panel class. Fonts + row heights scale; column
+        widths are preserved (admin tables usually auto-size).
+        """
+        from PyQt6.QtWidgets import QTableWidget
+        from app.services.zoom_service import ZOOM
+        body_pt = ZOOM.scale(11, minimum=6)
+        header_pt = ZOOM.scale(10, minimum=6)
+        body_font = QFont("Segoe UI", body_pt)
+        header_font = QFont("Segoe UI", header_pt, QFont.Weight.Bold)
+        row_h = ZOOM.scale(32, minimum=16)
+        for tbl in host.findChildren(QTableWidget):
+            try:
+                tbl.setFont(body_font)
+                tbl.horizontalHeader().setFont(header_font)
+                tbl.verticalHeader().setDefaultSectionSize(row_h)
+                for r in range(tbl.rowCount()):
+                    tbl.setRowHeight(r, row_h)
+                tbl.viewport().update()
+            except Exception:
+                pass
 
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Ctrl+Scroll to zoom in/out."""
+        """Ctrl+Scroll to zoom — route to ZoomService."""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            from app.services.zoom_service import ZOOM
             delta = event.angleDelta().y()
             if delta > 0:
-                self._zoom_in()
+                ZOOM.zoom_in()
             elif delta < 0:
-                self._zoom_out()
+                ZOOM.zoom_out()
             event.accept()
         else:
             super().wheelEvent(event)

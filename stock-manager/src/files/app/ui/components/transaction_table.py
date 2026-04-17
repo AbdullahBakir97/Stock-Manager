@@ -47,6 +47,59 @@ class TransactionTable(QTableWidget):
     def retranslate(self):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
 
+    # ── Zoom ─────────────────────────────────────────────────────────────────
+    def apply_zoom(self, factor: float) -> None:
+        """Content-aware zoom — columns always fit header + widest data text."""
+        from app.services.zoom_service import ZOOM
+        from PyQt6.QtGui import QFont, QFontMetrics
+
+        body_pt = ZOOM.scale(11, minimum=6)
+        header_pt = ZOOM.scale(10, minimum=6)
+        body_font = QFont("Segoe UI", body_pt)
+        header_font = QFont("Segoe UI", header_pt, QFont.Weight.Bold)
+        self.setFont(body_font)
+        self.horizontalHeader().setFont(header_font)
+
+        fm_header = QFontMetrics(header_font)
+        fm_body = QFontMetrics(body_font)
+
+        hdr_pad = max(6, int(round(header_pt * 1.4)))
+        hdr_vpad = max(3, int(round(header_pt * 0.5)))
+        body_pad = max(4, int(round(body_pt * 1.0)))
+
+        # Override app-wide QSS so setFont actually takes effect
+        self.horizontalHeader().setStyleSheet(
+            f"QHeaderView::section {{ font-size: {header_pt}pt; "
+            f"font-weight: 700; padding: {hdr_vpad}px {hdr_pad}px; }}"
+        )
+
+        hdr_side = hdr_pad + 4
+        body_side = body_pad + 4
+
+        for i, w in enumerate(self._WIDTHS):
+            hdr_item = self.horizontalHeaderItem(i)
+            hdr_txt = hdr_item.text() if hdr_item else ""
+            hdr_w = fm_header.horizontalAdvance(hdr_txt) + hdr_side * 2
+            data_w = 0
+            for r in range(self.rowCount()):
+                it = self.item(r, i)
+                if it and it.text():
+                    dw = fm_body.horizontalAdvance(it.text())
+                    if dw > data_w:
+                        data_w = dw
+            data_w += body_side * 2
+            final_w = max(ZOOM.scale(w, minimum=40), hdr_w, data_w)
+            self.setColumnWidth(i, final_w)
+
+        hdr_h = max(fm_header.height() + hdr_vpad * 2 + 4, 22)
+        self.horizontalHeader().setFixedHeight(hdr_h)
+
+        row_h = max(fm_body.height() + 8, ZOOM.scale(48, minimum=20))
+        self.verticalHeader().setDefaultSectionSize(row_h)
+        for r in range(self.rowCount()):
+            self.setRowHeight(r, row_h)
+        self.viewport().update()
+
     _OP_LBL = {"IN": "op_in_short", "OUT": "op_out_short",
                "ADJUST": "op_adj_short", "CREATE": "op_create_short"}
 

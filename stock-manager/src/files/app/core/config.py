@@ -22,6 +22,11 @@ class ShopConfig:
     auto_backup_dir:            str = ""    # empty = use default backups/ folder
     # Auto-update settings
     update_auto_check:          str = "1"   # "1" = check on startup, "0" = manual only
+    # UI — persistent table zoom level (50-200%, footer slider)
+    zoom_level:                 str = "100"
+    # UI — whole-app size preset (admin setting, requires restart)
+    # Values: "small" | "normal" | "large" | "xlarge"
+    ui_scale:                   str = "normal"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -29,6 +34,8 @@ class ShopConfig:
         "auto_backup_enabled", "auto_backup_interval_hours",
         "auto_backup_retain", "auto_backup_dir",
         "update_auto_check",
+        "zoom_level",
+        "ui_scale",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -54,6 +61,29 @@ class ShopConfig:
     @property
     def is_update_auto_check_enabled(self) -> bool:
         return self.update_auto_check != "0"
+
+    @property
+    def zoom_level_int(self) -> int:
+        """Parsed zoom percentage, clamped to 50–200."""
+        try:
+            v = int(self.zoom_level)
+        except (ValueError, TypeError):
+            return 100
+        return max(50, min(200, v))
+
+    @property
+    def ui_scale_factor(self) -> float:
+        """UI scale factor mapped from preset name to float multiplier.
+
+        Requires app restart to take effect. Affects sidebar width,
+        header height, footer height, and application base font size.
+        """
+        return {
+            "small":  0.85,
+            "normal": 1.00,
+            "large":  1.15,
+            "xlarge": 1.30,
+        }.get((self.ui_scale or "normal").lower(), 1.0)
 
     _instance: Optional["ShopConfig"] = None
 

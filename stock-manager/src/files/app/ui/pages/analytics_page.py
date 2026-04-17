@@ -511,3 +511,5 @@ class AnalyticsPage(QWidget):
         self._bar_hdr.setText(t("analytics_by_category"))
         self._trend_hdr.setText(t("analytics_activity_trend"))
         self._low_hdr.setText(t("analytics_top_low_stock"))
+
+    # Zoom is a table-only feature; analytics has no tables so no apply_zoom.

@@ -275,13 +275,19 @@ class MatrixTab(BaseTab):
 
             self._multi_lay.addStretch()
 
-        # Re-apply current zoom so rebuilt rows keep the zoom factor
+        # Re-apply current zoom so rebuilt rows/banner keep the zoom factor.
+        # Call directly on containers we know about — cheaper than full dispatch.
         try:
-            main_win = self.window()
-            if main_win and hasattr(main_win, "_footer") and hasattr(main_win, "_apply_zoom"):
-                pct = main_win._footer.zoom_pct
-                if pct != 100:
-                    main_win._apply_zoom(pct)
+            from app.services.zoom_service import ZOOM
+            factor = ZOOM.factor
+            # single-brand container
+            if hasattr(self._single_container, "apply_zoom"):
+                self._single_container.apply_zoom(factor)
+            # all-brand containers
+            from app.ui.components.matrix_widget import FrozenMatrixContainer
+            for w in getattr(self, "_brand_widgets", []):
+                if isinstance(w, FrozenMatrixContainer):
+                    w.apply_zoom(factor)
         except Exception:
             pass
 

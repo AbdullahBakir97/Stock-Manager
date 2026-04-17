@@ -38,13 +38,25 @@ _COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
 _COL_W = {"model": 160, "stamm": 108, "bestbung": 104, "stock": 84, "inventur": 112}
 _HEADER_ROW = 0
 
-# Fonts
+# Fonts — base point sizes (what items render at at 100% zoom)
 _FONT_MONO   = QFont("JetBrains Mono", 11, QFont.Weight.Bold)
 _FONT_MONO.setStyleHint(QFont.StyleHint.Monospace)
 _FONT_MODEL  = QFont("Segoe UI", 11, QFont.Weight.DemiBold)
 _FONT_HEADER = QFont("Segoe UI", 10, QFont.Weight.Bold)
 _FONT_DATA   = QFont("Segoe UI", 10)
 _FONT_COLOR  = QFont("Segoe UI", 9)
+_FONT_BRAND  = QFont("Segoe UI", 12, QFont.Weight.Bold)
+
+# Custom item role used to remember each item's original (100%) font size so
+# apply_zoom can scale it correctly regardless of how many times it fires.
+BASE_PT_ROLE = Qt.ItemDataRole.UserRole + 99
+
+
+def _set_item_font(item, font: "QFont", base_pt: int) -> None:
+    """Apply a font to an item AND record its base point size so that
+    subsequent apply_zoom calls can recompute the scaled size."""
+    item.setFont(font)
+    item.setData(BASE_PT_ROLE, base_pt)
 
 
 class _MatrixCellDelegate(QStyledItemDelegate):
@@ -289,7 +301,7 @@ class MatrixWidget(QTableWidget):
                         int(0.25 * hdr_bg.blue()  + 0.75 * 255),
                     ))
                 it.setForeground(QColor(pt.accent_color))
-                it.setFont(_FONT_HEADER)
+                _set_item_font(it, _FONT_HEADER, 10)
                 self.setItem(_HEADER_ROW, b, it)
 
         # Pre-index item_map by model_id for O(1) lookup (was O(n*m) nested loop)
@@ -337,10 +349,9 @@ class MatrixWidget(QTableWidget):
         # Separator row color
         sep_bg = QColor(tk.t3)
 
-        # Brand header colors
+        # Brand header colors (font comes from module-level _FONT_BRAND)
         brand_bg = QColor(tk.card2)
         brand_fg = QColor(tk.t1)
-        _FONT_BRAND = QFont("Segoe UI", 12, QFont.Weight.Bold)
 
         for ri, rd in enumerate(row_data):
             r = ri + self._row_offset
@@ -357,7 +368,7 @@ class MatrixWidget(QTableWidget):
                         cell.setTextAlignment(
                             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
                         )
-                        cell.setFont(_FONT_BRAND)
+                        _set_item_font(cell, _FONT_BRAND, 12)
                         cell.setForeground(QColor(tk.green))
                         cell.setBackground(brand_bg)
                     self.setItem(r, c, cell)
@@ -380,7 +391,7 @@ class MatrixWidget(QTableWidget):
                 name_it = self._ro(f"  {model.name}")
                 name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                name_it.setFont(_FONT_MODEL)
+                _set_item_font(name_it, _FONT_MODEL, 11)
                 name_it.setForeground(QColor("#FFFFFF"))
                 name_it.setBackground(model_bg)
                 self.setItem(r, 0, name_it)
@@ -469,7 +480,7 @@ class MatrixWidget(QTableWidget):
                 name_it = self._ro(f"      ● {color}")
                 name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
                 name_it.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
-                name_it.setFont(_FONT_COLOR)
+                _set_item_font(name_it, _FONT_COLOR, 9)
                 name_it.setForeground(QColor(clr_hex))
                 name_it.setBackground(color_bg)
                 self.setItem(r, 0, name_it)
@@ -506,7 +517,7 @@ class MatrixWidget(QTableWidget):
         # Min-Stock
         st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
         st.setForeground(QColor(tk.t2))
-        st.setFont(_FONT_DATA)
+        _set_item_font(st, _FONT_DATA, 10)
         st.setBackground(bg)
         st.setToolTip(t("disp_tip_stamm"))
         self.setItem(r, b, st)
@@ -522,7 +533,7 @@ class MatrixWidget(QTableWidget):
             bb_tip = t("disp_tip_bb_pos", n=best)
         bb = self._cell(bb_txt, meta | {"field": "best_bung"})
         bb.setForeground(QColor(bb_col))
-        bb.setFont(_FONT_MONO)
+        _set_item_font(bb, _FONT_MONO, 11)
         bb.setBackground(bg)
         bb.setToolTip(bb_tip)
         self.setItem(r, b + 1, bb)
@@ -535,7 +546,7 @@ class MatrixWidget(QTableWidget):
             stk.setForeground(QColor(tk.yellow))
         else:
             stk.setForeground(QColor(tk.green))
-        stk.setFont(_FONT_MONO)
+        _set_item_font(stk, _FONT_MONO, 11)
         stk.setBackground(bg)
         stk.setToolTip(t("disp_tip_stock"))
         if has_colors:
@@ -546,7 +557,7 @@ class MatrixWidget(QTableWidget):
         inv_txt = str(inventur) if inventur is not None else "—"
         inv = self._cell(inv_txt, meta | {"field": "inventur"})
         inv.setForeground(QColor(tk.t3))
-        inv.setFont(_FONT_DATA)
+        _set_item_font(inv, _FONT_DATA, 10)
         inv.setBackground(bg)
         inv.setToolTip(t("disp_tip_inv"))
         self.setItem(r, b + 3, inv)
@@ -1268,6 +1279,11 @@ class FrozenMatrixContainer(QWidget):
                 clone.setFont(src.font())
                 clone.setForeground(src.foreground())
                 clone.setBackground(src.background())
+                # Copy the BASE_PT_ROLE marker so the model-column items
+                # scale correctly at every zoom level
+                base_pt = src.data(BASE_PT_ROLE)
+                if base_pt is not None:
+                    clone.setData(BASE_PT_ROLE, base_pt)
                 mt.setItem(r, 0, clone)
                 # Measure text width using the item's font
                 text_w = fm.horizontalAdvance(src.text()) + 24  # padding
@@ -1290,3 +1306,212 @@ class FrozenMatrixContainer(QWidget):
         self._table.retranslate()
         if self._cat:
             self._build_banner(self._cat)
+
+    # ── Zoom ─────────────────────────────────────────────────────────────────
+    def apply_zoom(self, factor: float) -> None:
+        """Professional content-aware zoom.
+
+        Column widths are the MAX of three candidates at the active font:
+            1. Proportionally-scaled base width (the design target)
+            2. Widest header label + padding (so headers are ALWAYS visible)
+            3. Widest data cell text + padding (so numbers/names aren't clipped)
+
+        This way at 50% the text is genuinely smaller, but every header and
+        every cell stays fully readable — no characters are cut off.
+        """
+        from app.services.zoom_service import ZOOM
+        from PyQt6.QtGui import QFont, QFontMetrics
+
+        mtx = self._table
+        model_tbl = self._model_table
+
+        body_pt = ZOOM.scale(11, minimum=6)
+        header_pt = ZOOM.scale(10, minimum=6)
+        body_font = QFont("Segoe UI", body_pt)
+        header_font = QFont("Segoe UI", header_pt, QFont.Weight.Bold)
+
+        # Measurers — use the NEW fonts
+        fm_header = QFontMetrics(header_font)
+        fm_body = QFontMetrics(body_font)
+
+        # Padding scales with font so small fonts don't get oversized gaps
+        hdr_pad = max(6, int(round(header_pt * 1.4)))   # horizontal (each side)
+        hdr_vpad = max(3, int(round(header_pt * 0.5)))  # vertical
+        body_pad = max(4, int(round(body_pt * 1.0)))
+
+        # CRITICAL: app-wide QSS forces QHeaderView::section font-size 11px
+        # and padding 10px 16px — those override setFont(). Widget-level
+        # inline stylesheet has higher specificity than app stylesheet.
+        hdr_qss = (
+            f"QHeaderView::section {{ "
+            f"font-size: {header_pt}pt; "
+            f"font-weight: 700; "
+            f"padding: {hdr_vpad}px {hdr_pad}px; "
+            f"}}"
+        )
+        body_qss = (
+            f"QTableWidget::item {{ padding: 2px {body_pad}px; }}"
+        )
+
+        mtx.setUpdatesEnabled(False)
+        model_tbl.setUpdatesEnabled(False)
+        try:
+            mtx.setFont(body_font)
+            mtx.horizontalHeader().setFont(header_font)
+            mtx.horizontalHeader().setStyleSheet(hdr_qss)
+            mtx.setStyleSheet(mtx.styleSheet() + body_qss)
+            model_tbl.setFont(body_font)
+            model_tbl.horizontalHeader().setFont(header_font)
+            model_tbl.horizontalHeader().setStyleSheet(hdr_qss)
+            model_tbl.setStyleSheet(model_tbl.styleSheet() + body_qss)
+
+            # ── Scale every item's font by its stored BASE_PT_ROLE ──
+            # Cache by (family, weight, base_pt) — dramatically reduces QFont
+            # allocations. A typical matrix has ~1000 items but only ~5
+            # unique (family, weight, base_pt) combinations.
+            font_cache: dict[tuple, QFont] = {}
+
+            def _get_scaled_font(cur_font: QFont, base_pt: int) -> QFont:
+                key = (cur_font.family(), int(cur_font.weight()), int(base_pt))
+                cached = font_cache.get(key)
+                if cached is not None:
+                    return cached
+                new_pt = ZOOM.scale(int(base_pt), minimum=6)
+                new_font = QFont(cur_font)
+                new_font.setPointSize(new_pt)
+                font_cache[key] = new_font
+                return new_font
+
+            def _scale_table_items(tbl):
+                for r in range(tbl.rowCount()):
+                    for c in range(tbl.columnCount()):
+                        it = tbl.item(r, c)
+                        if it is None:
+                            continue
+                        base_pt = it.data(BASE_PT_ROLE)
+                        if base_pt is None:
+                            continue
+                        it.setFont(_get_scaled_font(it.font(), base_pt))
+            _scale_table_items(mtx)
+            _scale_table_items(model_tbl)
+
+            # Per-side pad buffers that MATCH the inline QSS padding plus a
+            # small safety margin for anti-alias / sort indicator space.
+            hdr_side_pad = hdr_pad + 4    # matches "padding: Xpx <hdr_pad>px"
+            body_side_pad = body_pad + 4  # matches "padding: 2px <body_pad>px"
+
+            # ── Model column: fit widest item using its OWN scaled font ──
+            # Each item (brand 12pt, model 11pt DemiBold, color 9pt) has a
+            # different rendered size — we must measure with each item's
+            # actual font, not the widget default.
+            longest_name_w = 0
+            for r in range(model_tbl.rowCount()):
+                it = model_tbl.item(r, 0)
+                if it and it.text():
+                    w = QFontMetrics(it.font()).horizontalAdvance(it.text())
+                    if w > longest_name_w:
+                        longest_name_w = w
+            model_hdr_txt = t("disp_col_model")
+            model_hdr_w = fm_header.horizontalAdvance(model_hdr_txt) + hdr_side_pad * 2
+            model_w = max(
+                ZOOM.scale(_COL_W["model"], minimum=60),
+                longest_name_w + body_side_pad * 2,
+                model_hdr_w,
+            )
+            mtx.setColumnWidth(0, model_w)
+            model_tbl.setColumnWidth(0, model_w)
+            model_tbl.setFixedWidth(model_w + 2)
+
+            # ── Data columns: fit widest header label + widest cell text ──
+            if mtx._cat:
+                hdr_labels = {
+                    0: t("col_stamm_zahl"),
+                    1: t("col_best_bung"),
+                    2: t("disp_col_stock"),
+                    3: t("col_inventur"),
+                }
+                base_widths = {
+                    0: _COL_W["stamm"],
+                    1: _COL_W["bestbung"],
+                    2: _COL_W["stock"],
+                    3: _COL_W["inventur"],
+                }
+                min_widths = {0: 44, 1: 44, 2: 38, 3: 44}
+
+                for ti in range(len(mtx._cat.part_types)):
+                    b = _base(ti)
+                    for c in range(4):
+                        col = b + c
+                        # Header text width at the ACTUAL rendered font
+                        hdr_w = fm_header.horizontalAdvance(hdr_labels[c]) + hdr_side_pad * 2
+                        # Widest data text — measure using each cell's own font
+                        # (cells use _FONT_MONO or _FONT_DATA with different sizes)
+                        data_w = 0
+                        for r in range(mtx.rowCount()):
+                            item = mtx.item(r, col)
+                            if item and item.text():
+                                iw = QFontMetrics(item.font()).horizontalAdvance(item.text())
+                                if iw > data_w:
+                                    data_w = iw
+                        data_w += body_side_pad * 2
+                        w = max(
+                            ZOOM.scale(base_widths[c], minimum=min_widths[c]),
+                            hdr_w,
+                            data_w,
+                        )
+                        mtx.setColumnWidth(col, w)
+
+            # ── Header height: must fit the header font + its vertical padding ──
+            hdr_h = max(fm_header.height() + hdr_vpad * 2 + 4,
+                        ZOOM.scale(30, minimum=18))
+            mtx.horizontalHeader().setFixedHeight(hdr_h)
+            model_tbl.horizontalHeader().setFixedHeight(hdr_h)
+
+            # ── Row heights — must fit the body font ──
+            min_row = fm_body.height() + 6
+            model_row_h = max(min_row, ZOOM.scale(48, minimum=min_row))
+            color_row_h = max(min_row, ZOOM.scale(36, minimum=min_row))
+            brand_row_h = max(min_row, ZOOM.scale(32, minimum=min_row))
+            for r in range(mtx.rowCount()):
+                cur_h = mtx.rowHeight(r)
+                if cur_h <= 5:
+                    continue  # separator row
+                if cur_h == 32:
+                    mtx.setRowHeight(r, brand_row_h)
+                    if r < model_tbl.rowCount():
+                        model_tbl.setRowHeight(r, brand_row_h)
+                    continue
+                is_color_row = cur_h < 42
+                h = color_row_h if is_color_row else model_row_h
+                mtx.setRowHeight(r, h)
+                if r < model_tbl.rowCount():
+                    model_tbl.setRowHeight(r, h)
+
+            # ── Banner (part-type labels above columns) ──
+            banner_pt = ZOOM.scale(10, minimum=6)
+            banner_h = max(QFontMetrics(QFont("Segoe UI", banner_pt)).height() + 8,
+                           ZOOM.scale(30, minimum=16))
+            if hasattr(self, "_banner_scroll"):
+                self._banner_scroll.setFixedHeight(banner_h)
+                self._banner_spacer.setFixedWidth(model_w + 2)
+                self._banner_spacer.setFixedHeight(banner_h)
+            if hasattr(self, "_banner_labels"):
+                banner_total_w = 0
+                for i, lbl in enumerate(self._banner_labels):
+                    if not mtx._cat or i >= len(mtx._cat.part_types):
+                        continue
+                    b = _base(i)
+                    w = sum(mtx.columnWidth(b + c) for c in range(4))
+                    lbl.setFixedWidth(w)
+                    lbl.setFixedHeight(banner_h)
+                    banner_total_w += w
+                    lbl.setFont(QFont("Segoe UI", banner_pt, QFont.Weight.Bold))
+                if hasattr(self, "_banner_inner") and banner_total_w > 0:
+                    self._banner_inner.setFixedWidth(banner_total_w)
+                    self._banner_inner.setFixedHeight(banner_h)
+        finally:
+            mtx.setUpdatesEnabled(True)
+            model_tbl.setUpdatesEnabled(True)
+
+        mtx.viewport().update()
+        model_tbl.viewport().update()

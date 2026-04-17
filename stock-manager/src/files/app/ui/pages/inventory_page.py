@@ -297,6 +297,20 @@ class InventoryPage(QWidget):
         self._hdr_filter.set_title(t("inv_section_filters"))
         self._hdr_detail.set_title(t("inv_section_selected"))
 
+    # ── Table zoom (footer slider) ───────────────────────────────────────
+    def apply_zoom(self, factor: float) -> None:
+        """Forward the footer-slider zoom to the products table ONLY.
+
+        The dashboard, filter bar, and detail panel are NOT zoomed — zoom
+        is a table-only feature per product spec. Whole-app sizing is
+        controlled separately by the UI Scale admin setting at startup.
+        """
+        if hasattr(self.table, "apply_zoom"):
+            try:
+                self.table.apply_zoom(factor)
+            except Exception:
+                pass
+
 
 # ── Tiny helper ───────────────────────────────────────────────────────────────
 

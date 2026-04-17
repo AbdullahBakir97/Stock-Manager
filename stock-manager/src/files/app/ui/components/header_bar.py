@@ -180,3 +180,28 @@ class HeaderBar(QFrame):
         self.admin_btn.setToolTip(t("tooltip_admin"))
         self.theme_toggle.setToolTip(t("tooltip_theme"))
         self.search.setPlaceholderText(t("search_placeholder"))
+
+    # ── UI Scale (one-shot at startup) ────────────────────────────────────
+    def apply_ui_scale(self, factor: float) -> None:
+        """Scale header height, button sizes, icon sizes at startup only.
+        Called by MainWindow after reading ShopConfig.ui_scale.
+        """
+        h = max(44, int(round(56 * factor)))
+        self.setFixedHeight(h)
+        btn_sz = max(28, int(round(34 * factor)))
+        icon_sz = max(12, int(round(16 * factor)))
+        from PyQt6.QtCore import QSize
+        icon_qsz = QSize(icon_sz, icon_sz)
+        for btn_name in ("sidebar_toggle", "notif_btn", "undo_btn", "redo_btn",
+                         "refresh_btn", "admin_btn", "theme_toggle"):
+            btn = getattr(self, btn_name, None)
+            if btn is None:
+                continue
+            btn.setFixedSize(btn_sz, btn_sz)
+            try:
+                btn.setIconSize(icon_qsz)
+            except Exception:
+                pass
+        search = getattr(self, "search", None)
+        if search is not None:
+            search.setFixedHeight(max(28, int(round(34 * factor))))

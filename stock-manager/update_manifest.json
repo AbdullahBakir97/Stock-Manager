@@ -1,7 +1,7 @@
 {
-  "version": "2.3.9",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.9/StockManagerPro-2.3.9-setup.exe",
-  "release_notes": "**Part-type default price** \u2014 Admin \u2192 Part Types now has a \"Default price\" field. Every item inheriting the part type takes that price; per-item `sell_price` still overrides. New \"PRICE\" column in the part-type admin table.; **\u20ac / Price column in the matrix** \u2014 new column per part type. Green when a per-item override exists, grey when falling back to the part-type default. Double-click to edit; Ctrl+Z undoes.; **Quick Scan live pricing & totals** \u2014 pending table now shows **Unit Price** and **Line Total** per scanned line + a totals card with **ITEMS \u00b7 SUBTOTAL \u00b7 GRAND TOTAL** (accent green, JetBrains Mono). Currency formatted via `ShopConfig.format_currency`.",
+  "version": "2.3.10",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.10/StockManagerPro-2.3.10-setup.exe",
+  "release_notes": "**`cost_price` column** on `inventory_items` \u2014 purchase / buy price, persisted per item. Schema V16 migration adds the column automatically on first launch.; **Matrix columns bumped 5 \u2192 7** per part-type group: `MIN-STOCK \u00b7 DIFFERENCE \u00b7 STOCK \u00b7 ORDER \u00b7 SELL \u00b7 COST \u00b7 TOTAL`.; **SELL** = the previous \"PRICE\" column renamed for clarity (item.sell_price with part-type default fallback; edit flow unchanged).",
   "release_date": "2026-04-20",
-  "checksum_sha256": "365166ea39343520099eb1510a6271454db2ccc142d222ed5ed836b6456df117"
+  "checksum_sha256": "a4a15b447887b426719854c819f35605cc5c9565555a2b357bee1d46e92928f2"
 }

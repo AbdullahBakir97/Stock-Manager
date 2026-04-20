@@ -174,6 +174,9 @@ class MatrixTab(BaseTab):
         self._content_stack.addWidget(self._multi_scroll)
 
         self._brand_widgets: list[QWidget] = []
+        # Cached brand containers for in-place refresh (no destroy/rebuild)
+        self._brand_containers: list = []
+        self._brand_order: list[str] = []
         self._container = self._single_container
         self._table = self._single_container.data_table
         lay.addWidget(self._content_stack, 1)
@@ -261,19 +264,36 @@ class MatrixTab(BaseTab):
             # ── All brands: outer scroll, each section full-sized ──
             self._content_stack.setCurrentIndex(1)
 
-            # Clear old sections
-            for w in self._brand_widgets:
-                w.deleteLater()
-            self._brand_widgets.clear()
-            while self._multi_lay.count():
-                item = self._multi_lay.takeAt(0)
-                if item.widget():
-                    item.widget().deleteLater()
+            # IN-PLACE UPDATE when the brand set hasn't changed.
+            # Destroying + rebuilding containers causes the outer
+            # QScrollArea to auto-scroll to the top (Qt adjusts scroll
+            # when a focused widget disappears and a fresh one appears).
+            # By reusing existing containers and just reloading their
+            # contents we keep the scroll position stable.
+            brands_now = list(_model_repo.get_brands())
+            existing_brands = getattr(self, "_brand_order", [])
 
-            for b in _model_repo.get_brands():
-                self._add_brand_section(b)
+            if (existing_brands == brands_now
+                    and len(self._brand_containers) == len(brands_now)):
+                # ── Fast path: reuse containers, reload rows ──
+                for b, container in zip(brands_now, self._brand_containers):
+                    self._reload_brand_container(b, container)
+            else:
+                # ── Slow path: first time or brand set changed ──
+                for w in self._brand_widgets:
+                    w.deleteLater()
+                self._brand_widgets.clear()
+                self._brand_containers.clear()
+                while self._multi_lay.count():
+                    item = self._multi_lay.takeAt(0)
+                    if item.widget():
+                        item.widget().deleteLater()
 
-            self._multi_lay.addStretch()
+                for b in brands_now:
+                    self._add_brand_section(b)
+
+                self._multi_lay.addStretch()
+                self._brand_order = brands_now
 
         # Re-apply current zoom so rebuilt rows/banner keep the zoom factor.
         # Call directly on containers we know about — cheaper than full dispatch.
@@ -291,14 +311,51 @@ class MatrixTab(BaseTab):
         except Exception:
             pass
 
-        # Restore scroll position (deferred so layout settles first)
+        # ── Restore scroll position — robust against layout-timing races ──
+        # All-brands mode rebuilds every brand container (up to 6 of them,
+        # Apple being the tallest). The outer multi_scroll's maximum()
+        # doesn't catch up to the real content height until ALL children's
+        # sizeHint and layout processing finish, which can take 300+ ms.
+        #
+        # Strategy: listen to rangeChanged (fires when the scroll max
+        # recomputes) AND schedule timer retries as a safety net. First
+        # valid attempt wins; subsequent calls become no-ops.
         from PyQt6.QtCore import QTimer
+        target = saved_v if brand else saved_v_multi
+        if brand:
+            scroll_bar = self._single_container.data_table.verticalScrollBar()
+        else:
+            scroll_bar = self._multi_scroll.verticalScrollBar()
+
+        # If we were at the top, nothing to restore
+        if target <= 0:
+            return
+
+        restored_flag = [False]
+
         def _restore():
-            if brand:
-                self._single_container.data_table.verticalScrollBar().setValue(saved_v)
-            else:
-                self._multi_scroll.verticalScrollBar().setValue(saved_v_multi)
-        QTimer.singleShot(0, _restore)
+            if restored_flag[0]:
+                return
+            sb = scroll_bar
+            # Only setValue once the scroll range is large enough to honour it
+            if sb.maximum() >= target or sb.value() == target:
+                sb.setValue(target)
+                restored_flag[0] = True
+                try:
+                    sb.rangeChanged.disconnect(_on_range)
+                except (TypeError, RuntimeError):
+                    pass
+
+        def _on_range(_minval, _maxval):
+            if _maxval >= target:
+                _restore()
+
+        scroll_bar.rangeChanged.connect(_on_range)
+
+        # Timer fallbacks — cover the case where rangeChanged doesn't
+        # reach the target max (e.g. content slightly shorter than before)
+        for delay in (0, 30, 90, 180, 320, 500):
+            QTimer.singleShot(delay, _restore)
 
     def _add_brand_section(self, brand: str) -> None:
         """Add one full-sized brand section to the scrollable all-brands page."""
@@ -350,9 +407,40 @@ class MatrixTab(BaseTab):
 
         self._multi_lay.addWidget(container)
         self._brand_widgets.append(container)
+        self._brand_containers.append(container)
 
         self._container = container
         self._table = container.data_table
+
+    def _reload_brand_container(self, brand: str, container) -> None:
+        """Refresh the contents of an existing brand container IN PLACE.
+
+        Does NOT destroy the widget — avoids the outer QScrollArea
+        auto-scrolling to top when focus is lost on destroyed widgets.
+        """
+        from app.models.category import CategoryConfig
+        models = _model_repo.get_all(brand=brand)
+        if not models:
+            return
+        item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
+        used_pt_keys = {key[1] for key in item_map.keys()}
+        filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+        filtered_cat = CategoryConfig(
+            id=self._cat.id, key=self._cat.key,
+            name_en=self._cat.name_en, name_de=self._cat.name_de,
+            name_ar=self._cat.name_ar, sort_order=self._cat.sort_order,
+            icon=self._cat.icon, is_active=self._cat.is_active,
+            part_types=filtered_pts or self._cat.part_types,
+        )
+        container.load(filtered_cat, models, item_map)
+
+        # Recompute container height from new content
+        tbl = container.data_table
+        banner_h = 30
+        header_h = tbl.horizontalHeader().height()
+        rows_h = sum(tbl.rowHeight(r) for r in range(tbl.rowCount()))
+        content_h = banner_h + header_h + rows_h + 16
+        container.setFixedHeight(min(content_h, 500))
 
     def apply_theme(self) -> None:
         """Rebuild legend chip inline styles with current theme colors."""

@@ -11,6 +11,7 @@ class PartTypeConfig:
     name: str          # Display label e.g. "(JK) incell FHD"
     accent_color: str  # Hex e.g. "#4A9EFF"
     sort_order: int
+    default_price: float | None = None  # Default unit price; item.sell_price overrides
 
 
 @dataclass

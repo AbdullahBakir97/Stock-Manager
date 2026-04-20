@@ -95,14 +95,46 @@ _DDL = """
 
     -- Part types within a category (column groups in the matrix)
     CREATE TABLE IF NOT EXISTS part_types (
-        id           INTEGER PRIMARY KEY AUTOINCREMENT,
-        category_id  INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
-        key          TEXT NOT NULL,
-        name         TEXT NOT NULL,
-        accent_color TEXT NOT NULL DEFAULT '#4A9EFF',
-        sort_order   INTEGER NOT NULL DEFAULT 0,
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id   INTEGER NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        key           TEXT NOT NULL,
+        name          TEXT NOT NULL,
+        accent_color  TEXT NOT NULL DEFAULT '#4A9EFF',
+        sort_order    INTEGER NOT NULL DEFAULT 0,
+        default_price REAL,   -- default price per item; per-item sell_price overrides
         UNIQUE(category_id, key)
     );
+
+    -- Scan Invoice header: one per confirmed Quick Scan session
+    CREATE TABLE IF NOT EXISTS scan_invoices (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_number  TEXT NOT NULL UNIQUE,
+        operation       TEXT NOT NULL,          -- 'IN' | 'OUT'
+        layout          TEXT NOT NULL,          -- 'a4' | 'thermal'
+        customer_name   TEXT NOT NULL DEFAULT '',
+        subtotal        REAL NOT NULL DEFAULT 0,
+        total           REAL NOT NULL DEFAULT 0,
+        currency        TEXT NOT NULL DEFAULT '€',
+        note            TEXT NOT NULL DEFAULT '',
+        pdf_path        TEXT NOT NULL DEFAULT '',
+        created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS scan_invoice_items (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_id      INTEGER NOT NULL REFERENCES scan_invoices(id) ON DELETE CASCADE,
+        item_id         INTEGER NOT NULL REFERENCES inventory_items(id),
+        item_snapshot   TEXT NOT NULL,
+        barcode         TEXT NOT NULL DEFAULT '',
+        quantity        INTEGER NOT NULL,
+        unit_price      REAL NOT NULL,
+        line_total      REAL NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_scan_invoices_date
+        ON scan_invoices(created_at);
+    CREATE INDEX IF NOT EXISTS idx_scan_invoice_items_inv
+        ON scan_invoice_items(invoice_id);
 
     -- Colors available for a part type (e.g., ORG Service Pack → Black, Blue, Silver)
     CREATE TABLE IF NOT EXISTS part_type_colors (
@@ -384,7 +416,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "14"
+_SCHEMA_VERSION = "15"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -736,6 +768,46 @@ def _migrate_v13_to_v14(conn: sqlite3.Connection) -> None:
     _log.info("V13 to V14 migration completed")
 
 
+def _migrate_v14_to_v15(conn: sqlite3.Connection) -> None:
+    """V15: Part-type default_price + scan_invoices / scan_invoice_items."""
+    _log.info("Migrating database schema from V14 to V15")
+    # Add default_price to part_types if missing
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(part_types)").fetchall()}
+    if "default_price" not in cols:
+        conn.execute("ALTER TABLE part_types ADD COLUMN default_price REAL")
+    # Create invoice tables
+    conn.executescript("""
+        CREATE TABLE IF NOT EXISTS scan_invoices (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_number  TEXT NOT NULL UNIQUE,
+            operation       TEXT NOT NULL,
+            layout          TEXT NOT NULL,
+            customer_name   TEXT NOT NULL DEFAULT '',
+            subtotal        REAL NOT NULL DEFAULT 0,
+            total           REAL NOT NULL DEFAULT 0,
+            currency        TEXT NOT NULL DEFAULT '€',
+            note            TEXT NOT NULL DEFAULT '',
+            pdf_path        TEXT NOT NULL DEFAULT '',
+            created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE TABLE IF NOT EXISTS scan_invoice_items (
+            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            invoice_id      INTEGER NOT NULL REFERENCES scan_invoices(id) ON DELETE CASCADE,
+            item_id         INTEGER NOT NULL REFERENCES inventory_items(id),
+            item_snapshot   TEXT NOT NULL,
+            barcode         TEXT NOT NULL DEFAULT '',
+            quantity        INTEGER NOT NULL,
+            unit_price      REAL NOT NULL,
+            line_total      REAL NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_scan_invoices_date
+            ON scan_invoices(created_at);
+        CREATE INDEX IF NOT EXISTS idx_scan_invoice_items_inv
+            ON scan_invoice_items(invoice_id);
+    """)
+    _log.info("V14 to V15 migration completed")
+
+
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
     _log.info("Migrating database schema from V3 to V4 (consolidate products + stock_entries)")
@@ -969,6 +1041,10 @@ def init_db() -> None:
                 _migrate_v13_to_v14(conn)
                 current = "14"
 
+            if current == "14":
+                _migrate_v14_to_v15(conn)
+                current = "15"
+
             # Always persist the final version after migrations
             conn.execute(
                 "INSERT OR REPLACE INTO app_config (key, value) VALUES ('schema_version', ?)",
@@ -1138,6 +1214,14 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
         if override and "__NONE__" in override:
             _batch_inserts.append((mid, pt_id, ""))  # only colorless parent
             return
+        # "__USER_INCLUDED__" is a protection marker — the user manually
+        # toggled the model into this part type, so we must include the
+        # default colorless parent row and let global colors apply.
+        if override and "__USER_INCLUDED__" in override:
+            _batch_inserts.append((mid, pt_id, ""))
+            for color in pt_colors.get(pt_id, []):
+                _batch_inserts.append((mid, pt_id, color))
+            return
         colors = override if override is not None else pt_colors.get(pt_id, [])
         if colors:
             color_set = set(colors)
@@ -1171,14 +1255,24 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
         for pt_id in non_display_pt_ids:
             _queue_item(mid, pt_id)
 
-        # Display part types: brand-aware + model-specific exclusions
+        # Display part types: brand-aware + model-specific exclusions.
+        # CRITICAL: hardcoded DISPLAY_EXCLUSIONS are ONLY applied when the
+        # user has not manually overridden that (model, part_type) pair.
+        # Any row in model_part_type_colors (including __USER_INCLUDED__,
+        # __EXCLUDED__, __NONE__, or explicit colors) signals user intent
+        # and must be respected over the demo-data defaults.
         if DISPLAY_BRAND_MAP and display_pt_map:
             allowed_keys = DISPLAY_BRAND_MAP.get(brand)
             if allowed_keys is not None:
                 for key in allowed_keys:
+                    pt_id = display_pt_map.get(key)
                     excluded_models = DISPLAY_EXCLUSIONS.get(key, [])
-                    if model_name in excluded_models:
-                        pt_id = display_pt_map.get(key)
+                    user_override = None
+                    if pt_id:
+                        user_override = model_pt_colors.get((mid, pt_id))
+                    if model_name in excluded_models and not user_override:
+                        # Demo-data exclusion AND user hasn't touched this —
+                        # delete zero-stock rows to keep the matrix clean
                         if pt_id:
                             conn.execute(
                                 "DELETE FROM inventory_items WHERE model_id=? AND part_type_id=? "
@@ -1186,7 +1280,7 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
                                 (mid, pt_id),
                             )
                         continue
-                    pt_id = display_pt_map.get(key)
+                    # User override OR not in exclusion list → materialise rows
                     if pt_id:
                         _queue_item(mid, pt_id)
             else:
@@ -1205,7 +1299,9 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
 
     # Clean up stale inventory items: remove display items for brands that
     # shouldn't have them (e.g. Samsung models with Apple-only part types).
-    # Only deletes zero-stock rows to avoid data loss.
+    # Only deletes zero-stock rows to avoid data loss, and ONLY when the
+    # user has NOT explicitly managed that (model, part_type) pair —
+    # any row in model_part_type_colors signals user intent to keep.
     if DISPLAY_BRAND_MAP and display_pt_map:
         for model in models:
             brand = model["brand"]
@@ -1214,9 +1310,13 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
             if allowed_keys is None:
                 continue
             allowed_pt_ids = {display_pt_map[k] for k in allowed_keys if k in display_pt_map}
-            # Find display part types this brand should NOT have
             disallowed_pt_ids = display_pt_ids - allowed_pt_ids
             for pt_id in disallowed_pt_ids:
+                # Skip if the user has toggled this pair in any way
+                # (__USER_INCLUDED__, __EXCLUDED__, __NONE__, explicit colors)
+                user_override = model_pt_colors.get((mid, pt_id))
+                if user_override:
+                    continue
                 conn.execute(
                     "DELETE FROM inventory_items "
                     "WHERE model_id=? AND part_type_id=? "

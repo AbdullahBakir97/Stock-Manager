@@ -132,18 +132,27 @@ class DonutChart(QWidget):
 # ── Horizontal Bar Chart ───────────────────────────────────────────────────
 
 class HBarChart(QWidget):
-    """Horizontal bar chart with labels and values."""
+    """Horizontal bar chart with labels and values.
+
+    A `value_format` callable (float -> str) can be supplied via set_data so
+    values render with currency symbols, units, decimals, etc. — defaults
+    to `str(int(v))` for integer counts.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self._bars: list[BarItem] = []
         self._title = ""
+        self._value_format = lambda v: str(int(v))
         self.setMinimumHeight(120)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 
-    def set_data(self, bars: list[BarItem], title: str = "") -> None:
+    def set_data(self, bars: list[BarItem], title: str = "",
+                 value_format=None) -> None:
         self._bars = bars
         self._title = title
+        if value_format is not None and callable(value_format):
+            self._value_format = value_format
         self.setMinimumHeight(max(120, 32 + len(bars) * 30))
         self.update()
 
@@ -155,8 +164,8 @@ class HBarChart(QWidget):
         tk = THEME.tokens
 
         w, h = self.width(), self.height()
-        margin_l = 100  # space for labels
-        margin_r = 60   # space for values
+        margin_l = 110  # space for labels
+        margin_r = 96   # wider: fits formatted currency "€12,340.00"
         bar_area = w - margin_l - margin_r
         max_val = max((b.value for b in self._bars), default=1) or 1
 
@@ -196,13 +205,18 @@ class HBarChart(QWidget):
             painter.setBrush(QColor(bar.color))
             painter.drawRoundedRect(fill_rect, 4, 4)
 
-            # Value
+            # Value (formatted via set_data.value_format; defaults to int)
             painter.setFont(f_value)
             painter.setPen(QColor(tk.t1))
-            val_rect = QRectF(margin_l + bar_area + 4, y_offset, margin_r - 8, spacing)
+            val_rect = QRectF(margin_l + bar_area + 6, y_offset,
+                               margin_r - 10, spacing)
+            try:
+                val_text = self._value_format(bar.value)
+            except Exception:
+                val_text = str(int(bar.value))
             painter.drawText(val_rect,
                              Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
-                             str(int(bar.value)))
+                             val_text)
 
             y_offset += spacing
 

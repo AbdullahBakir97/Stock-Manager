@@ -10,7 +10,7 @@ To release a new version:
 from __future__ import annotations
 
 # ── Current version ────────────────────────────────────────────────────────────
-APP_VERSION = "2.3.8"
+APP_VERSION = "2.3.9"
 
 # ── Update manifest URL ────────────────────────────────────────────────────────
 # UpdateService fetches this JSON on startup to check for new versions.

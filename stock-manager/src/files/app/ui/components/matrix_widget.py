@@ -34,8 +34,9 @@ from app.core.i18n import t
 _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
-_COLS_PER_TYPE = 4   # Min-Stock | Best-Bung | Stock | Order
-_COL_W = {"model": 160, "stamm": 108, "bestbung": 104, "stock": 84, "inventur": 112}
+_COLS_PER_TYPE = 5   # Min-Stock | Best-Bung | Stock | Order | Price
+_COL_W = {"model": 160, "stamm": 108, "bestbung": 104, "stock": 70,
+          "inventur": 72, "price": 68}
 _HEADER_ROW = 0
 
 # Fonts — base point sizes (what items render at at 100% zoom)
@@ -434,6 +435,7 @@ class MatrixWidget(QTableWidget):
                             "min_stock": total_min,
                             "stock": total_stock,
                         }
+                        price_src = any_item
                     else:
                         # Colorless item — direct lookup
                         item = item_map.get((model.id, pt.key, ""))
@@ -458,8 +460,14 @@ class MatrixWidget(QTableWidget):
                             "min_stock": total_min,
                             "stock": total_stock,
                         }
+                        price_src = item
 
-                    self._render_data_cells(r, b, bg, tk, meta, total_min, total_stock, best, total_inv, has_colors)
+                    self._render_data_cells(
+                        r, b, bg, tk, meta,
+                        total_min, total_stock, best, total_inv, has_colors,
+                        sell_price=getattr(price_src, "sell_price", None),
+                        pt_default_price=getattr(pt, "default_price", None),
+                    )
 
             elif rd["type"] == "color":
                 color = rd["color"]
@@ -506,14 +514,20 @@ class MatrixWidget(QTableWidget):
                         "min_stock": item.min_stock,
                         "stock": item.stock,
                     }
-                    self._render_data_cells(r, b, bg, tk, meta, item.min_stock, item.stock, item.best_bung, item.inventur)
+                    self._render_data_cells(
+                        r, b, bg, tk, meta,
+                        item.min_stock, item.stock, item.best_bung, item.inventur,
+                        sell_price=getattr(item, "sell_price", None),
+                        pt_default_price=getattr(pt, "default_price", None),
+                    )
 
         self.setUpdatesEnabled(True)
 
     def _render_data_cells(self, r: int, b: int, bg: QColor, tk,
                            meta: dict, min_stock: int, stock: int,
-                           best: int, inventur, has_colors: bool = False):
-        """Render the 4 data cells (MinStock, BestBung, Stock, Order) for a row."""
+                           best: int, inventur, has_colors: bool = False,
+                           sell_price=None, pt_default_price=None):
+        """Render the 5 data cells (MinStock, BestBung, Stock, Order, €) for a row."""
         # Min-Stock
         st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
         st.setForeground(QColor(tk.t2))
@@ -562,13 +576,47 @@ class MatrixWidget(QTableWidget):
         inv.setToolTip(t("disp_tip_inv"))
         self.setItem(r, b + 3, inv)
 
+        # € Price (per-item sell_price, falls back to part_type.default_price)
+        price_val = sell_price
+        price_from_override = price_val is not None
+        if price_val is None and pt_default_price is not None:
+            price_val = pt_default_price
+        if price_val is None:
+            price_txt = "—"
+            price_col = tk.t4
+            price_tip = "Double-click to set price"
+        else:
+            try:
+                price_txt = f"{float(price_val):,.2f}"
+            except (TypeError, ValueError):
+                price_txt = "—"
+                price_col = tk.t4
+            else:
+                price_col = tk.green if price_from_override else tk.t3
+            price_tip = (
+                f"Per-item override: {price_val:.2f}"
+                if price_from_override
+                else f"Default from part type: {price_val:.2f}"
+            )
+        price_meta = meta | {
+            "field": "price",
+            "sell_price": sell_price,
+            "pt_default_price": pt_default_price,
+        }
+        pr = self._cell(price_txt, price_meta)
+        pr.setForeground(QColor(price_col))
+        _set_item_font(pr, _FONT_MONO, 11)
+        pr.setBackground(bg)
+        pr.setToolTip(price_tip)
+        self.setItem(r, b + 4, pr)
+
     def retranslate(self) -> None:
         if not self._cat:
             return
         labels = [t("disp_col_model")]
         for _ in self._cat.part_types:
             labels += [t("col_stamm_zahl"), t("col_best_bung"),
-                       t("disp_col_stock"), t("col_inventur")]
+                       t("disp_col_stock"), t("col_inventur"), "PRICE"]
         self.setHorizontalHeaderLabels(labels)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -580,7 +628,7 @@ class MatrixWidget(QTableWidget):
         labels  = [t("disp_col_model")]
         for _ in cat.part_types:
             labels += [t("col_stamm_zahl"), t("col_best_bung"),
-                       t("disp_col_stock"), t("col_inventur")]
+                       t("disp_col_stock"), t("col_inventur"), "PRICE"]
         self.setHorizontalHeaderLabels(labels)
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -595,6 +643,7 @@ class MatrixWidget(QTableWidget):
             self.setColumnWidth(b + 1, _COL_W["bestbung"])
             self.setColumnWidth(b + 2, _COL_W["stock"])
             self.setColumnWidth(b + 3, _COL_W["inventur"])
+            self.setColumnWidth(b + 4, _COL_W["price"])
 
     @staticmethod
     def _ro(text: str) -> QTableWidgetItem:
@@ -1039,6 +1088,34 @@ class MatrixWidget(QTableWidget):
                 ))
                 self._refresh_cb()
 
+        elif field == "price":
+            # Per (model, part_type) price override — edits inventory_items.sell_price
+            from PyQt6.QtWidgets import QInputDialog
+            item_cur = _item_repo.get_by_id(item_id)
+            prev_price = None
+            if item_cur is not None and item_cur.sell_price is not None:
+                prev_price = float(item_cur.sell_price)
+            initial = prev_price if prev_price is not None else (
+                float(meta.get("pt_default_price") or 0.0)
+            )
+            new_val, ok = QInputDialog.getDouble(
+                self,
+                f"Price — {model_name} · {dtype_lbl}",
+                "Unit price (0 = clear override → use part-type default):",
+                initial, 0.0, 999999.99, 2,
+            )
+            if not ok:
+                return
+            new_price = None if new_val <= 0 else float(new_val)
+            _item_repo.update_price(item_id, new_price)
+            iid, prev, curr = item_id, prev_price, new_price
+            UNDO.push(Command(
+                label=f"Price {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                undo_fn=lambda: _item_repo.update_price(iid, prev),
+                redo_fn=lambda: _item_repo.update_price(iid, curr),
+            ))
+            self._refresh_cb()
+
 
 # ── Frozen container: sticky model column ─────────────────────────────────────
 
@@ -1429,18 +1506,20 @@ class FrozenMatrixContainer(QWidget):
                     1: t("col_best_bung"),
                     2: t("disp_col_stock"),
                     3: t("col_inventur"),
+                    4: "PRICE",
                 }
                 base_widths = {
                     0: _COL_W["stamm"],
                     1: _COL_W["bestbung"],
                     2: _COL_W["stock"],
                     3: _COL_W["inventur"],
+                    4: _COL_W["price"],
                 }
-                min_widths = {0: 44, 1: 44, 2: 38, 3: 44}
+                min_widths = {0: 44, 1: 44, 2: 34, 3: 36, 4: 38}
 
                 for ti in range(len(mtx._cat.part_types)):
                     b = _base(ti)
-                    for c in range(4):
+                    for c in range(_COLS_PER_TYPE):
                         col = b + c
                         # Header text width at the ACTUAL rendered font
                         hdr_w = fm_header.horizontalAdvance(hdr_labels[c]) + hdr_side_pad * 2
@@ -1501,7 +1580,7 @@ class FrozenMatrixContainer(QWidget):
                     if not mtx._cat or i >= len(mtx._cat.part_types):
                         continue
                     b = _base(i)
-                    w = sum(mtx.columnWidth(b + c) for c in range(4))
+                    w = sum(mtx.columnWidth(b + c) for c in range(_COLS_PER_TYPE))
                     lbl.setFixedWidth(w)
                     lbl.setFixedHeight(banner_h)
                     banner_total_w += w

@@ -18,7 +18,7 @@ from PyQt6.QtWidgets import (
     QTableWidget, QTableWidgetItem, QHeaderView,
     QDialog, QAbstractItemView, QMessageBox, QFrame,
     QStyledItemDelegate, QStyleOptionViewItem, QMenu,
-    QWidget, QVBoxLayout, QHBoxLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
 )
 from PyQt6.QtCore import Qt, QModelIndex, QPoint
 from PyQt6.QtGui import QColor, QFont, QPainter
@@ -34,9 +34,11 @@ from app.core.i18n import t
 _item_repo  = ItemRepository()
 _stock_svc  = StockService()
 
-_COLS_PER_TYPE = 5   # Min-Stock | Best-Bung | Stock | Order | Price
+_COLS_PER_TYPE = 7   # Min-Stock | Best-Bung | Stock | Order | Sell | Price | Total
+# Sub-column offsets within a part-type group (makes indexing self-documenting)
+_SUB_MIN, _SUB_BB, _SUB_STOCK, _SUB_ORDER, _SUB_SELL, _SUB_PRICE, _SUB_TOTAL = 0, 1, 2, 3, 4, 5, 6
 _COL_W = {"model": 160, "stamm": 108, "bestbung": 104, "stock": 70,
-          "inventur": 72, "price": 68}
+          "inventur": 72, "sell": 68, "price": 68, "total": 82}
 _HEADER_ROW = 0
 
 # Fonts — base point sizes (what items render at at 100% zoom)
@@ -123,7 +125,41 @@ def _base(ti: int) -> int:
     return 1 + ti * _COLS_PER_TYPE
 
 
+def _type_visible_width(table, ti: int) -> int:
+    """Sum of the VISIBLE column widths for part-type group `ti`.
+
+    Hidden columns (cost_price / total when the admin toggle is off) are
+    excluded so that the banner chip above the group never over-stretches.
+    """
+    b = _base(ti)
+    w = 0
+    for c in range(_COLS_PER_TYPE):
+        col = b + c
+        if not table.isColumnHidden(col):
+            w += table.columnWidth(col)
+    return w
+
+
 import re as _re
+
+
+def _fmt_money(val) -> str:
+    """Format a numeric value using the shop's configured currency symbol.
+
+    Falls back to `{:,.2f}` (no symbol) if ShopConfig isn't loadable.
+    Returns `'—'` for None / non-numeric input.
+    """
+    if val is None:
+        return "—"
+    try:
+        v = float(val)
+    except (TypeError, ValueError):
+        return "—"
+    try:
+        from app.core.config import ShopConfig
+        return ShopConfig.get().format_currency(v)
+    except Exception:
+        return f"{v:,.2f}"
 
 def _model_series(name: str) -> str:
     """Extract the series prefix from a model name for grouping.
@@ -467,6 +503,7 @@ class MatrixWidget(QTableWidget):
                         total_min, total_stock, best, total_inv, has_colors,
                         sell_price=getattr(price_src, "sell_price", None),
                         pt_default_price=getattr(pt, "default_price", None),
+                        cost_price=getattr(price_src, "cost_price", None),
                     )
 
             elif rd["type"] == "color":
@@ -519,6 +556,7 @@ class MatrixWidget(QTableWidget):
                         item.min_stock, item.stock, item.best_bung, item.inventur,
                         sell_price=getattr(item, "sell_price", None),
                         pt_default_price=getattr(pt, "default_price", None),
+                        cost_price=getattr(item, "cost_price", None),
                     )
 
         self.setUpdatesEnabled(True)
@@ -526,17 +564,24 @@ class MatrixWidget(QTableWidget):
     def _render_data_cells(self, r: int, b: int, bg: QColor, tk,
                            meta: dict, min_stock: int, stock: int,
                            best: int, inventur, has_colors: bool = False,
-                           sell_price=None, pt_default_price=None):
-        """Render the 5 data cells (MinStock, BestBung, Stock, Order, €) for a row."""
+                           sell_price=None, pt_default_price=None,
+                           cost_price=None):
+        """Render the 7 data cells per part-type group.
+
+        Layout: MIN-STOCK | DIFF | STOCK | ORDER | SELL | PRICE | TOTAL
+          SELL  = sell_price (falls back to part-type.default_price)
+          PRICE = cost_price (purchase price — hidden by default, PIN-gated)
+          TOTAL = stock × cost_price (valuation — hidden with PRICE)
+        """
         # Min-Stock
         st = self._cell(str(min_stock), meta | {"field": "stamm_zahl"})
         st.setForeground(QColor(tk.t2))
         _set_item_font(st, _FONT_DATA, 10)
         st.setBackground(bg)
         st.setToolTip(t("disp_tip_stamm"))
-        self.setItem(r, b, st)
+        self.setItem(r, b + _SUB_MIN, st)
 
-        # Best-Bung
+        # Best-Bung (difference)
         if best == 0:
             bb_txt, bb_col, bb_tip = "0", tk.yellow, t("disp_tip_bb_zero")
         elif best < 0:
@@ -550,7 +595,7 @@ class MatrixWidget(QTableWidget):
         _set_item_font(bb, _FONT_MONO, 11)
         bb.setBackground(bg)
         bb.setToolTip(bb_tip)
-        self.setItem(r, b + 1, bb)
+        self.setItem(r, b + _SUB_BB, bb)
 
         # Stock
         stk = self._cell(str(stock), meta | {"field": "stock"})
@@ -565,7 +610,7 @@ class MatrixWidget(QTableWidget):
         stk.setToolTip(t("disp_tip_stock"))
         if has_colors:
             stk.setToolTip("Total across all colors")
-        self.setItem(r, b + 2, stk)
+        self.setItem(r, b + _SUB_STOCK, stk)
 
         # Order
         inv_txt = str(inventur) if inventur is not None else "—"
@@ -574,41 +619,123 @@ class MatrixWidget(QTableWidget):
         _set_item_font(inv, _FONT_DATA, 10)
         inv.setBackground(bg)
         inv.setToolTip(t("disp_tip_inv"))
-        self.setItem(r, b + 3, inv)
+        self.setItem(r, b + _SUB_ORDER, inv)
 
-        # € Price (per-item sell_price, falls back to part_type.default_price)
-        price_val = sell_price
-        price_from_override = price_val is not None
-        if price_val is None and pt_default_price is not None:
-            price_val = pt_default_price
-        if price_val is None:
-            price_txt = "—"
-            price_col = tk.t4
-            price_tip = "Double-click to set price"
+        # ── SELL price (sell_price with part-type default_price fallback) ──
+        sell_val = sell_price
+        sell_from_override = sell_val is not None
+        if sell_val is None and pt_default_price is not None:
+            sell_val = pt_default_price
+        if sell_val is None:
+            sell_txt = "—"
+            sell_col = tk.t4
+            sell_tip = "Double-click to set sell price"
         else:
             try:
-                price_txt = f"{float(price_val):,.2f}"
+                sell_txt = _fmt_money(sell_val)
             except (TypeError, ValueError):
-                price_txt = "—"
-                price_col = tk.t4
+                sell_txt = "—"
+                sell_col = tk.t4
             else:
-                price_col = tk.green if price_from_override else tk.t3
-            price_tip = (
-                f"Per-item override: {price_val:.2f}"
-                if price_from_override
-                else f"Default from part type: {price_val:.2f}"
+                sell_col = tk.green if sell_from_override else tk.t3
+            sell_tip = (
+                f"Per-item override: {_fmt_money(sell_val)}"
+                if sell_from_override
+                else f"Default from part type: {_fmt_money(sell_val)}"
             )
-        price_meta = meta | {
-            "field": "price",
+        sell_meta = meta | {
+            "field": "price",           # keep legacy field name for edit dispatch
             "sell_price": sell_price,
             "pt_default_price": pt_default_price,
         }
-        pr = self._cell(price_txt, price_meta)
-        pr.setForeground(QColor(price_col))
-        _set_item_font(pr, _FONT_MONO, 11)
-        pr.setBackground(bg)
-        pr.setToolTip(price_tip)
-        self.setItem(r, b + 4, pr)
+        sell_cell = self._cell(sell_txt, sell_meta)
+        sell_cell.setForeground(QColor(sell_col))
+        _set_item_font(sell_cell, _FONT_MONO, 11)
+        sell_cell.setBackground(bg)
+        sell_cell.setToolTip(sell_tip)
+        self.setItem(r, b + _SUB_SELL, sell_cell)
+
+        # ── PRICE (cost_price) — hidden by default ─────────────────────────
+        if cost_price is None:
+            cp_txt, cp_col, cp_tip = "—", tk.t4, "Double-click to set cost price"
+        else:
+            try:
+                cp_txt = _fmt_money(cost_price)
+                cp_col = tk.blue
+                cp_tip = f"Cost / purchase price: {_fmt_money(cost_price)}"
+            except (TypeError, ValueError):
+                cp_txt, cp_col, cp_tip = "—", tk.t4, ""
+        cp_meta = meta | {"field": "cost_price", "cost_price": cost_price}
+        cp_cell = self._cell(cp_txt, cp_meta)
+        cp_cell.setForeground(QColor(cp_col))
+        _set_item_font(cp_cell, _FONT_MONO, 11)
+        cp_cell.setBackground(bg)
+        cp_cell.setToolTip(cp_tip)
+        self.setItem(r, b + _SUB_PRICE, cp_cell)
+
+        # ── TOTAL — always visible, metric flips with COST_VIS ────────────
+        # Default (COST_VIS off): stock × effective_sell_price (sell_price or
+        #                         part-type default_price)
+        # Admin mode (COST_VIS on): stock × cost_price
+        from app.services.cost_visibility import COST_VIS
+        cost_mode = COST_VIS.visible
+        try:
+            stk_int = int(stock or 0)
+        except (TypeError, ValueError):
+            stk_int = 0
+
+        if cost_mode:
+            base_price = cost_price
+            metric_tag = "cost"
+        else:
+            # Reuse the already-resolved sell_val above (sell_price with default fallback)
+            base_price = sell_val
+            metric_tag = "sell"
+
+        try:
+            total_val = float(base_price) * stk_int if base_price is not None else None
+        except (TypeError, ValueError):
+            total_val = None
+
+        if total_val is None:
+            tot_txt, tot_col, tot_tip = "—", tk.t4, ""
+        else:
+            tot_txt = _fmt_money(total_val)
+            tot_col = tk.t1
+            tot_tip = (
+                f"Stock × {metric_tag} = {stk_int} × {_fmt_money(base_price)}"
+            )
+        tot_meta = meta | {
+            "field": "total_value",
+            "readonly": True,
+            "metric": metric_tag,
+        }
+        tot_cell = self._cell(tot_txt, tot_meta)
+        tot_cell.setForeground(QColor(tot_col))
+        _set_item_font(tot_cell, _FONT_MONO, 11)
+        tot_cell.setBackground(bg)
+        tot_cell.setToolTip(tot_tip)
+        # Total is computed — not editable
+        tot_cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+        self.setItem(r, b + _SUB_TOTAL, tot_cell)
+
+    def _apply_cost_columns_visible(self) -> None:
+        """Hide/show the PRICE (cost) column across every part-type group.
+
+        TOTAL stays VISIBLE at all times — its metric flips:
+          · COST_VIS.visible == False  →  TOTAL = stock × sell_price
+          · COST_VIS.visible == True   →  TOTAL = stock × cost_price
+        Only the raw cost number is PIN-gated (the PRICE column), since
+        that's the sensitive datum; the sell-valuation totals are not.
+        """
+        from app.services.cost_visibility import COST_VIS
+        show = COST_VIS.visible
+        n_types = len(self._cat.part_types) if self._cat else 0
+        for i in range(n_types):
+            b = _base(i)
+            self.setColumnHidden(b + _SUB_PRICE, not show)
+            # TOTAL column is always visible
+            self.setColumnHidden(b + _SUB_TOTAL, False)
 
     def retranslate(self) -> None:
         if not self._cat:
@@ -616,7 +743,8 @@ class MatrixWidget(QTableWidget):
         labels = [t("disp_col_model")]
         for _ in self._cat.part_types:
             labels += [t("col_stamm_zahl"), t("col_best_bung"),
-                       t("disp_col_stock"), t("col_inventur"), "PRICE"]
+                       t("disp_col_stock"), t("col_inventur"),
+                       "SELL", "COST", "TOTAL"]
         self.setHorizontalHeaderLabels(labels)
 
     # ── Helpers ────────────────────────────────────────────────────────────────
@@ -628,7 +756,8 @@ class MatrixWidget(QTableWidget):
         labels  = [t("disp_col_model")]
         for _ in cat.part_types:
             labels += [t("col_stamm_zahl"), t("col_best_bung"),
-                       t("disp_col_stock"), t("col_inventur"), "PRICE"]
+                       t("disp_col_stock"), t("col_inventur"),
+                       "SELL", "COST", "TOTAL"]
         self.setHorizontalHeaderLabels(labels)
         hh = self.horizontalHeader()
         hh.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
@@ -637,13 +766,18 @@ class MatrixWidget(QTableWidget):
         delegate = _MatrixCellDelegate(self)
         for col in range(total):
             self.setItemDelegateForColumn(col, delegate)
+        # Columns per part type: MIN | DIFF | STOCK | ORDER | SELL | PRICE | TOTAL
         for i in range(n_types):
             b = _base(i)
-            self.setColumnWidth(b,     _COL_W["stamm"])
-            self.setColumnWidth(b + 1, _COL_W["bestbung"])
-            self.setColumnWidth(b + 2, _COL_W["stock"])
-            self.setColumnWidth(b + 3, _COL_W["inventur"])
-            self.setColumnWidth(b + 4, _COL_W["price"])
+            self.setColumnWidth(b + _SUB_MIN,   _COL_W["stamm"])
+            self.setColumnWidth(b + _SUB_BB,    _COL_W["bestbung"])
+            self.setColumnWidth(b + _SUB_STOCK, _COL_W["stock"])
+            self.setColumnWidth(b + _SUB_ORDER, _COL_W["inventur"])
+            self.setColumnWidth(b + _SUB_SELL,  _COL_W["sell"])
+            self.setColumnWidth(b + _SUB_PRICE, _COL_W["price"])
+            self.setColumnWidth(b + _SUB_TOTAL, _COL_W["total"])
+        # Apply current cost-visibility on fresh header build
+        self._apply_cost_columns_visible()
 
     @staticmethod
     def _ro(text: str) -> QTableWidgetItem:
@@ -1100,8 +1234,8 @@ class MatrixWidget(QTableWidget):
             )
             new_val, ok = QInputDialog.getDouble(
                 self,
-                f"Price — {model_name} · {dtype_lbl}",
-                "Unit price (0 = clear override → use part-type default):",
+                f"Sell Price — {model_name} · {dtype_lbl}",
+                "Unit sell price (0 = clear override → use part-type default):",
                 initial, 0.0, 999999.99, 2,
             )
             if not ok:
@@ -1110,10 +1244,105 @@ class MatrixWidget(QTableWidget):
             _item_repo.update_price(item_id, new_price)
             iid, prev, curr = item_id, prev_price, new_price
             UNDO.push(Command(
-                label=f"Price {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                label=f"Sell {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
                 undo_fn=lambda: _item_repo.update_price(iid, prev),
                 redo_fn=lambda: _item_repo.update_price(iid, curr),
             ))
+
+            # ── Instant local update of TOTAL (only when not in cost mode)
+            from app.services.cost_visibility import COST_VIS
+            if not COST_VIS.visible:
+                tk = THEME.tokens
+                base_col = col - _SUB_SELL
+                # Also refresh this SELL cell's own text with currency symbol
+                it.setText(_fmt_money(new_price) if new_price is not None
+                           else (_fmt_money(meta.get("pt_default_price"))
+                                 if meta.get("pt_default_price") is not None else "—"))
+                total_item = self.item(row, base_col + _SUB_TOTAL)
+                if total_item is not None:
+                    effective = new_price if new_price is not None else meta.get("pt_default_price")
+                    if effective is None:
+                        total_item.setText("—")
+                        total_item.setForeground(QColor(tk.t4))
+                        total_item.setToolTip("")
+                    else:
+                        stk_int = int(stock or 0)
+                        total_val = float(effective) * stk_int
+                        total_item.setText(_fmt_money(total_val))
+                        total_item.setForeground(QColor(tk.t1))
+                        total_item.setToolTip(
+                            f"Stock × sell = {stk_int} × {_fmt_money(effective)}"
+                        )
+
+            self._refresh_cb()
+
+        elif field == "cost_price":
+            # Per-item cost_price — edits inventory_items.cost_price.
+            # Only editable while the owner has toggled the hidden columns on
+            # (PIN-gated at the toolbar); if somehow reached with cols hidden,
+            # we no-op defensively.
+            from app.services.cost_visibility import COST_VIS
+            if not COST_VIS.visible:
+                return
+            from PyQt6.QtWidgets import QInputDialog
+            item_cur = _item_repo.get_by_id(item_id)
+            prev_cost = None
+            if item_cur is not None and getattr(item_cur, "cost_price", None) is not None:
+                prev_cost = float(item_cur.cost_price)
+            initial = prev_cost if prev_cost is not None else 0.0
+            new_val, ok = QInputDialog.getDouble(
+                self,
+                f"Cost Price — {model_name} · {dtype_lbl}",
+                "Unit cost / purchase price (0 = clear):",
+                initial, 0.0, 999999.99, 2,
+            )
+            if not ok:
+                return
+            new_cost = None if new_val <= 0 else float(new_val)
+            _item_repo.update_cost_price(item_id, new_cost)
+            iid, prev, curr = item_id, prev_cost, new_cost
+            UNDO.push(Command(
+                label=f"Cost {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                undo_fn=lambda: _item_repo.update_cost_price(iid, prev),
+                redo_fn=lambda: _item_repo.update_cost_price(iid, curr),
+            ))
+
+            # ── Instant local updates — no DB round-trip wait ────────────
+            # 1) Repaint THIS cell with the new cost text/colour
+            tk = THEME.tokens
+            if new_cost is None:
+                it.setText("—")
+                it.setForeground(QColor(tk.t4))
+                it.setToolTip("Double-click to set cost price")
+            else:
+                it.setText(_fmt_money(new_cost))
+                it.setForeground(QColor(tk.blue))
+                it.setToolTip(f"Cost / purchase price: {_fmt_money(new_cost)}")
+            # Keep meta fresh so further edits start from the new value
+            new_meta = dict(meta)
+            new_meta["cost_price"] = new_cost
+            it.setData(Qt.ItemDataRole.UserRole, new_meta)
+
+            # 2) Repaint the neighbouring TOTAL cell immediately
+            base_col = col - _SUB_PRICE
+            total_item = self.item(row, base_col + _SUB_TOTAL)
+            if total_item is not None:
+                if new_cost is None:
+                    total_item.setText("—")
+                    total_item.setForeground(QColor(tk.t4))
+                    total_item.setToolTip("")
+                else:
+                    stk_int = int(stock or 0)
+                    total_val = new_cost * stk_int
+                    total_item.setText(_fmt_money(total_val))
+                    total_item.setForeground(QColor(tk.t1))
+                    total_item.setToolTip(
+                        f"Stock × cost = {stk_int} × {_fmt_money(new_cost)}"
+                    )
+
+            # 3) Full refresh for DB-consistent state. refresh_cb is
+            # MatrixTab.refresh which re-queries and calls _rebuild_cards —
+            # so the top part-type cards pick up the new valuation too.
             self._refresh_cb()
 
 
@@ -1136,7 +1365,13 @@ class FrozenMatrixContainer(QWidget):
         super().__init__(parent)
         self._refresh_cb = refresh_cb
         self._cat = None
+        self._item_map: dict = {}
         self._banner_labels: list[QWidget] = []
+
+        # Listen for admin cost-visibility flips — re-apply hidden columns
+        # and rebuild the banner so chip widths match visible columns again.
+        from app.services.cost_visibility import COST_VIS
+        COST_VIS.changed.connect(self._on_cost_visibility_changed)
 
         root = QVBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
@@ -1266,6 +1501,7 @@ class FrozenMatrixContainer(QWidget):
     def load(self, cat, models, item_map, brand_boundaries=None):
         """Load data into both tables and build the banner."""
         self._cat = cat
+        self._item_map = item_map or {}
         self._table.load(cat, models, item_map, brand_boundaries=brand_boundaries)
 
         # Hide column 0 in data table — shown by frozen side table
@@ -1275,7 +1511,13 @@ class FrozenMatrixContainer(QWidget):
         self._build_banner(cat)
 
     def _build_banner(self, cat):
-        """Build part-type name labels above the table, aligned with columns."""
+        """Build slim per-part-type column-grouping chips above the table.
+
+        Totals/value now live in the top-level cards strip (MatrixTab).
+        This banner only handles column grouping, so it's intentionally slim:
+        a name chip with gradient + 2px accent-coloured bottom border aligned
+        with its 5 underlying data columns.
+        """
         for w in self._banner_labels:
             w.deleteLater()
         self._banner_labels.clear()
@@ -1287,7 +1529,6 @@ class FrozenMatrixContainer(QWidget):
             self._banner_spacer.setFixedHeight(0)
             return
 
-        from PyQt6.QtWidgets import QLabel
         tk = THEME.tokens
         is_dark = tk.is_dark
 
@@ -1298,27 +1539,41 @@ class FrozenMatrixContainer(QWidget):
                 r = int(0.30 * hdr_bg.red()   + 0.70 * 15)
                 g = int(0.30 * hdr_bg.green() + 0.70 * 15)
                 b = int(0.30 * hdr_bg.blue()  + 0.70 * 15)
+                r_t, g_t, b_t = min(r + 12, 255), min(g + 12, 255), min(b + 12, 255)
+                r_b, g_b, b_b = max(r - 8, 0), max(g - 8, 0), max(b - 8, 0)
+                hair = 22
             else:
                 r = int(0.35 * hdr_bg.red()   + 0.65 * 245)
                 g = int(0.35 * hdr_bg.green() + 0.65 * 245)
                 b = int(0.35 * hdr_bg.blue()  + 0.65 * 245)
+                r_t, g_t, b_t = min(r + 6, 255), min(g + 6, 255), min(b + 6, 255)
+                r_b, g_b, b_b = max(r - 4, 0), max(g - 4, 0), max(b - 4, 0)
+                hair = 60
 
-            # Calculate actual pixel width from the data table's columns
-            base = _base(ti)
-            w = 0
-            for c in range(_COLS_PER_TYPE):
-                w += self._table.columnWidth(base + c)
+            # Column-aligned width = sum of VISIBLE underlying columns
+            w = _type_visible_width(self._table, ti)
             total_w += w
 
             lbl = QLabel(pt.name)
             lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
             lbl.setFixedHeight(30)
             lbl.setFixedWidth(w)
+
+            chip_font = QFont("Segoe UI", 10, QFont.Weight.DemiBold)
+            chip_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 104)
+            lbl.setFont(chip_font)
+
             lbl.setStyleSheet(
-                f"background: rgb({r},{g},{b}); "
-                f"color: {pt.accent_color}; "
-                f"font-size: 10pt; font-weight: 700; "
-                f"border: none; padding: 0 4px;"
+                "QLabel {"
+                f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+                f"  stop:0 rgb({r_t},{g_t},{b_t}),"
+                f"  stop:1 rgb({r_b},{g_b},{b_b}));"
+                f"color: {pt.accent_color};"
+                f"border: none;"
+                f"border-top: 1px solid rgba(255,255,255,{hair});"
+                f"border-bottom: 2px solid {pt.accent_color};"
+                f"padding: 0 8px;"
+                "}"
             )
             self._banner_lay.addWidget(lbl)
             self._banner_labels.append(lbl)
@@ -1334,6 +1589,16 @@ class FrozenMatrixContainer(QWidget):
         except (TypeError, RuntimeError):
             pass
         self._table.horizontalScrollBar().valueChanged.connect(self._on_h_scroll)
+
+    def _on_cost_visibility_changed(self, _visible: bool) -> None:
+        """Flip PRICE + TOTAL columns on the data table, then rebuild the
+        banner so its chip widths match the now-visible column set."""
+        try:
+            self._table._apply_cost_columns_visible()
+        except Exception:
+            pass
+        if self._cat:
+            self._build_banner(self._cat)
 
     def _on_h_scroll(self, value):
         """Sync the banner scroll position with the data table."""
@@ -1502,20 +1767,26 @@ class FrozenMatrixContainer(QWidget):
             # ── Data columns: fit widest header label + widest cell text ──
             if mtx._cat:
                 hdr_labels = {
-                    0: t("col_stamm_zahl"),
-                    1: t("col_best_bung"),
-                    2: t("disp_col_stock"),
-                    3: t("col_inventur"),
-                    4: "PRICE",
+                    _SUB_MIN:   t("col_stamm_zahl"),
+                    _SUB_BB:    t("col_best_bung"),
+                    _SUB_STOCK: t("disp_col_stock"),
+                    _SUB_ORDER: t("col_inventur"),
+                    _SUB_SELL:  "SELL",
+                    _SUB_PRICE: "COST",
+                    _SUB_TOTAL: "TOTAL",
                 }
                 base_widths = {
-                    0: _COL_W["stamm"],
-                    1: _COL_W["bestbung"],
-                    2: _COL_W["stock"],
-                    3: _COL_W["inventur"],
-                    4: _COL_W["price"],
+                    _SUB_MIN:   _COL_W["stamm"],
+                    _SUB_BB:    _COL_W["bestbung"],
+                    _SUB_STOCK: _COL_W["stock"],
+                    _SUB_ORDER: _COL_W["inventur"],
+                    _SUB_SELL:  _COL_W["sell"],
+                    _SUB_PRICE: _COL_W["price"],
+                    _SUB_TOTAL: _COL_W["total"],
                 }
-                min_widths = {0: 44, 1: 44, 2: 34, 3: 36, 4: 38}
+                min_widths = {_SUB_MIN: 44, _SUB_BB: 44, _SUB_STOCK: 34,
+                              _SUB_ORDER: 36, _SUB_SELL: 38,
+                              _SUB_PRICE: 38, _SUB_TOTAL: 50}
 
                 for ti in range(len(mtx._cat.part_types)):
                     b = _base(ti)
@@ -1579,8 +1850,7 @@ class FrozenMatrixContainer(QWidget):
                 for i, lbl in enumerate(self._banner_labels):
                     if not mtx._cat or i >= len(mtx._cat.part_types):
                         continue
-                    b = _base(i)
-                    w = sum(mtx.columnWidth(b + c) for c in range(_COLS_PER_TYPE))
+                    w = _type_visible_width(mtx, i)
                     lbl.setFixedWidth(w)
                     lbl.setFixedHeight(banner_h)
                     banner_total_w += w

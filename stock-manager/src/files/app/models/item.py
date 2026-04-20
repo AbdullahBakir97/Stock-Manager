@@ -30,6 +30,8 @@ class InventoryItem:
     part_type_key: str = ""
     part_type_name: str = ""
     part_type_color: str = ""
+    # Purchase / buy / cost price. Hidden by default in UI (PIN-gated).
+    cost_price: Optional[float] = None
 
     # ── Computed helpers ──────────────────────────────────────────────────────
 

@@ -236,8 +236,12 @@ class MainWindow(QMainWindow):
         self._nav_ctrl.register("nav_price_lists",     self._PAGE_PRICE_LISTS,
                                 lambda: self._price_lists_page.refresh())
 
-        # Populate initial dynamic matrix tabs
-        self._nav_ctrl.rebuild_matrix_tabs()
+        # Populate initial dynamic matrix tabs — DEFERRED to after first
+        # paint so the main window becomes interactive immediately.
+        # Instantiating every MatrixTab runs DB queries and builds heavy
+        # QTableWidgets; doing it synchronously here caused a multi-second
+        # freeze right after the splash finished.
+        QTimer.singleShot(0, self._nav_ctrl.rebuild_matrix_tabs)
 
         content.addSpacing(12)
         content.addWidget(self._stack, 1)
@@ -390,9 +394,13 @@ class MainWindow(QMainWindow):
             ).fetchone()
         if not row:
             wizard = SetupWizard(self); wizard.exec()
-            ShopConfig.invalidate(); ensure_matrix_entries()
-            self._nav_ctrl.rebuild_matrix_tabs()
-            self._retranslate()
+            ShopConfig.invalidate()
+            # Defer heavy rebuild — wizard returns instantly, rebuild runs next tick
+            def _post_wizard():
+                ensure_matrix_entries()
+                self._nav_ctrl.rebuild_matrix_tabs()
+                self._retranslate()
+            QTimer.singleShot(0, _post_wizard)
 
     def _open_admin(self) -> None:
         saved = self._nav_ctrl.current
@@ -442,11 +450,17 @@ class MainWindow(QMainWindow):
                         child.style().unpolish(child)
                         child.style().polish(child)
                 widget.update()
-        ensure_matrix_entries()
-        self._nav_ctrl.rebuild_matrix_tabs()
-        self._nav_ctrl.apply_theme_to_matrix_tabs()
-        self._retranslate()
-        self._nav_ctrl.go(saved)
+        # Defer the heavy post-settings rebuild (ensure_matrix_entries +
+        # rebuild_matrix_tabs + theme re-apply + retranslate) so that
+        # closing the settings dialog returns control to the user
+        # immediately. The rebuild runs on the next event-loop tick.
+        def _post_admin_close():
+            ensure_matrix_entries()
+            self._nav_ctrl.rebuild_matrix_tabs()
+            self._nav_ctrl.apply_theme_to_matrix_tabs()
+            self._retranslate()
+            self._nav_ctrl.go(saved)
+        QTimer.singleShot(0, _post_admin_close)
 
     # ── Language ─────────────────────────────────────────────────────────────
 

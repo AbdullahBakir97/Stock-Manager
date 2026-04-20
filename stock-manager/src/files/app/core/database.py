@@ -416,7 +416,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "15"
+_SCHEMA_VERSION = "16"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -808,6 +808,19 @@ def _migrate_v14_to_v15(conn: sqlite3.Connection) -> None:
     _log.info("V14 to V15 migration completed")
 
 
+def _migrate_v15_to_v16(conn: sqlite3.Connection) -> None:
+    """V16: Add cost_price (purchase / buy price) to inventory_items.
+
+    Hidden by default in the matrix UI and PIN-gated — used for
+    cost-based valuation alongside the visible sell_price.
+    """
+    _log.info("Migrating database schema from V15 to V16")
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(inventory_items)").fetchall()}
+    if "cost_price" not in cols:
+        conn.execute("ALTER TABLE inventory_items ADD COLUMN cost_price REAL")
+    _log.info("V15 to V16 migration completed")
+
+
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
     _log.info("Migrating database schema from V3 to V4 (consolidate products + stock_entries)")
@@ -1044,6 +1057,10 @@ def init_db() -> None:
             if current == "14":
                 _migrate_v14_to_v15(conn)
                 current = "15"
+
+            if current == "15":
+                _migrate_v15_to_v16(conn)
+                current = "16"
 
             # Always persist the final version after migrations
             conn.execute(

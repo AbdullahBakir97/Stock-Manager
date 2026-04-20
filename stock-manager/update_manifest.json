@@ -1,7 +1,7 @@
 {
-  "version": "2.3.8",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.8/StockManagerPro-2.3.8-setup.exe",
-  "release_notes": "**Content-aware column widths** \u2014 every table column now sizes to `max(proportional_target, header_text_fit, widest_cell_fit)` at the active font, so headers and model names are ALWAYS fully visible at any zoom level. Applied to matrix, inventory, transactions, and admin tables.; **Per-item font scaling** \u2014 matrix items with individual `setFont` (`_FONT_MODEL` 11pt, `_FONT_COLOR` 9pt, `_FONT_BRAND` 12pt, `_FONT_DATA` 10pt, `_FONT_MONO` 11pt) now scale correctly via a new `BASE_PT_ROLE` marker that remembers each item's 100% point size; **Real-time live zoom on slider drag** \u2014 every slider tick applies zoom through the 16 ms coalescer; drag feels instant with no lag",
-  "release_date": "2026-04-17",
-  "checksum_sha256": "1ce38934b87dfc68dced7ab8935e6e0ce8c1d9cd74edabacc562ab07a67b1efb"
+  "version": "2.3.9",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.9/StockManagerPro-2.3.9-setup.exe",
+  "release_notes": "**Part-type default price** \u2014 Admin \u2192 Part Types now has a \"Default price\" field. Every item inheriting the part type takes that price; per-item `sell_price` still overrides. New \"PRICE\" column in the part-type admin table.; **\u20ac / Price column in the matrix** \u2014 new column per part type. Green when a per-item override exists, grey when falling back to the part-type default. Double-click to edit; Ctrl+Z undoes.; **Quick Scan live pricing & totals** \u2014 pending table now shows **Unit Price** and **Line Total** per scanned line + a totals card with **ITEMS \u00b7 SUBTOTAL \u00b7 GRAND TOTAL** (accent green, JetBrains Mono). Currency formatted via `ShopConfig.format_currency`.",
+  "release_date": "2026-04-20",
+  "checksum_sha256": "365166ea39343520099eb1510a6271454db2ccc142d222ed5ed836b6456df117"
 }

@@ -1,515 +1,797 @@
 """
-app/ui/pages/analytics_page.py — Interactive analytics dashboard with charts.
+app/ui/pages/analytics_page.py — Professional analytics dashboard.
+
+Top bar   : title + date preset buttons + from/to pickers (custom)
+Section 1 : Executive KPI tiles (Stock value · Revenue · Transactions · Low stock)
+Section 2 : Inventory (donut + by-brand bars + valuation pivot + by-part-type bars)
+Section 3 : Sales (dual-line revenue chart + mini KPIs + top sellers + top customers)
+Section 4 : Stock movement (IN vs OUT dual line + busiest hours + recent activity)
+Section 5 : Scan invoices (KPIs + IN/OUT line + top invoice customers)
+
+Every tile loads async via POOL.submit and is represented by a SkeletonBlock
+until its data arrives. Empty data → friendly EmptyState. Errors → retry tile.
+
+Click a bar/slice/KPI/pivot cell to drill down to the relevant page.
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta
+
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame,
-    QScrollArea, QSizePolicy, QGridLayout,
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QFrame, QScrollArea, QToolButton, QDateEdit,
+    QSizePolicy, QStackedWidget,
 )
-from PyQt6.QtCore import Qt, pyqtSignal
-from app.ui.workers.worker_pool import POOL
+from PyQt6.QtCore import Qt, QDate, pyqtSignal, QTimer
+from PyQt6.QtGui import QFont
 
 from app.core.theme import THEME, _rgba
 from app.core.i18n import t
 from app.core.config import ShopConfig
-from app.repositories.item_repo import ItemRepository
-from app.repositories.transaction_repo import TransactionRepository
-from app.repositories.category_repo import CategoryRepository
-from app.repositories.sale_repo import SaleRepository
-from app.services.customer_service import CustomerService
+from app.ui.workers.worker_pool import POOL
 from app.ui.components.charts import (
     DonutChart, HBarChart, AreaLineChart,
     PieSlice, BarItem, LinePoint,
 )
+from app.ui.components.dual_line_chart import DualLineChart
+from app.ui.components.kpi_tile import KpiTile
+from app.ui.components.pivot_table import PivotTable
+from app.ui.components.skeleton import SkeletonBlock
+from app.ui.components.empty_state import EmptyState
+
+from app.services.analytics_service import (
+    AnalyticsService, DateRange, range_for_preset,
+)
 
 
-_item_repo = ItemRepository()
-_txn_repo  = TransactionRepository()
-_cat_repo  = CategoryRepository()
-_sale_repo = SaleRepository()
-_cust_svc  = CustomerService()
-
-
-class _KpiCard(QFrame):
-    """Single KPI metric card."""
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setObjectName("analytics_kpi")
-        self.setFixedHeight(90)
-        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
-        lay = QVBoxLayout(self)
-        lay.setContentsMargins(16, 12, 16, 12)
-        lay.setSpacing(4)
-        self._label = QLabel()
-        self._label.setObjectName("analytics_kpi_label")
-        self._value = QLabel()
-        self._value.setObjectName("analytics_kpi_value")
-        self._sub = QLabel()
-        self._sub.setObjectName("analytics_kpi_sub")
-        lay.addWidget(self._label)
-        lay.addWidget(self._value)
-        lay.addWidget(self._sub)
-
-    def set_data(self, label: str, value: str, sub: str = "") -> None:
-        self._label.setText(label)
-        self._value.setText(value)
-        self._sub.setText(sub)
-
-
-class _ClickableFrame(QFrame):
-    """QFrame that emits a signal when clicked."""
-    clicked = pyqtSignal(str)
-
-    def __init__(self, key: str, parent=None):
-        super().__init__(parent)
-        self._key = key
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit(self._key)
-        super().mousePressEvent(event)
+_BRAND_COLORS = [
+    "#10B981", "#3B82F6", "#F59E0B", "#8B5CF6", "#EF4444",
+    "#06B6D4", "#EC4899", "#84CC16", "#F97316", "#14B8A6",
+]
 
 
 class AnalyticsPage(QWidget):
-    """Full analytics dashboard with KPIs, donut chart, bar chart, and trend line."""
+    """Root widget. Owns the date controller + all section tiles."""
 
-    navigate_to = pyqtSignal(str)  # emits nav key like "nav_inventory"
+    # Emitted by drill-downs — main_window wires this to nav_ctrl.go(key)
+    navigate_to = pyqtSignal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self._build()
+        self._svc = AnalyticsService()
+        self._cfg = ShopConfig.get()
+        self._range = range_for_preset("30d")
+        self._tiles: dict[str, QStackedWidget] = {}
+        self._nav_ctrl = None    # set externally by MainWindow if available
+        self._inv_page = None
+        self._txn_page = None
+        self._build_ui()
+        self.refresh()
 
-    def _build(self) -> None:
-        scroll = QScrollArea(self)
-        scroll.setWidgetResizable(True)
-        scroll.setObjectName("analytics_scroll")
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+    # ── External hooks (for drill-down navigation) ─────────────────────────
 
-        container = QWidget()
-        root = QVBoxLayout(container)
-        root.setContentsMargins(24, 20, 24, 20)
-        root.setSpacing(20)
+    def set_drilldown_targets(self, nav_ctrl=None, inv_page=None, txn_page=None):
+        self._nav_ctrl = nav_ctrl
+        self._inv_page = inv_page
+        self._txn_page = txn_page
 
-        # ── Title ──
-        self._title = QLabel(t("analytics_title"))
-        self._title.setObjectName("analytics_page_title")
-        root.addWidget(self._title)
+    # ── Build ──────────────────────────────────────────────────────────────
 
-        # ── KPI Row ──
-        kpi_row = QHBoxLayout()
-        kpi_row.setSpacing(12)
-        self._kpi_total    = _KpiCard()
-        self._kpi_units    = _KpiCard()
-        self._kpi_value    = _KpiCard()
-        self._kpi_health   = _KpiCard()
-        for card in (self._kpi_total, self._kpi_units, self._kpi_value, self._kpi_health):
-            kpi_row.addWidget(card)
-        root.addLayout(kpi_row)
-
-        # ── Quick Actions + Recent Activity Row ──
-        qa_row = QHBoxLayout()
-        qa_row.setSpacing(12)
-
-        # Quick actions card
-        qa_frame = QFrame()
-        qa_frame.setObjectName("analytics_chart_card")
-        qa_lay = QVBoxLayout(qa_frame)
-        qa_lay.setContentsMargins(16, 14, 16, 14)
-        qa_lay.setSpacing(8)
-        qa_hdr = QLabel(t("analytics_quick_actions"))
-        qa_hdr.setObjectName("analytics_chart_title")
-        qa_lay.addWidget(qa_hdr)
-        self._qa_hdr = qa_hdr
-
-        qa_btns_lay = QGridLayout()
-        qa_btns_lay.setSpacing(8)
-        qa_actions = [
-            ("📦", t("nav_inventory"), "nav_inventory"),
-            ("🏭", t("nav_suppliers"), "nav_suppliers"),
-            ("🛒", t("nav_purchase_orders"), "nav_purchase_orders"),
-            ("↩", t("nav_returns"), "nav_returns"),
-            ("💰", t("nav_sales") if t("nav_sales") != "nav_sales" else "Sales", "nav_sales"),
-            ("📊", t("nav_reports") if t("nav_reports") != "nav_reports" else "Reports", "nav_reports"),
-        ]
-        for idx, (icon, label, nav_key) in enumerate(qa_actions):
-            btn = _ClickableFrame(nav_key)
-            btn.setObjectName("scan_feed_item")
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            btn.clicked.connect(self.navigate_to.emit)
-            btn_lay = QHBoxLayout(btn)
-            btn_lay.setContentsMargins(10, 8, 10, 8)
-            btn_lay.setSpacing(8)
-            icon_l = QLabel(icon)
-            icon_l.setStyleSheet("font-size: 16px;")
-            icon_l.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            btn_lay.addWidget(icon_l)
-            lbl = QLabel(label)
-            lbl.setStyleSheet("font-size: 12px; font-weight: 500;")
-            lbl.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-            btn_lay.addWidget(lbl, 1)
-            qa_btns_lay.addWidget(btn, idx // 3, idx % 3)
-        qa_lay.addLayout(qa_btns_lay)
-        qa_row.addWidget(qa_frame, 1)
-
-        # Recent activity feed
-        ra_frame = QFrame()
-        ra_frame.setObjectName("analytics_chart_card")
-        ra_lay = QVBoxLayout(ra_frame)
-        ra_lay.setContentsMargins(16, 14, 16, 14)
-        ra_lay.setSpacing(6)
-        ra_hdr = QLabel(t("analytics_recent_activity"))
-        ra_hdr.setObjectName("analytics_chart_title")
-        ra_lay.addWidget(ra_hdr)
-        self._ra_hdr = ra_hdr
-        self._ra_container = QVBoxLayout()
-        self._ra_container.setSpacing(4)
-        ra_lay.addLayout(self._ra_container)
-        ra_lay.addStretch()
-        qa_row.addWidget(ra_frame, 1)
-
-        root.addLayout(qa_row)
-
-        # ── Charts Row 1: Donut + Bar ──
-        charts1 = QHBoxLayout()
-        charts1.setSpacing(16)
-
-        # Stock Health Donut
-        donut_frame = QFrame()
-        donut_frame.setObjectName("analytics_chart_card")
-        donut_lay = QVBoxLayout(donut_frame)
-        donut_lay.setContentsMargins(16, 14, 16, 14)
-        donut_lay.setSpacing(8)
-        self._donut_hdr = QLabel(t("analytics_stock_health"))
-        self._donut_hdr.setObjectName("analytics_chart_title")
-        donut_lay.addWidget(self._donut_hdr)
-        self._donut = DonutChart()
-        self._donut.setMinimumHeight(220)
-        donut_lay.addWidget(self._donut, 1)
-        charts1.addWidget(donut_frame, 1)
-
-        # Category Distribution Bar
-        bar_frame = QFrame()
-        bar_frame.setObjectName("analytics_chart_card")
-        bar_lay = QVBoxLayout(bar_frame)
-        bar_lay.setContentsMargins(16, 14, 16, 14)
-        bar_lay.setSpacing(8)
-        self._bar_hdr = QLabel(t("analytics_by_category"))
-        self._bar_hdr.setObjectName("analytics_chart_title")
-        bar_lay.addWidget(self._bar_hdr)
-        self._bar = HBarChart()
-        self._bar.setMinimumHeight(220)
-        bar_lay.addWidget(self._bar, 1)
-        charts1.addWidget(bar_frame, 1)
-
-        root.addLayout(charts1)
-
-        # ── Charts Row 2: Activity trend (full width) ──
-        trend_frame = QFrame()
-        trend_frame.setObjectName("analytics_chart_card")
-        trend_lay = QVBoxLayout(trend_frame)
-        trend_lay.setContentsMargins(16, 14, 16, 14)
-        trend_lay.setSpacing(8)
-        self._trend_hdr = QLabel(t("analytics_activity_trend"))
-        self._trend_hdr.setObjectName("analytics_chart_title")
-        trend_lay.addWidget(self._trend_hdr)
-        self._trend = AreaLineChart()
-        self._trend.setMinimumHeight(200)
-        trend_lay.addWidget(self._trend, 1)
-        root.addWidget(trend_frame)
-
-        # ── Top Low-Stock Items ──
-        low_frame = QFrame()
-        low_frame.setObjectName("analytics_chart_card")
-        low_lay = QVBoxLayout(low_frame)
-        low_lay.setContentsMargins(16, 14, 16, 14)
-        low_lay.setSpacing(8)
-        self._low_hdr = QLabel(t("analytics_top_low_stock"))
-        self._low_hdr.setObjectName("analytics_chart_title")
-        low_lay.addWidget(self._low_hdr)
-        self._low_bar = HBarChart()
-        self._low_bar.setMinimumHeight(180)
-        low_lay.addWidget(self._low_bar, 1)
-        root.addWidget(low_frame)
-
-        # ── Sales & Customers Section ──
-        sc_title = QLabel(t("analytics_sales_customers")
-                          if t("analytics_sales_customers") != "analytics_sales_customers"
-                          else "Sales & Customers")
-        sc_title.setObjectName("analytics_chart_title")
-        root.addWidget(sc_title)
-
-        # Sales KPI Row
-        sales_kpi_row = QHBoxLayout()
-        sales_kpi_row.setSpacing(12)
-        self._kpi_sales_today  = _KpiCard()
-        self._kpi_revenue      = _KpiCard()
-        self._kpi_customers    = _KpiCard()
-        self._kpi_avg_order    = _KpiCard()
-        for card in (self._kpi_sales_today, self._kpi_revenue,
-                     self._kpi_customers, self._kpi_avg_order):
-            sales_kpi_row.addWidget(card)
-        root.addLayout(sales_kpi_row)
-
-        # Top customers chart
-        top_cust_frame = QFrame()
-        top_cust_frame.setObjectName("analytics_chart_card")
-        tc_lay = QVBoxLayout(top_cust_frame)
-        tc_lay.setContentsMargins(16, 14, 16, 14)
-        tc_lay.setSpacing(8)
-        self._top_cust_hdr = QLabel("Top Customers by Spend")
-        self._top_cust_hdr.setObjectName("analytics_chart_title")
-        tc_lay.addWidget(self._top_cust_hdr)
-        self._top_cust_bar = HBarChart()
-        self._top_cust_bar.setMinimumHeight(180)
-        tc_lay.addWidget(self._top_cust_bar, 1)
-        root.addWidget(top_cust_frame)
-
-        root.addStretch()
-        scroll.setWidget(container)
-
+    def _build_ui(self) -> None:
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setObjectName("analytics_scroll")
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
         outer.addWidget(scroll)
 
-    # ── Data Loading ────────────────────────────────────────────────────────
+        inner = QWidget()
+        scroll.setWidget(inner)
+        root = QVBoxLayout(inner)
+        root.setContentsMargins(18, 14, 18, 18)
+        root.setSpacing(14)
 
-    # ── Public API ────────────────────────────────────────────────────────────
+        # ── Title + date bar ──
+        title_row = QHBoxLayout()
+        title_row.setSpacing(10)
+        self._title = QLabel(t("analytics_title"))
+        self._title.setFont(QFont("Segoe UI", 16, QFont.Weight.Bold))
+        self._title.setStyleSheet(f"color: {THEME.tokens.t1};")
+        title_row.addWidget(self._title)
+        title_row.addStretch()
+
+        self._preset_btns: dict[str, QToolButton] = {}
+        for key, label in [
+            ("today", "Today"), ("7d", "7 days"), ("30d", "30 days"),
+            ("90d", "90 days"), ("year", "Year"), ("custom", "Custom"),
+        ]:
+            b = QToolButton()
+            b.setObjectName("analytics_preset_btn")
+            b.setText(label)
+            b.setCheckable(True)
+            b.setCursor(Qt.CursorShape.PointingHandCursor)
+            b.setFixedHeight(28)
+            b.clicked.connect(lambda _=False, k=key: self._set_preset(k))
+            title_row.addWidget(b)
+            self._preset_btns[key] = b
+
+        self._from_edit = QDateEdit()
+        self._from_edit.setCalendarPopup(True)
+        self._from_edit.setDisplayFormat("yyyy-MM-dd")
+        self._from_edit.setFixedHeight(28)
+        self._from_edit.setDate(QDate.currentDate().addDays(-30))
+        self._from_edit.dateChanged.connect(self._on_custom_date)
+
+        self._to_edit = QDateEdit()
+        self._to_edit.setCalendarPopup(True)
+        self._to_edit.setDisplayFormat("yyyy-MM-dd")
+        self._to_edit.setFixedHeight(28)
+        self._to_edit.setDate(QDate.currentDate())
+        self._to_edit.dateChanged.connect(self._on_custom_date)
+
+        title_row.addWidget(self._from_edit)
+        title_row.addWidget(self._to_edit)
+        self._from_edit.setVisible(False); self._to_edit.setVisible(False)
+        root.addLayout(title_row)
+
+        # Range summary under the title
+        self._range_lbl = QLabel("")
+        self._range_lbl.setStyleSheet(
+            f"color: {THEME.tokens.t4}; font-size: 11px;"
+        )
+        root.addWidget(self._range_lbl)
+
+        # ── Section 1: Executive KPIs ──
+        kpi_row = QHBoxLayout()
+        kpi_row.setSpacing(10)
+        self._kpi_stock = KpiTile()
+        self._kpi_rev = KpiTile()
+        self._kpi_tx = KpiTile()
+        self._kpi_low = KpiTile()
+        for t_ in (self._kpi_stock, self._kpi_rev, self._kpi_tx, self._kpi_low):
+            kpi_row.addWidget(t_, 1)
+        # Wire drill-downs
+        self._kpi_stock.clicked.connect(lambda: self._drill("inventory"))
+        self._kpi_rev.clicked.connect(lambda: self._drill("sales"))
+        self._kpi_tx.clicked.connect(lambda: self._drill("transactions"))
+        self._kpi_low.clicked.connect(lambda: self._drill("low_stock"))
+        root.addLayout(kpi_row)
+
+        # ── Section 2: Inventory ──
+        root.addLayout(self._section_hdr("INVENTORY HEALTH"))
+        inv_row1 = QHBoxLayout(); inv_row1.setSpacing(10)
+        self._inv_donut_tile = self._tile("inv_donut", min_h=240)
+        self._inv_brand_tile = self._tile("inv_brand", min_h=240)
+        inv_row1.addWidget(self._inv_donut_tile, 1)
+        inv_row1.addWidget(self._inv_brand_tile, 2)
+        root.addLayout(inv_row1)
+
+        root.addLayout(self._section_hdr("VALUATION — BRAND × PART TYPE"))
+        self._inv_pivot_tile = self._tile("inv_pivot", min_h=260)
+        root.addWidget(self._inv_pivot_tile)
+
+        inv_row2 = QHBoxLayout(); inv_row2.setSpacing(10)
+        self._inv_cat_tile = self._tile("inv_cat", min_h=220)
+        self._inv_pt_tile = self._tile("inv_pt", min_h=220)
+        inv_row2.addWidget(self._inv_cat_tile, 1)
+        inv_row2.addWidget(self._inv_pt_tile, 1)
+        root.addLayout(inv_row2)
+
+        # ── Section 3: Sales ──
+        root.addLayout(self._section_hdr("SALES PERFORMANCE"))
+        self._sales_trend_tile = self._tile("sales_trend", min_h=240)
+        root.addWidget(self._sales_trend_tile)
+
+        sales_kpis = QHBoxLayout(); sales_kpis.setSpacing(10)
+        self._kpi_scount = KpiTile()
+        self._kpi_units_sold = KpiTile()
+        self._kpi_avg_basket = KpiTile()
+        self._kpi_best_day = KpiTile()
+        for t_ in (self._kpi_scount, self._kpi_units_sold,
+                   self._kpi_avg_basket, self._kpi_best_day):
+            sales_kpis.addWidget(t_, 1)
+        self._kpi_scount.clicked.connect(lambda: self._drill("sales"))
+        self._kpi_avg_basket.clicked.connect(lambda: self._drill("sales"))
+        root.addLayout(sales_kpis)
+
+        sales_row = QHBoxLayout(); sales_row.setSpacing(10)
+        self._sales_top_sellers_tile = self._tile("sales_top", min_h=240)
+        self._sales_top_customers_tile = self._tile("sales_custs", min_h=240)
+        sales_row.addWidget(self._sales_top_sellers_tile, 1)
+        sales_row.addWidget(self._sales_top_customers_tile, 1)
+        root.addLayout(sales_row)
+
+        # ── Section 4: Stock movement ──
+        root.addLayout(self._section_hdr("STOCK MOVEMENT"))
+        self._mv_trend_tile = self._tile("mv_trend", min_h=240)
+        root.addWidget(self._mv_trend_tile)
+
+        mv_row = QHBoxLayout(); mv_row.setSpacing(10)
+        self._mv_hourly_tile = self._tile("mv_hourly", min_h=220)
+        self._mv_recent_tile = self._tile("mv_recent", min_h=220)
+        mv_row.addWidget(self._mv_hourly_tile, 1)
+        mv_row.addWidget(self._mv_recent_tile, 1)
+        root.addLayout(mv_row)
+
+        # ── Section 5: Scan invoices ──
+        root.addLayout(self._section_hdr("SCAN INVOICES"))
+        inv_kpis = QHBoxLayout(); inv_kpis.setSpacing(10)
+        self._kpi_inv_count = KpiTile()
+        self._kpi_inv_in = KpiTile()
+        self._kpi_inv_out = KpiTile()
+        self._kpi_inv_avg = KpiTile()
+        for t_ in (self._kpi_inv_count, self._kpi_inv_in,
+                   self._kpi_inv_out, self._kpi_inv_avg):
+            inv_kpis.addWidget(t_, 1)
+        root.addLayout(inv_kpis)
+
+        inv_row = QHBoxLayout(); inv_row.setSpacing(10)
+        self._inv_trend_tile = self._tile("inv_trend", min_h=240)
+        self._inv_top_cust_tile = self._tile("inv_top_cust", min_h=240)
+        inv_row.addWidget(self._inv_trend_tile, 2)
+        inv_row.addWidget(self._inv_top_cust_tile, 1)
+        root.addLayout(inv_row)
+
+        root.addStretch()
+
+        # Initial preset highlight
+        self._set_preset("30d", push_refresh=False)
+
+    # ── Helpers ────────────────────────────────────────────────────────────
+
+    def _section_hdr(self, text: str) -> QHBoxLayout:
+        row = QHBoxLayout()
+        row.setSpacing(8)
+        row.setContentsMargins(0, 6, 0, 0)
+        lbl = QLabel(text)
+        lbl.setObjectName("analytics_section_hdr")
+        lbl.setStyleSheet(
+            f"color: {THEME.tokens.t3}; font-size: 11px;"
+            f" font-weight: 800; letter-spacing: 0.10em;"
+        )
+        row.addWidget(lbl)
+        # Small emerald underline as a decorative element
+        underline = QFrame()
+        underline.setFixedHeight(2); underline.setMinimumWidth(36)
+        underline.setMaximumWidth(36)
+        underline.setStyleSheet(f"background: {THEME.tokens.green};")
+        row.addWidget(underline)
+        row.addStretch()
+        return row
+
+    def _tile(self, key: str, min_h: int = 220) -> QStackedWidget:
+        """Create a stacked widget (skeleton / empty / content) for a tile.
+
+        Keyed by `key`; store in `self._tiles[key]` for later swaps.
+        """
+        stack = QStackedWidget()
+        stack.setMinimumHeight(min_h)
+        sk = SkeletonBlock(height=min_h)
+        stack.addWidget(sk)             # index 0 — loading
+        # index 1 placeholder: real content (set later)
+        # index 2 placeholder: empty state (set later)
+        self._tiles[key] = stack
+        return stack
+
+    def _swap(self, key: str, widget: QWidget) -> None:
+        """Replace a tile's content with `widget`, stopping skeleton animation."""
+        stack = self._tiles.get(key)
+        if stack is None:
+            return
+        # Remove everything but keep skeleton for future reloads
+        while stack.count() > 1:
+            w = stack.widget(1)
+            stack.removeWidget(w)
+            w.deleteLater()
+        stack.addWidget(widget)
+        stack.setCurrentIndex(1)
+
+    def _show_skeleton(self, key: str) -> None:
+        stack = self._tiles.get(key)
+        if stack:
+            stack.setCurrentIndex(0)
+
+    def _show_empty(self, key: str, title: str, subtitle: str,
+                    icon: str = "📈") -> None:
+        es = EmptyState(title=title, subtitle=subtitle, icon=icon)
+        self._swap(key, es)
+
+    # ── Date range / preset handling ───────────────────────────────────────
+
+    def _set_preset(self, preset: str, *, push_refresh: bool = True) -> None:
+        for k, b in self._preset_btns.items():
+            b.setChecked(k == preset)
+        is_custom = (preset == "custom")
+        self._from_edit.setVisible(is_custom)
+        self._to_edit.setVisible(is_custom)
+
+        if preset == "custom":
+            cf = self._from_edit.date().toString("yyyy-MM-dd")
+            ct = self._to_edit.date().toString("yyyy-MM-dd")
+            self._range = range_for_preset("custom", cf, ct)
+        else:
+            self._range = range_for_preset(preset)
+
+        self._range_lbl.setText(
+            f"Period: {self._range.current_from} → {self._range.current_to}  "
+            f"·  vs  {self._range.compare_from} → {self._range.compare_to}"
+        )
+        if push_refresh:
+            self.refresh()
+
+    def _on_custom_date(self, *_a) -> None:
+        cur = next((k for k, b in self._preset_btns.items()
+                    if b.isChecked()), "custom")
+        if cur == "custom":
+            self._set_preset("custom", push_refresh=True)
+
+    # ── Drill-down ────────────────────────────────────────────────────────
+
+    def _drill(self, kind: str, value=None) -> None:
+        key = {
+            "inventory": "nav_inventory",
+            "low_stock": "nav_inventory",
+            "sales": "nav_sales",
+            "transactions": "nav_transactions",
+        }.get(kind)
+        if not key:
+            return
+        try:
+            self.navigate_to.emit(key)
+            if self._nav_ctrl is not None:
+                self._nav_ctrl.go(key)
+        except Exception:
+            pass
+
+    # ── Refresh ────────────────────────────────────────────────────────────
 
     def refresh(self) -> None:
-        """Async: collect all DB data in one background job, then apply to widgets."""
-        POOL.submit("analytics_refresh", self._fetch_all_data, self._apply_all_data)
+        # Reset every tile to skeleton
+        for k in self._tiles:
+            self._show_skeleton(k)
 
-    # ── Background fetch (NO Qt widget access) ────────────────────────────────
+        r = self._range
+        svc = self._svc
 
-    def _fetch_all_data(self) -> dict:
-        """Run every DB query needed by the dashboard — called off the main thread."""
-        from app.core.database import get_connection
-        from datetime import date
+        POOL.submit("an_kpi",       lambda: svc.executive_kpis(r),
+                    self._apply_kpis, on_error=lambda e: self._on_block_error("kpi", e))
+        POOL.submit("an_inventory", svc.inventory_block,
+                    self._apply_inventory,
+                    on_error=lambda e: self._on_block_error("inventory", e))
+        POOL.submit("an_sales",     lambda: svc.sales_block(r),
+                    self._apply_sales,
+                    on_error=lambda e: self._on_block_error("sales", e))
+        POOL.submit("an_movement",  lambda: svc.movement_block(r),
+                    self._apply_movement,
+                    on_error=lambda e: self._on_block_error("movement", e))
+        POOL.submit("an_invoices",  lambda: svc.invoices_block(r),
+                    self._apply_invoices,
+                    on_error=lambda e: self._on_block_error("invoices", e))
 
-        # Single summary call shared by KPIs, donut, category bars
-        summary = _item_repo.get_summary()
-
-        # Recent transactions
-        txns = _txn_repo.get_transactions(limit=5)
-
-        # Category unit counts
-        cats = _cat_repo.get_all_active()
-        cat_data: list[tuple[str, int]] = []
-        for cat in cats:
-            s = _item_repo.get_summary_for_category(cat.id)
-            cat_data.append((cat.name_en, s.get("total_units", 0) or 0))
-
-        # 30-day activity trend
-        try:
-            with get_connection() as conn:
-                trend_rows = conn.execute("""
-                    SELECT DATE(timestamp) AS day, COUNT(*) AS cnt
-                    FROM inventory_transactions
-                    WHERE timestamp >= DATE('now', '-30 days')
-                    GROUP BY DATE(timestamp) ORDER BY day
-                """).fetchall()
-            trend = [(r["day"][-5:], r["cnt"]) for r in trend_rows]
-        except Exception:
-            trend = []
-
-        # Low-stock items (sorted by urgency)
-        try:
-            all_items = _item_repo.get_all_items()
-            low = [it for it in all_items if it.min_stock > 0 and it.stock <= it.min_stock]
-            low.sort(key=lambda x: (x.stock > 0, x.stock / max(x.min_stock, 1)))
-            low_data = [
-                (it.display_name[:18] + "…" if len(it.display_name) > 20 else it.display_name,
-                 it.stock,
-                 "out" if it.stock == 0 else "warn" if it.stock < it.min_stock * 0.5 else "low")
-                for it in low[:8]
-            ]
-        except Exception:
-            low_data = []
-
-        # Sales KPIs
-        try:
-            today   = date.today().isoformat()
-            daily   = _sale_repo.daily_totals(today)
-            cust_s  = _cust_svc.get_summary()
-        except Exception:
-            daily  = {"count": 0, "revenue": 0, "profit": 0}
-            cust_s = {"total": 0, "active": 0, "with_purchases": 0}
-
-        # Top customers by spend
-        try:
-            customers  = _cust_svc.get_all()
-            with_spend = sorted([c for c in customers if c.total_spent > 0],
-                                 key=lambda c: c.total_spent, reverse=True)
-            top_custs  = [
-                (c.name[:18] + "…" if len(c.name) > 20 else c.name, c.total_spent)
-                for c in with_spend[:8]
-            ]
-        except Exception:
-            top_custs = []
-
-        return {
-            "summary":   summary,
-            "txns":      txns,
-            "cat_data":  cat_data,
-            "trend":     trend,
-            "low_data":  low_data,
-            "daily":     daily,
-            "cust_s":    cust_s,
-            "top_custs": top_custs,
+    def _on_block_error(self, block: str, msg: str) -> None:
+        # Swap any tile still showing skeleton with an error empty-state
+        err_map = {
+            "kpi": [],   # KPI tiles don't use the stack
+            "inventory": ["inv_donut", "inv_brand", "inv_pivot",
+                          "inv_cat", "inv_pt"],
+            "sales": ["sales_trend", "sales_top", "sales_custs"],
+            "movement": ["mv_trend", "mv_hourly", "mv_recent"],
+            "invoices": ["inv_trend", "inv_top_cust"],
         }
+        for k in err_map.get(block, []):
+            self._show_empty(k,
+                             title="Couldn't load",
+                             subtitle=(msg or "Unknown error"),
+                             icon="⚠")
 
-    # ── Main-thread apply (widget access only — no DB) ────────────────────────
+    # ── Apply slots (main thread) ──────────────────────────────────────────
 
-    def _apply_all_data(self, data: dict) -> None:
-        self._apply_kpis(data["summary"])
-        self._apply_recent_activity(data["txns"])
-        self._apply_health_donut(data["summary"])
-        self._apply_category_bars(data["cat_data"], data["summary"])
-        self._apply_activity_trend(data["trend"])
-        self._apply_low_stock_bars(data["low_data"])
-        self._apply_sales_kpis(data["daily"], data["cust_s"])
-        self._apply_top_customers(data["top_custs"])
-
-    def _apply_kpis(self, summary: dict) -> None:
-        total = summary.get("total_products", 0) or 0
-        units = summary.get("total_units", 0) or 0
-        low   = summary.get("low_stock_count", 0) or 0
-        out   = summary.get("out_of_stock_count", 0) or 0
-        value = summary.get("inventory_value", 0) or 0
-        cfg   = ShopConfig.get()
-        val_str    = cfg.format_currency(value) if value else "0"
-        health_pct = ((total - low - out) / total * 100) if total > 0 else 0
-        self._kpi_total.set_data(t("analytics_kpi_total_items"), str(total),
-                                 t("analytics_kpi_products_matrix"))
-        self._kpi_units.set_data(t("analytics_kpi_total_units"), str(units),
-                                 t("analytics_kpi_across_items", n=total))
-        self._kpi_value.set_data(t("analytics_kpi_inventory_value"), val_str,
-                                 t("analytics_kpi_at_sell_price"))
-        self._kpi_health.set_data(t("analytics_kpi_stock_health"), f"{health_pct:.0f}%",
-                                  t("analytics_kpi_items_ok", n=total - low - out))
-
-    def _apply_recent_activity(self, txns: list) -> None:
-        while self._ra_container.count():
-            w = self._ra_container.takeAt(0).widget()
-            if w: w.deleteLater()
+    def _apply_kpis(self, data: dict) -> None:
+        cfg = self._cfg
         tk = THEME.tokens
-        op_colors = {"IN": tk.green, "OUT": tk.red, "ADJUST": tk.blue, "CREATE": tk.purple}
-        for txn in txns:
-            row = QFrame()
-            row.setStyleSheet(
-                f"background:{tk.card}; border-bottom:1px solid {tk.border};"
-                "border-radius:4px; padding:4px 8px;"
-            )
-            rl = QHBoxLayout(row)
-            rl.setContentsMargins(8, 4, 8, 4); rl.setSpacing(8)
-            op_fg  = op_colors.get(txn.operation, tk.t3)
-            op_lbl = QLabel(txn.operation)
-            op_lbl.setFixedWidth(50)
-            op_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            op_lbl.setStyleSheet(
-                f"color:{op_fg}; background:{_rgba(op_fg,'20')};"
-                "border-radius:4px; font-weight:700; font-size:8pt; padding:2px 4px;"
-            )
-            rl.addWidget(op_lbl)
-            name_parts = [txn.model_name or txn.brand, txn.part_type_name or txn.name]
-            name = " · ".join(p for p in name_parts if p) or f"Item #{txn.item_id}"
-            name_lbl = QLabel(name); name_lbl.setStyleSheet("font-size:11px;")
-            rl.addWidget(name_lbl, 1)
-            d  = txn.stock_after - txn.stock_before
-            ds = f"+{d}" if d >= 0 else str(d)
-            delta_lbl = QLabel(ds)
-            delta_lbl.setStyleSheet(
-                f"color:{tk.green if d >= 0 else tk.red}; font-weight:700; font-size:10px;"
-            )
-            rl.addWidget(delta_lbl)
-            time_lbl = QLabel(txn.timestamp[5:16] if txn.timestamp else "")
-            time_lbl.setStyleSheet(f"color:{tk.t4}; font-size:10px;")
-            rl.addWidget(time_lbl)
-            self._ra_container.addWidget(row)
-        if not txns:
-            empty = QLabel(t("analytics_no_activity"))
-            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty.setStyleSheet(f"color:{tk.t4}; font-size:12px; padding:16px;")
-            self._ra_container.addWidget(empty)
 
-    def _apply_health_donut(self, summary: dict) -> None:
-        total = summary.get("total_products", 0) or 0
-        low   = summary.get("low_stock_count", 0) or 0
-        out   = summary.get("out_of_stock_count", 0) or 0
-        ok    = max(0, total - low - out)
-        tk    = THEME.tokens
-        self._donut.set_data([
-            PieSlice(t("badge_ok"),  ok,  tk.green),
-            PieSlice(t("badge_low"), low, tk.yellow),
-            PieSlice(t("badge_out"), out, tk.red),
-        ], t("analytics_total"), str(total))
-
-    @staticmethod
-    def _accent() -> str:
-        tk = THEME.tokens
-        return tk.green if tk.grad_top in ("#0A0A0A", "#FFFFFF") else tk.blue
-
-    def _apply_category_bars(self, cat_data: list, summary: dict) -> None:
-        tk  = THEME.tokens
-        acc = self._accent()
-        palette = [acc, tk.blue, tk.purple, tk.orange, tk.green, tk.yellow, tk.red]
-        bars: list[BarItem] = []
-        for i, (name, units) in enumerate(cat_data):
-            bars.append(BarItem(name, units, palette[i % len(palette)]))
-        total_units = summary.get("total_units", 0) or 0
-        cat_units   = sum(b.value for b in bars)
-        product_units = total_units - cat_units
-        if product_units > 0:
-            bars.insert(0, BarItem(t("analytics_products"), product_units, acc))
-        self._bar.set_data(bars)
-
-    def _apply_activity_trend(self, trend: list) -> None:
-        if not trend:
-            self._trend.set_data([]); return
-        self._trend.set_data(
-            [LinePoint(day, cnt) for day, cnt in trend],
-            line_color=self._accent(),
+        sv = data.get("stock_value", {})
+        self._kpi_stock.set_data(
+            label="STOCK VALUE",
+            value=cfg.format_currency(f"{sv.get('value', 0):,.2f}"),
+            delta_pct=sv.get("delta_pct", 0),
+            delta_dir=sv.get("delta_dir", "flat"),
+            sparkline=sv.get("sparkline"),
+            accent=tk.green,
+        )
+        rv = data.get("revenue", {})
+        self._kpi_rev.set_data(
+            label="REVENUE",
+            value=cfg.format_currency(f"{rv.get('value', 0):,.2f}"),
+            delta_pct=rv.get("delta_pct", 0),
+            delta_dir=rv.get("delta_dir", "flat"),
+            sparkline=rv.get("sparkline"),
+            accent=tk.blue,
+        )
+        tx = data.get("transactions", {})
+        self._kpi_tx.set_data(
+            label="TRANSACTIONS",
+            value=f"{int(tx.get('value', 0)):,}",
+            delta_pct=tx.get("delta_pct", 0),
+            delta_dir=tx.get("delta_dir", "flat"),
+            sparkline=tx.get("sparkline"),
+            accent=tk.orange,
+        )
+        lo = data.get("low_stock", {})
+        self._kpi_low.set_data(
+            label="LOW STOCK",
+            value=f"{int(lo.get('value', 0))} items",
+            delta_pct=lo.get("delta_pct", 0),
+            delta_dir=lo.get("delta_dir", "flat"),
+            sparkline=lo.get("sparkline"),
+            accent=tk.red,
         )
 
-    def _apply_low_stock_bars(self, low_data: list) -> None:
+    def _apply_inventory(self, data: dict) -> None:
         tk = THEME.tokens
-        color_map = {"out": tk.red, "warn": tk.orange, "low": tk.yellow}
-        bars = [BarItem(name, stock, color_map[level]) for name, stock, level in low_data]
-        self._low_bar.set_data(bars)
+        cfg = self._cfg
+        money_fmt = lambda v: cfg.format_currency(f"{v:,.2f}")
 
-    def _apply_sales_kpis(self, daily: dict, cust_s: dict) -> None:
+        # Donut
+        donut_rows = data.get("donut", [])
+        if donut_rows:
+            dc = DonutChart()
+            dc.set_data(
+                [PieSlice(label=lbl, value=v, color=c) for (lbl, v, c) in donut_rows],
+                center_value=str(int(data.get("total_products", 0))),
+                center_label="Products",
+            )
+            self._swap("inv_donut", self._card("Stock Health", dc))
+        else:
+            self._show_empty("inv_donut", "No products yet",
+                              "Add products to see stock health.", icon="📦")
+
+        # By brand
+        by_brand = data.get("by_brand", [])
+        if by_brand:
+            bc = HBarChart()
+            bars = [BarItem(label=r["brand"],
+                            value=float(r["value"] or 0),
+                            color=_BRAND_COLORS[i % len(_BRAND_COLORS)])
+                    for i, r in enumerate(by_brand[:12])]
+            bc.set_data(bars, title="Stock value per brand",
+                         value_format=money_fmt)
+            self._swap("inv_brand", self._card("Value by Brand", bc))
+        else:
+            self._show_empty("inv_brand", "No brands tracked",
+                              "Stock distribution will appear here.", icon="🏷")
+
+        # Pivot
+        pivot = data.get("pivot", {})
+        if pivot.get("brands") and pivot.get("part_types"):
+            pt = PivotTable()
+            pt.set_data(pivot)
+            pt.cell_clicked_drilldown.connect(self._on_pivot_click)
+            self._swap("inv_pivot", self._card("Valuation Pivot", pt))
+        else:
+            self._show_empty("inv_pivot", "No stock to pivot",
+                              "Add inventory with prices to see the pivot.",
+                              icon="🧮")
+
+        # Units by Category — bar chart (sum units per category)
+        by_pt = data.get("by_part_type", [])
+        cats: dict[str, dict] = {}
+        for r in by_pt:
+            k = r.get("cat_name") or "Uncategorised"
+            e = cats.setdefault(k, {"units": 0, "value": 0.0})
+            e["units"] += int(r.get("units") or 0)
+            e["value"] += float(r.get("value") or 0)
+        if cats:
+            bc = HBarChart()
+            bars = [BarItem(label=k, value=float(v["units"]),
+                            color=_BRAND_COLORS[i % len(_BRAND_COLORS)])
+                    for i, (k, v) in enumerate(sorted(cats.items(),
+                                                        key=lambda kv: kv[1]["units"],
+                                                        reverse=True))]
+            bc.set_data(bars, title="Units by category")
+            self._swap("inv_cat", self._card("Units by Category", bc))
+        else:
+            self._show_empty("inv_cat", "No categories",
+                              "Create categories in Admin.", icon="🗂")
+
+        # Top Part Types by value
+        if by_pt:
+            top = sorted(by_pt, key=lambda r: float(r.get("value") or 0),
+                         reverse=True)[:10]
+            bc = HBarChart()
+            bars = [BarItem(label=r.get("pt_name") or "—",
+                            value=float(r.get("value") or 0),
+                            color=tk.blue)
+                    for r in top]
+            bc.set_data(bars, title="Top 10 part types by value",
+                         value_format=money_fmt)
+            self._swap("inv_pt", self._card("Top Part Types by Value", bc))
+        else:
+            self._show_empty("inv_pt", "No part-type values",
+                              "Add items and set prices.", icon="💰")
+
+    def _apply_sales(self, data: dict) -> None:
+        cfg = self._cfg
+        tk = THEME.tokens
+        money_fmt = lambda v: cfg.format_currency(f"{v:,.2f}")
+
+        # Revenue trend (dual line)
+        cur = data.get("cur_series", [])
+        prev = data.get("prev_series", [])
+        if cur:
+            chart = DualLineChart()
+            chart.set_data(cur, prev,
+                           title="Revenue · current vs previous period",
+                           line_color=tk.green)
+            self._swap("sales_trend", self._card("Revenue Trend", chart))
+        else:
+            self._show_empty("sales_trend",
+                              "No sales in this period",
+                              "Revenue trend will appear once POS sales begin.",
+                              icon="📈")
+
+        # Mini KPIs
+        rev = data.get("revenue", 0.0)
+        rev_pct, rev_dir = data.get("revenue_delta", (0.0, "flat"))
+        sc = data.get("sales_count", 0)
+        sc_pct, sc_dir = data.get("sales_count_delta", (0.0, "flat"))
+        self._kpi_scount.set_data(label="SALES",
+            value=str(sc),
+            delta_pct=sc_pct, delta_dir=sc_dir,
+            sparkline=[v for _, v in cur],
+            accent=tk.blue,
+        )
+        # "Units sold" ≈ sales_count for now (sale_items.quantity would be exact)
+        self._kpi_units_sold.set_data(label="UNITS SOLD",
+            value=str(sc),
+            delta_pct=0, delta_dir="flat",
+            sparkline=[v for _, v in cur],
+            accent=tk.green,
+        )
+        avg = data.get("avg_basket", 0.0)
+        self._kpi_avg_basket.set_data(label="AVG BASKET",
+            value=cfg.format_currency(f"{avg:,.2f}"),
+            delta_pct=0, delta_dir="flat",
+            sparkline=[v for _, v in cur],
+            accent=tk.orange,
+        )
+        best_label, best_val = data.get("best_day", ("—", 0))
+        self._kpi_best_day.set_data(label="BEST DAY",
+            value=cfg.format_currency(f"{float(best_val):,.2f}"),
+            delta_pct=0, delta_dir="flat",
+            sparkline=[v for _, v in cur],
+            accent=tk.purple,
+        )
+
+        # Top sellers
+        top_sellers = data.get("top_sellers", [])
+        if top_sellers:
+            bc = HBarChart()
+            bars = [BarItem(label=(r.get("item_name") or "—")[:34],
+                            value=float(r.get("total_qty") or 0),
+                            color=tk.blue)
+                    for r in top_sellers[:10]]
+            bc.set_data(bars, title="Top 10 by units sold")
+            self._swap("sales_top",
+                       self._card("Top Sellers", bc))
+        else:
+            self._show_empty("sales_top", "No sales data",
+                              "Best-sellers will show after your first sale.",
+                              icon="🛒")
+
+        # Top customers
+        top_customers = data.get("top_customers", [])
+        if top_customers:
+            bc = HBarChart()
+            bars = [BarItem(label=(r.get("customer_name") or "—")[:28],
+                            value=float(r.get("revenue") or 0),
+                            color=tk.purple)
+                    for r in top_customers[:10]]
+            bc.set_data(bars, title="Top customers by revenue",
+                         value_format=money_fmt)
+            self._swap("sales_custs",
+                       self._card("Top Customers", bc))
+        else:
+            self._show_empty("sales_custs",
+                              "No customer sales yet",
+                              "Link sales to customers to see rankings.",
+                              icon="👥")
+
+    def _apply_movement(self, data: dict) -> None:
+        tk = THEME.tokens
+
+        in_s = data.get("in_series", [])
+        out_s = data.get("out_series", [])
+        if in_s or out_s:
+            # Combine into a single dual-line view: IN (green) vs OUT (red)
+            chart = DualLineChart()
+            chart.set_data(in_s, out_s, title="IN vs OUT  ·  daily units",
+                           line_color=tk.green)
+            self._swap("mv_trend", self._card("Stock Movement Trend", chart))
+        else:
+            self._show_empty("mv_trend",
+                              "No transactions in this period",
+                              "Stock-in / stock-out activity will appear here.",
+                              icon="📊")
+
+        # Busiest hours
+        hourly = data.get("hourly", [])
+        if hourly:
+            bc = HBarChart()
+            bars = [BarItem(label=f"{h['hour']:02d}:00",
+                            value=float(h["count"] or 0),
+                            color=tk.blue)
+                    for h in hourly if (h.get("count") or 0) > 0]
+            if bars:
+                # Keep top 12 busiest hours for readability
+                bars = sorted(bars, key=lambda b: b.value, reverse=True)[:12]
+                bc.set_data(bars, title="Busiest hours of day")
+                self._swap("mv_hourly",
+                           self._card("Busiest Hours", bc))
+            else:
+                self._show_empty("mv_hourly", "No hourly activity",
+                                  "Hour-of-day breakdown will show after activity.",
+                                  icon="⏰")
+        else:
+            self._show_empty("mv_hourly", "No hourly activity",
+                              "Hour-of-day breakdown will show after activity.",
+                              icon="⏰")
+
+        # Recent activity feed — simple stacked labels in a card
+        recent = data.get("recent", [])
+        if recent:
+            feed = QWidget()
+            flay = QVBoxLayout(feed)
+            flay.setContentsMargins(6, 6, 6, 6)
+            flay.setSpacing(4)
+            op_colours = {"IN": tk.green, "OUT": tk.red,
+                           "ADJUST": tk.blue, "CREATE": tk.purple}
+            for tx in recent[:8]:
+                row = QFrame()
+                row.setStyleSheet(
+                    f"background: {_rgba(op_colours.get(tx.operation, tk.t4), '15')};"
+                    f" border-radius: 4px;"
+                )
+                rl = QHBoxLayout(row); rl.setContentsMargins(10, 5, 10, 5)
+                op_lbl = QLabel(tx.operation)
+                op_lbl.setStyleSheet(
+                    f"color: {op_colours.get(tx.operation, tk.t4)};"
+                    f" font-weight: 700; font-size: 10px;"
+                )
+                op_lbl.setFixedWidth(48)
+                rl.addWidget(op_lbl)
+                name = (tx.display_name or f"Item #{tx.item_id}")[:36]
+                nm_lbl = QLabel(name)
+                nm_lbl.setStyleSheet(f"color: {tk.t1}; font-size: 11px;")
+                rl.addWidget(nm_lbl, 1)
+                qty_lbl = QLabel(f"{tx.quantity:+d}")
+                qty_lbl.setStyleSheet(
+                    f"color: {op_colours.get(tx.operation, tk.t4)};"
+                    f" font-family: 'JetBrains Mono'; font-size: 11px;"
+                    f" font-weight: 700;"
+                )
+                rl.addWidget(qty_lbl)
+                ts = QLabel((tx.timestamp or "")[:16])
+                ts.setStyleSheet(f"color: {tk.t4}; font-size: 10px;")
+                rl.addWidget(ts)
+                flay.addWidget(row)
+            flay.addStretch()
+            self._swap("mv_recent", self._card("Recent Activity", feed))
+        else:
+            self._show_empty("mv_recent", "No recent activity",
+                              "Recent transactions will show here.",
+                              icon="📋")
+
+    def _apply_invoices(self, data: dict) -> None:
+        cfg = self._cfg
+        tk = THEME.tokens
+        totals = data.get("totals", {})
+        count = int(totals.get("count") or 0)
+        in_total = float(totals.get("total_in") or 0)
+        out_total = float(totals.get("total_out") or 0)
+        avg = float(data.get("avg_invoice") or 0)
+        dpct, ddir = data.get("total_delta", (0.0, "flat"))
+
+        in_series = data.get("in_series", [])
+        out_series = data.get("out_series", [])
+        in_spark = [v for _, v in in_series]
+        out_spark = [v for _, v in out_series]
+
+        self._kpi_inv_count.set_data(label="INVOICES",
+            value=f"{count}",
+            delta_pct=dpct, delta_dir=ddir,
+            sparkline=[a + b for a, b in zip(in_spark, out_spark)] or None,
+            accent=tk.blue,
+        )
+        self._kpi_inv_in.set_data(label="IN TOTAL",
+            value=cfg.format_currency(f"{in_total:,.2f}"),
+            sparkline=in_spark or None,
+            accent=tk.green,
+        )
+        self._kpi_inv_out.set_data(label="OUT TOTAL",
+            value=cfg.format_currency(f"{out_total:,.2f}"),
+            sparkline=out_spark or None,
+            accent=tk.red,
+        )
+        self._kpi_inv_avg.set_data(label="AVG INVOICE",
+            value=cfg.format_currency(f"{avg:,.2f}"),
+            sparkline=[a + b for a, b in zip(in_spark, out_spark)] or None,
+            accent=tk.orange,
+        )
+
+        if in_series or out_series:
+            chart = DualLineChart()
+            chart.set_data(in_series, out_series,
+                           title="Invoice volume  ·  IN vs OUT (€)",
+                           line_color=tk.green)
+            self._swap("inv_trend",
+                       self._card("Daily Invoice Volume", chart))
+        else:
+            self._show_empty("inv_trend", "No invoices in this period",
+                              "Quick Scan invoices will appear here.",
+                              icon="🧾")
+
+        top = data.get("top_customers", [])
+        if top:
+            bc = HBarChart()
+            money_fmt = lambda v: cfg.format_currency(f"{v:,.2f}")
+            bars = [BarItem(label=(r.get("customer_name") or "—")[:24],
+                            value=float(r.get("revenue") or 0),
+                            color=tk.purple)
+                    for r in top[:10]]
+            bc.set_data(bars, title="Top invoice customers",
+                         value_format=money_fmt)
+            self._swap("inv_top_cust", self._card("Top Invoice Customers", bc))
+        else:
+            self._show_empty("inv_top_cust", "No customer invoices",
+                              "Add customers to invoices in Quick Scan.",
+                              icon="🧾")
+
+    # ── Drill-down signal from pivot ───────────────────────────────────────
+
+    def _on_pivot_click(self, brand: str, pt_id: int) -> None:
         try:
-            cfg = ShopConfig.get()
-            avg = daily["revenue"] / daily["count"] if daily["count"] > 0 else 0
-            self._kpi_sales_today.set_data("TODAY'S SALES", str(daily["count"]),
-                                           f"Revenue: {cfg.format_currency(daily['revenue'])}")
-            self._kpi_revenue.set_data("TODAY'S REVENUE", cfg.format_currency(daily["revenue"]),
-                                       f"Profit: {cfg.format_currency(daily['profit'])}")
-            self._kpi_customers.set_data("CUSTOMERS", str(cust_s["total"]),
-                                         f"Active: {cust_s['active']}")
-            self._kpi_avg_order.set_data("AVG ORDER", cfg.format_currency(avg),
-                                         f"With purchases: {cust_s['with_purchases']}")
+            if self._inv_page and hasattr(self._inv_page.filter_bar, "set_search"):
+                self._inv_page.filter_bar.set_search(brand)
+            self.navigate_to.emit("nav_inventory")
+            if self._nav_ctrl is not None:
+                self._nav_ctrl.go("nav_inventory")
         except Exception:
-            for kpi in (self._kpi_sales_today, self._kpi_revenue,
-                        self._kpi_customers, self._kpi_avg_order):
-                kpi.set_data(kpi._title_lbl.text(), "—", "")
+            pass
 
-    def _apply_top_customers(self, top_custs: list) -> None:
-        tk  = THEME.tokens
-        acc = self._accent()
-        colors = [acc, tk.blue, tk.green, tk.purple, tk.orange, tk.yellow, tk.red, acc]
-        bars = [BarItem(name, spend, colors[i % len(colors)])
-                for i, (name, spend) in enumerate(top_custs)]
-        self._top_cust_bar.set_data(bars)
+    # ── Card wrapper ───────────────────────────────────────────────────────
+
+    def _card(self, title: str, content: QWidget) -> QFrame:
+        card = QFrame()
+        card.setObjectName("analytics_chart_card")
+        lay = QVBoxLayout(card)
+        lay.setContentsMargins(12, 10, 12, 10)
+        lay.setSpacing(6)
+        ttl = QLabel(title)
+        ttl.setObjectName("analytics_chart_title")
+        ttl.setStyleSheet(
+            f"color: {THEME.tokens.t2}; font-size: 12px; font-weight: 600;"
+        )
+        lay.addWidget(ttl)
+        lay.addWidget(content, 1)
+        return card
+
+    # ── Retranslate ────────────────────────────────────────────────────────
 
     def retranslate(self) -> None:
-        # Labels only — no DB.  Data refresh is deferred by main_window via POOL.
         self._title.setText(t("analytics_title"))
-        self._donut_hdr.setText(t("analytics_stock_health"))
-        self._bar_hdr.setText(t("analytics_by_category"))
-        self._trend_hdr.setText(t("analytics_activity_trend"))
-        self._low_hdr.setText(t("analytics_top_low_stock"))
 
-    # Zoom is a table-only feature; analytics has no tables so no apply_zoom.
+    # ── Backward-compat hooks for main_window's existing POOL.submit call ──
+    # Old API:
+    #   POOL.submit("analytics_refresh", page._fetch_all_data, page._apply_all_data)
+    # We satisfy that contract: _fetch_all_data is a no-op on the worker
+    # thread (returns a sentinel), _apply_all_data schedules the real
+    # multi-tile async refresh from the main thread.
+
+    def _fetch_all_data(self):   # worker thread — must not touch Qt widgets
+        return None
+
+    def _apply_all_data(self, _ignored=None):   # main thread
+        QTimer.singleShot(0, self.refresh)

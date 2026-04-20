@@ -13913,3 +13913,985 @@ AttributeError: 'MatrixTab' object has no attribute '_multi_lay'
 [2026-04-17 12:07:42] [INFO ] [app.core.health] Running startup health checks...
 [2026-04-17 12:07:42] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
 [2026-04-17 12:08:12] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.7)
+[2026-04-17 23:03:53] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-17 23:03:53] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-17 23:03:53] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-17 23:03:53] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-17 23:03:54] [INFO ] [app.core.database] Initializing database
+[2026-04-17 23:03:54] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-17 23:03:54] [INFO ] [app.core.database] Database initialization complete
+[2026-04-17 23:03:57] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-17 23:03:57] [INFO ] [__main__] Main window displayed successfully
+[2026-04-17 23:03:57] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-17 23:04:27] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 12:34:21] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 12:34:21] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 12:34:21] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 12:34:21] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 12:34:24] [INFO ] [app.core.database] Initializing database
+[2026-04-18 12:34:24] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 12:34:24] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 12:34:26] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 12:34:26] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 12:34:26] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 12:34:56] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 13:15:32] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:15:32] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 13:15:32] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 13:15:32] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:15:34] [INFO ] [app.core.database] Initializing database
+[2026-04-18 13:15:34] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 13:15:34] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 13:15:35] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 13:15:38] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 13:15:38] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 13:16:06] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 13:20:50] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:20:50] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 13:20:50] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 13:20:50] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:20:51] [INFO ] [app.core.database] Initializing database
+[2026-04-18 13:20:51] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 13:20:51] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 13:20:52] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 13:20:56] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 13:20:56] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 13:21:23] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 13:25:02] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:25:02] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 13:25:02] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 13:25:02] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:25:03] [INFO ] [app.core.database] Initializing database
+[2026-04-18 13:25:03] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 13:25:03] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 13:25:04] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 13:25:08] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 13:25:08] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 13:33:11] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:33:11] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 13:33:11] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 13:33:11] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:33:13] [INFO ] [app.core.database] Initializing database
+[2026-04-18 13:33:13] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 13:33:13] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 13:33:14] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 13:33:17] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 13:33:17] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 13:33:44] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 13:49:12] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:49:12] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 13:49:12] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 13:49:12] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 13:49:13] [INFO ] [app.core.database] Initializing database
+[2026-04-18 13:49:13] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 13:49:13] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 13:49:15] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 13:49:18] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 13:49:18] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 13:49:45] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 14:04:40] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:04:40] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 14:04:40] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 14:04:40] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:04:41] [INFO ] [app.core.database] Initializing database
+[2026-04-18 14:04:41] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 14:04:41] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 14:04:42] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 14:04:46] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 14:04:46] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 14:05:13] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 14:15:37] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:15:37] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 14:15:37] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 14:15:37] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:15:38] [INFO ] [app.core.database] Initializing database
+[2026-04-18 14:15:38] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 14:15:38] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 14:15:39] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 14:15:43] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 14:15:43] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 14:16:00] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=4 pt=3 included; rows_after=1
+[2026-04-18 14:16:11] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 14:16:57] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=1 pt=3 included; rows_after=1
+[2026-04-18 14:16:58] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=4 pt=3 included; rows_after=1
+[2026-04-18 14:16:59] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=2 pt=3 included; rows_after=1
+[2026-04-18 14:22:13] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:22:13] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 14:22:13] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 14:22:13] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:22:14] [INFO ] [app.core.database] Initializing database
+[2026-04-18 14:22:14] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 14:22:14] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 14:22:15] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 14:22:19] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 14:22:19] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 14:22:34] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=1 pt=3 included; rows_after=1
+[2026-04-18 14:22:35] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=4 pt=3 included; rows_after=1
+[2026-04-18 14:22:38] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=2 pt=3 included; rows_after=1
+[2026-04-18 14:22:46] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 14:50:29] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:50:29] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 14:50:29] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 14:50:29] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 14:50:33] [INFO ] [app.core.database] Initializing database
+[2026-04-18 14:50:33] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 14:50:33] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 14:50:36] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 14:50:36] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 14:50:36] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 14:51:06] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 14:51:11] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=5 pt=3 included; rows_after=1
+[2026-04-18 15:20:22] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:20:22] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 15:20:22] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 15:20:22] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:20:25] [INFO ] [app.core.database] Initializing database
+[2026-04-18 15:20:25] [INFO ] [app.core.database] Current schema version: 14, target: 14
+[2026-04-18 15:20:25] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 15:20:26] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 15:20:29] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 15:20:29] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 15:20:55] [INFO ] [app.services.stock_service] Stock In: item_id=116, qty=1, before=0, after=1, note=
+[2026-04-18 15:20:56] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 15:41:21] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:41:21] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 15:41:21] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 15:41:21] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:41:22] [INFO ] [app.core.database] Initializing database
+[2026-04-18 15:41:22] [INFO ] [app.core.database] Current schema version: 14, target: 15
+[2026-04-18 15:41:22] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 15:41:23] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 15:41:26] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 15:41:26] [INFO ] [app.core.health] Health check passed: Healthy — v14, 24 tables, 765,952 bytes
+[2026-04-18 15:41:34] [INFO ] [app.services.stock_service] Stock In: item_id=71, qty=1, before=0, after=1, note=
+[2026-04-18 15:46:58] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:46:58] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 15:46:58] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 15:46:58] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 15:46:59] [INFO ] [app.core.database] Initializing database
+[2026-04-18 15:46:59] [INFO ] [app.core.database] Current schema version: 14, target: 15
+[2026-04-18 15:46:59] [INFO ] [app.core.database] Migrating database schema from V14 to V15
+[2026-04-18 15:46:59] [INFO ] [app.core.database] V14 to V15 migration completed
+[2026-04-18 15:46:59] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 15:47:01] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 15:47:04] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 15:47:04] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 778,240 bytes
+[2026-04-18 15:47:31] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.8)
+[2026-04-18 15:47:32] [INFO ] [app.services.stock_service] Stock In: item_id=91, qty=1, before=0, after=1, note=
+[2026-04-18 15:47:41] [INFO ] [app.services.stock_service] Stock In: item_id=86, qty=1, before=0, after=1, note=
+[2026-04-18 16:58:17] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 16:58:17] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 16:58:17] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 16:58:17] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 16:58:18] [INFO ] [app.core.database] Initializing database
+[2026-04-18 16:58:18] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-18 16:58:18] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 16:58:20] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 16:58:20] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 16:58:21] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 778,240 bytes
+[2026-04-18 16:58:50] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5502
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6146
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:40] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5573
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7431
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 8442
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 8734
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5379
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5537
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6028
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6036
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5219
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5757
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6164
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6530
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6269
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5387
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6597
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5833
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6380
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5145
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5751
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5572
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6097
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5283
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5919
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5693
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6268
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5544
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6025
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6524
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5177
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5560
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6090
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6027
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6150
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6664
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4810
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6469
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7012
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5768
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6245
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6704
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5872
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6362
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6866
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4693
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5595
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6087
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4007
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4445
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4949
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5501
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5389
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5568
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4781
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5550
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5224
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5701
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4369
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4934
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4810
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5281
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4538
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5118
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4984
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5460
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4906
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5356
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5851
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5694
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6429
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5848
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6179
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6663
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5839
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6434
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5610
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5980
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6580
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5908
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6328
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6809
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5553
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5502
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6146
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5916
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6396
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5591
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6321
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6872
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5743
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5001
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5107
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5664
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6322
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6725
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6179
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5690
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6837
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5803
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6308
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5306
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5649
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5479
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6020
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5563
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5814
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5662
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6197
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5812
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5972
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6428
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:45] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5384
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5444
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6025
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5921
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6118
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6116
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6089
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6211
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6363
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5961
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5446
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5972
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6703
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6852
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6069
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6526
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6516
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6197
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6853
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7028
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6371
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6523
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7141
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7276
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5703
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6654
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7144
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7278
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6776
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7065
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6760
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6261
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6674
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5832
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6169
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:46] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6757
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6459
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6099
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6892
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5490
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6334
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5122
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5358
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5906
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5988
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4857
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5186
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5260
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4786
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5158
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5235
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5465
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5772
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5866
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5116
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5428
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5555
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5336
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5706
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6430
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6680
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6556
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6478
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6624
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6757
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6453
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5874
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6379
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7098
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7260
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6541
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6983
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6980
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:47] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6722
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7301
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7416
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6848
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7064
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7507
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7665
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6155
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7072
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7513
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7670
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7254
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7548
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7256
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6754
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7100
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6271
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6615
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7257
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6946
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6598
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7395
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5942
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6801
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5610
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5816
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6422
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6406
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5398
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5684
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5774
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5298
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5649
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5702
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5897
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:48] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6345
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6267
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5660
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5905
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6047
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5721
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6130
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6253
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6097
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6228
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5984
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5864
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6579
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6676
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6340
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6502
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6815
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6383
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6974
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6829
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6878
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6184
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6667
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6809
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6474
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6664
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6487
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6338
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6991
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7071
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6785
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6997
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7209
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6874
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:49] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7365
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7216
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7279
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6635
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 7033
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5039
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4044
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4854
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4948
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4423
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4105
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-18 17:00:50] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4064
+[2026-04-18 17:00:50] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-18 17:00:50] [DEBUG] [fpdf.output] - pages: 23.4KiB
+[2026-04-18 17:00:50] [DEBUG] [fpdf.output] - images: 4.7MiB
+[2026-04-18 17:00:50] [DEBUG] [fpdf.output] - fonts: 203.0B
+[2026-04-18 17:13:31] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:13:31] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 17:13:31] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 17:13:31] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:13:33] [INFO ] [app.core.database] Initializing database
+[2026-04-18 17:13:33] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-18 17:13:33] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 17:13:35] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 17:13:35] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 17:13:35] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 790,528 bytes
+[2026-04-18 17:14:05] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-18 17:25:03] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:25:03] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 17:25:03] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 17:25:03] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:25:04] [INFO ] [app.core.database] Initializing database
+[2026-04-18 17:25:05] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-18 17:25:05] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 17:25:07] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 17:25:07] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 17:25:07] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 790,528 bytes
+[2026-04-18 17:25:37] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=7, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=12, qty=3, before=0, after=3, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=67, qty=2, before=0, after=2, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=27, qty=2, before=0, after=2, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=47, qty=3, before=0, after=3, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=57, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=72, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 17:32:40] [INFO ] [app.services.stock_service] Stock In: item_id=2, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 17:32:40] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-18 17:32:40] [DEBUG] [fpdf.output] - pages: 1.3KiB
+[2026-04-18 17:32:40] [DEBUG] [fpdf.output] - fonts: 304.0B
+[2026-04-18 17:52:53] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:52:53] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 17:52:53] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 17:52:53] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 17:52:54] [INFO ] [app.core.database] Initializing database
+[2026-04-18 17:52:54] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-18 17:52:54] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 17:52:57] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 17:52:57] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 17:52:57] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 790,528 bytes
+[2026-04-18 17:53:28] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-18 18:00:06] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 18:00:06] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-18 18:00:06] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-18 18:00:06] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-18 18:00:07] [INFO ] [app.core.database] Initializing database
+[2026-04-18 18:00:07] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-18 18:00:07] [INFO ] [app.core.database] Database initialization complete
+[2026-04-18 18:00:09] [INFO ] [__main__] Main window displayed successfully
+[2026-04-18 18:00:10] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-18 18:00:10] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 790,528 bytes
+[2026-04-18 18:00:40] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=2, qty=2, before=1, after=3, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=7, qty=2, before=1, after=3, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=17, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=32, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=27, qty=1, before=2, after=3, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=72, qty=1, before=1, after=2, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=67, qty=1, before=2, after=3, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=62, qty=1, before=0, after=1, note=Quick Scan
+[2026-04-18 18:05:59] [INFO ] [app.services.stock_service] Stock In: item_id=12, qty=1, before=3, after=4, note=Quick Scan
+[2026-04-18 18:05:59] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-18 18:05:59] [DEBUG] [fpdf.output] - pages: 1.3KiB
+[2026-04-18 18:05:59] [DEBUG] [fpdf.output] - fonts: 304.0B
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=2, qty=1, before=3, after=2, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=7, qty=1, before=3, after=2, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=12, qty=1, before=4, after=3, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=17, qty=1, before=1, after=0, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=27, qty=1, before=3, after=2, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=32, qty=1, before=1, after=0, note=Quick Scan
+[2026-04-18 18:06:49] [INFO ] [app.services.stock_service] Stock Out: item_id=47, qty=1, before=3, after=2, note=Quick Scan
+[2026-04-18 18:06:49] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-18 18:06:49] [DEBUG] [fpdf.output] - pages: 1.2KiB
+[2026-04-18 18:06:49] [DEBUG] [fpdf.output] - fonts: 304.0B
+[2026-04-19 22:05:20] [DEBUG] [app.services.update_service] UpdateService: check failed (<urlopen error [Errno 11001] getaddrinfo failed>)
+[2026-04-20 11:45:21] [DEBUG] [app.services.update_service] UpdateService: check failed (<urlopen error [Errno 11001] getaddrinfo failed>)
+[2026-04-20 11:54:12] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 11:54:12] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 11:54:12] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 11:54:12] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 11:54:14] [INFO ] [app.core.database] Initializing database
+[2026-04-20 11:54:14] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 11:54:14] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 11:54:16] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 11:54:16] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 11:54:16] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 11:54:46] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.9)
+[2026-04-20 12:57:25] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 12:57:25] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 12:57:25] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 12:57:25] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 12:57:28] [INFO ] [app.core.database] Initializing database
+[2026-04-20 12:57:28] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 12:57:28] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 12:57:29] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 12:57:33] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 12:57:33] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 12:57:55] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 12:57:55] [DEBUG] [fpdf.output] - pages: 1.1KiB
+[2026-04-20 12:57:55] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 12:57:59] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.10)
+[2026-04-20 12:58:12] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 12:58:12] [DEBUG] [fpdf.output] - pages: 1.2KiB
+[2026-04-20 12:58:12] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 12:58:24] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 12:58:24] [DEBUG] [fpdf.output] - pages: 572.0B
+[2026-04-20 12:58:24] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 12:58:32] [DEBUG] [fpdf.fpdf] Page break on page 1 at y=278 for element of height 7 > 277
+[2026-04-20 12:58:32] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 12:58:32] [DEBUG] [fpdf.output] - pages: 3.9KiB
+[2026-04-20 12:58:32] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 12:59:29] [DEBUG] [fpdf.fpdf] Page break on page 1 at y=278 for element of height 7 > 277
+[2026-04-20 12:59:29] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 12:59:29] [DEBUG] [fpdf.output] - pages: 3.9KiB
+[2026-04-20 12:59:29] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:00:19] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:00:19] [DEBUG] [fpdf.output] - pages: 1.3KiB
+[2026-04-20 13:00:19] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:00:41] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:00:41] [DEBUG] [fpdf.output] - pages: 1.6KiB
+[2026-04-20 13:00:41] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:01:06] [DEBUG] [fpdf.fpdf] Page break on page 2 at y=272 for element of height 6 > 277
+[2026-04-20 13:01:06] [DEBUG] [fpdf.fpdf] Page break on page 3 at y=271 for element of height 6 > 277
+[2026-04-20 13:01:06] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:01:06] [DEBUG] [fpdf.output] - pages: 17.2KiB
+[2026-04-20 13:01:06] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-20 13:01:24] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:01:24] [DEBUG] [fpdf.output] - pages: 687.0B
+[2026-04-20 13:01:24] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:01:30] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:01:30] [DEBUG] [fpdf.output] - pages: 678.0B
+[2026-04-20 13:01:30] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:02:13] [DEBUG] [fpdf.fpdf] Page break on page 2 at y=272 for element of height 6 > 277
+[2026-04-20 13:02:13] [DEBUG] [fpdf.fpdf] Page break on page 3 at y=271 for element of height 6 > 277
+[2026-04-20 13:02:13] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:02:13] [DEBUG] [fpdf.output] - pages: 17.2KiB
+[2026-04-20 13:02:13] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-20 13:02:21] [DEBUG] [fpdf.fpdf] Page break on page 2 at y=272 for element of height 6 > 277
+[2026-04-20 13:02:21] [DEBUG] [fpdf.fpdf] Page break on page 3 at y=271 for element of height 6 > 277
+[2026-04-20 13:02:21] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:02:21] [DEBUG] [fpdf.output] - pages: 17.2KiB
+[2026-04-20 13:02:21] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-20 13:07:40] [DEBUG] [fpdf.fpdf] Page break on page 1 at y=278 for element of height 7 > 277
+[2026-04-20 13:07:40] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:07:40] [DEBUG] [fpdf.output] - pages: 3.9KiB
+[2026-04-20 13:07:40] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:07:41] [DEBUG] [fpdf.fpdf] Page break on page 1 at y=278 for element of height 7 > 277
+[2026-04-20 13:07:41] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:07:41] [DEBUG] [fpdf.output] - pages: 3.9KiB
+[2026-04-20 13:07:41] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:40:04] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 13:40:04] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 13:40:04] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 13:40:04] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 13:40:06] [INFO ] [app.core.database] Initializing database
+[2026-04-20 13:40:06] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 13:40:06] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 13:40:08] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 13:40:09] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 13:40:09] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 13:40:22] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:40:22] [DEBUG] [fpdf.output] - pages: 4.2KiB
+[2026-04-20 13:40:22] [DEBUG] [fpdf.output] - fonts: 199.0B
+[2026-04-20 13:40:39] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.10)
+[2026-04-20 13:47:41] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 13:47:41] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 13:47:41] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 13:47:41] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 13:47:43] [INFO ] [app.core.database] Initializing database
+[2026-04-20 13:47:43] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 13:47:43] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 13:47:44] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 13:47:47] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 13:47:47] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 13:48:00] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-20 13:48:00] [DEBUG] [fpdf.output] - pages: 2.8KiB
+[2026-04-20 13:48:00] [DEBUG] [fpdf.output] - fonts: 304.0B
+[2026-04-20 13:48:15] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.10)
+[2026-04-20 15:28:48] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 15:28:48] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 15:28:48] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 15:28:48] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 15:28:50] [INFO ] [app.core.database] Initializing database
+[2026-04-20 15:28:50] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 15:28:50] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 15:28:52] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 15:28:53] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 15:28:53] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 15:29:23] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.10)
+[2026-04-20 15:31:12] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 15:31:12] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 15:31:12] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 15:31:12] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 15:31:13] [INFO ] [app.core.database] Initializing database
+[2026-04-20 15:31:13] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 15:31:13] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 15:31:15] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 15:31:15] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 15:31:15] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 15:31:45] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.10)
+[2026-04-20 16:00:31] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:00:31] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:00:31] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:00:31] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:00:33] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:00:33] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:00:33] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:00:35] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:00:35] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:00:35] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:01:05] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)
+[2026-04-20 16:06:03] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:06:03] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:06:03] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:06:03] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:06:05] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:06:05] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:06:05] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:06:07] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:06:07] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:06:07] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:06:37] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)
+[2026-04-20 16:17:31] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:17:31] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:17:31] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:17:31] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:17:32] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:17:32] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:17:32] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:17:34] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:17:34] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:17:34] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:18:04] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)
+[2026-04-20 16:23:19] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:23:19] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:23:19] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:23:19] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:23:22] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:23:22] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:23:22] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:23:24] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:23:24] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:23:24] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:23:54] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)
+[2026-04-20 16:31:08] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:31:08] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:31:08] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:31:08] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:31:09] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:31:09] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:31:09] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:31:12] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:31:12] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:31:12] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:31:42] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)
+[2026-04-20 16:37:07] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:37:07] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-20 16:37:07] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-20 16:37:07] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-20 16:37:09] [INFO ] [app.core.database] Initializing database
+[2026-04-20 16:37:09] [INFO ] [app.core.database] Current schema version: 15, target: 15
+[2026-04-20 16:37:09] [INFO ] [app.core.database] Database initialization complete
+[2026-04-20 16:37:11] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-20 16:37:11] [INFO ] [__main__] Main window displayed successfully
+[2026-04-20 16:37:11] [INFO ] [app.core.health] Health check passed: Healthy — v15, 26 tables, 798,720 bytes
+[2026-04-20 16:37:41] [DEBUG] [app.services.update_service] UpdateService: up to date (2.3.11)

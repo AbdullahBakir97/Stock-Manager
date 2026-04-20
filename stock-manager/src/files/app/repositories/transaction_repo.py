@@ -131,6 +131,60 @@ class TransactionRepository(BaseRepository):
             r = conn.execute(sql, params).fetchone()
             return {"total": r[0], "total_in": r[1], "total_out": r[2]}
 
+    # ── Analytics helpers ────────────────────────────────────────────────────
+
+    def get_daily_aggregates(self, date_from: str, date_to: str,
+                             operation: str = "") -> list[dict]:
+        """Per-day transaction totals in the given range.
+
+        Returns [{'date': 'YYYY-MM-DD', 'count': n, 'in_qty': n,
+                  'out_qty': n, 'adjust_qty': n}, ...] ordered by date.
+        """
+        sql = """
+            SELECT DATE(t.timestamp) AS date,
+                   COUNT(*) AS count,
+                   COALESCE(SUM(CASE WHEN t.operation='IN'     THEN t.quantity ELSE 0 END), 0) AS in_qty,
+                   COALESCE(SUM(CASE WHEN t.operation='OUT'    THEN t.quantity ELSE 0 END), 0) AS out_qty,
+                   COALESCE(SUM(CASE WHEN t.operation='ADJUST' THEN t.quantity ELSE 0 END), 0) AS adjust_qty
+              FROM inventory_transactions t
+             WHERE t.timestamp >= ? AND t.timestamp <= ?
+        """
+        params: list = [date_from, date_to + " 23:59:59"]
+        if operation:
+            sql += " AND t.operation = ?"
+            params.append(operation)
+        sql += " GROUP BY DATE(t.timestamp) ORDER BY date ASC"
+        with self._conn() as conn:
+            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
+    def get_hourly_aggregates(self, date_from: str, date_to: str) -> list[dict]:
+        """Per-hour-of-day transaction counts across the range.
+
+        Returns 24 rows — one per hour 00..23 — with `count`, `in_qty`,
+        `out_qty`. Missing hours are filled in with zeroes.
+        """
+        sql = """
+            SELECT CAST(strftime('%H', t.timestamp) AS INTEGER) AS hour,
+                   COUNT(*) AS count,
+                   COALESCE(SUM(CASE WHEN t.operation='IN'  THEN t.quantity ELSE 0 END), 0) AS in_qty,
+                   COALESCE(SUM(CASE WHEN t.operation='OUT' THEN t.quantity ELSE 0 END), 0) AS out_qty
+              FROM inventory_transactions t
+             WHERE t.timestamp >= ? AND t.timestamp <= ?
+          GROUP BY hour
+          ORDER BY hour ASC
+        """
+        with self._conn() as conn:
+            rows = {int(r["hour"]): dict(r)
+                    for r in conn.execute(sql,
+                                          (date_from, date_to + " 23:59:59")).fetchall()}
+        out = []
+        for h in range(24):
+            if h in rows:
+                out.append(rows[h])
+            else:
+                out.append({"hour": h, "count": 0, "in_qty": 0, "out_qty": 0})
+        return out
+
     # ── Builder ───────────────────────────────────────────────────────────────
 
     def _build_txn(self, row) -> InventoryTransaction:

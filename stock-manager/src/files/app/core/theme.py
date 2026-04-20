@@ -946,6 +946,18 @@ QFrame#scan_feed_warn {{
     padding: 8px 12px;
 }}
 
+/* ── Quick Scan totals card ───────────────────────────────── */
+QFrame#qscan_totals_card {{
+    background: {t.card2};
+    border: 1px solid {t.border};
+    border-left: 3px solid {acc};
+    border-radius: 6px;
+    padding: 0;
+}}
+QFrame#qscan_totals_card QLabel {{
+    color: {t.t1};
+}}
+
 /* ── Quick Scan mode bars ────────────────────────────────── */
 QFrame#scan_mode_idle {{
     background: {t.card2};
@@ -1320,6 +1332,52 @@ QLabel#analytics_chart_title {{
 }}
 QScrollArea#analytics_scroll {{
     border: none; background: transparent;
+}}
+
+/* ── New Analytics (2.3.9) ─────────────────────────────── */
+QFrame#kpi_tile {{
+    background: {t.card}; border: 1px solid {t.border};
+    border-radius: {br_card};
+}}
+QFrame#kpi_tile:hover {{
+    border-color: {acc};
+    background: {t.card2};
+}}
+QLabel#analytics_section_hdr {{
+    font-size: 11px; font-weight: 800; color: {t.t3};
+    letter-spacing: 0.10em;
+    padding: 2px 0;
+}}
+QFrame#analytics_section_card {{
+    background: {t.card}; border: 1px solid {t.border};
+    border-radius: {br_card};
+}}
+QWidget#analytics_empty_state {{
+    background: {t.card2};
+    border: 1px dashed {t.border2};
+    border-radius: {br_card};
+}}
+QTableWidget#analytics_pivot {{
+    background: {t.card};
+    border: 1px solid {t.border};
+    border-radius: {br_card};
+    gridline-color: {t.border};
+}}
+QTableWidget#analytics_pivot::item {{
+    padding: 4px 6px;
+}}
+QToolButton#analytics_preset_btn {{
+    background: {t.card2}; color: {t.t2};
+    border: 1px solid {t.border};
+    border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px;
+}}
+QToolButton#analytics_preset_btn:hover {{
+    background: {t.border}; color: {t.t1};
+}}
+QToolButton#analytics_preset_btn:checked {{
+    background: {acc}; color: white; border-color: {acc};
 }}
 
 /* ── Sales / POS ───────────────────────────────────────── */

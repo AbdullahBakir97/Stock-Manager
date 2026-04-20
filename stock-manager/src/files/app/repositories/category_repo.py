@@ -55,16 +55,18 @@ class CategoryRepository(BaseRepository):
             return cur.lastrowid
 
     def add_part_type(self, category_id: int, key: str, name: str,
-                      accent_color: str = "#4A9EFF") -> int:
+                      accent_color: str = "#4A9EFF",
+                      default_price: float | None = None) -> int:
         with self._conn() as conn:
             max_order = conn.execute(
                 "SELECT COALESCE(MAX(sort_order),0) FROM part_types WHERE category_id=?",
                 (category_id,),
             ).fetchone()[0]
             cur = conn.execute(
-                """INSERT INTO part_types (category_id, key, name, accent_color, sort_order)
-                   VALUES (?,?,?,?,?)""",
-                (category_id, key, name, accent_color, max_order + 1),
+                """INSERT INTO part_types
+                   (category_id, key, name, accent_color, sort_order, default_price)
+                   VALUES (?,?,?,?,?,?)""",
+                (category_id, key, name, accent_color, max_order + 1, default_price),
             )
             return cur.lastrowid
 
@@ -107,11 +109,21 @@ class CategoryRepository(BaseRepository):
                 )
 
     def update_part_type(self, part_type_id: int, key: str,
-                         name: str, accent_color: str) -> None:
+                         name: str, accent_color: str,
+                         default_price: float | None = None) -> None:
         with self._conn() as conn:
             conn.execute(
-                "UPDATE part_types SET key=?, name=?, accent_color=? WHERE id=?",
-                (key, name, accent_color, part_type_id),
+                "UPDATE part_types SET key=?, name=?, accent_color=?, default_price=? "
+                "WHERE id=?",
+                (key, name, accent_color, default_price, part_type_id),
+            )
+
+    def update_part_type_price(self, part_type_id: int, default_price: float | None) -> None:
+        """Update just the default_price on a part type."""
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE part_types SET default_price=? WHERE id=?",
+                (default_price, part_type_id),
             )
 
     def delete_part_type(self, part_type_id: int) -> bool:
@@ -208,6 +220,7 @@ class CategoryRepository(BaseRepository):
             id=row["id"], category_id=row["category_id"],
             key=row["key"], name=row["name"],
             accent_color=row["accent_color"], sort_order=row["sort_order"],
+            default_price=(row["default_price"] if "default_price" in row.keys() else None),
         )
 
     def _build(self, conn, row) -> CategoryConfig:

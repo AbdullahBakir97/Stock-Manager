@@ -11,6 +11,63 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.3.9] - 2026-04-20
+
+### Added
+#### Pricing · Quick Scan · Invoices
+- **Part-type default price** — Admin → Part Types now has a "Default price" field. Every item inheriting the part type takes that price; per-item `sell_price` still overrides. New "PRICE" column in the part-type admin table.
+- **€ / Price column in the matrix** — new column per part type. Green when a per-item override exists, grey when falling back to the part-type default. Double-click to edit; Ctrl+Z undoes.
+- **Quick Scan live pricing & totals** — pending table now shows **Unit Price** and **Line Total** per scanned line + a totals card with **ITEMS · SUBTOTAL · GRAND TOTAL** (accent green, JetBrains Mono). Currency formatted via `ShopConfig.format_currency`.
+- **Customer field on Quick Scan** — optional input; printed on the invoice when present, otherwise a walk-in record.
+- **PDF invoices on every commit** — confirming a scan asks **A4 invoice** or **Thermal receipt**, persists the header + line items, and writes to `%LOCALAPPDATA%\StockPro\StockManagerPro\invoices\INV-YYYYMMDD-NNNN.pdf`. Feed row shows an **Open** button. TAKEOUT → "INVOICE"; INSERT → "STOCK RECEIPT". Layout preference remembered via QSettings.
+- **New `ScanInvoiceService`** (A4 + 80 mm thermal fpdf2 layouts) and **`InvoiceRepository`** (day-prefixed numbering + price snapshot per line).
+
+#### Reports — full overhaul
+- **5 new reports**: Stock Valuation (per part type, category subtotals, grand total), Sales (with top-10 best sellers), Scan Invoices (IN/OUT history with filter), Expiring Stock (urgency-coloured), Category Performance (stock + movement per category).
+- **Inventory report** now groups by **Category → Part Type** with per-section subtotals, a Brand column, and a grand-total emerald bar at the end.
+- **Date range picker** on the reports page — presets (Today · 7d · 30d · 90d · This year · Custom) + `QDateEdit` from/to pickers. Applied to every date-aware report.
+- **Operation filter** — contextual for Transactions (IN/OUT/ADJUST/CREATE) and Scan Invoices (ALL/IN/OUT).
+- **Output path + three actions** — status bar shows the saved PDF path with **Open PDF**, **Open folder** (selects file in Explorer), **Copy path**.
+- **`_ReportPDF.header() / footer()` overrides** — shop banner, title subtitle, and `Page X of Y` footer render on **every page** (not just page 1) via `alias_nb_pages()`.
+- **Logo support** — `ShopConfig.logo_path` is rendered top-left of every report header when the file exists.
+- **Per-table pagination** — every table redraws its column headers on a new page when rows cross the bottom margin.
+
+#### Analytics — professional dashboard
+- **Top date-range bar** — Today · 7d · 30d · 90d · Year · Custom, with automatic previous-period comparison.
+- **Executive KPI row** — 4 tiles (Stock Value · Revenue · Transactions · Low Stock) each with a trend sparkline, ▲/▼ delta badge vs the previous equal-length period, and click-to-drill-down.
+- **Brand-separated Valuation section** — Brand chips row at the top, then one card per brand containing category-grouped part-type rows with **share-of-brand** progress bars, category subtotals, and a brand subtotal strip. Bottom: gradient emerald Grand Total.
+- **Valuation filter bar** — Brand combo + Category combo + "Clear filters" button. Active-filter badge shows how many filters are applied; grand total note shows the active filter context.
+- **Sales section** — revenue trend dual-line chart with previous-period ghost overlay, mini-KPIs (sales count · units sold · avg basket · best day), top sellers + top customers HBars with currency formatting.
+- **Stock movement section** — IN vs OUT dual-line chart, busiest-hours HBar, colour-coded recent activity feed.
+- **Scan invoices section** — 4 KPIs (count · IN total · OUT total · avg), daily IN/OUT dual-line, top-invoice-customers HBar.
+- **New UI components** — `KpiTile` (label + sparkline + delta + click), `DeltaBadge` (▲/▼ pill), `SkeletonBlock` (animated shimmer), `EmptyState` upgraded (icon + retry button), `PivotTable` redesigned as brand-separated valuation, `DualLineChart` (current + ghost overlay + hover tooltip).
+- **`AnalyticsService` facade** — one class computes every tile's data block, safe to run on worker threads; tiles load independently via `POOL.submit` and swap skeletons for content as each block completes.
+- **Drill-down navigation** — click KPI tile, pivot row, or brand chip → navigates to the filtered Inventory / Sales / Transactions page.
+
+### Schema
+- **V15 migration** — adds `part_types.default_price` (REAL, nullable) + two new tables `scan_invoices` and `scan_invoice_items` for invoice records, with indexes on date and invoice_id.
+
+### New architecture
+- **Repository helpers**: `ItemRepository.get_value_by_brand / get_value_by_part_type / get_value_pivot`; `TransactionRepository.get_daily_aggregates / get_hourly_aggregates`; `SaleRepository.revenue_daily / top_customers`; `InvoiceRepository.get_totals / get_daily / get_top_customers`.
+- **`ScanSessionService.commit(layout, customer_name)`** — snapshots each line's price to `scan_invoice_items` so historical invoices stay stable even if prices change later.
+- **`PendingScanItem`** — gains `unit_price` (captured at scan time) and a `line_total` property.
+- **`HBarChart.set_data(..., value_format=callable)`** — optional formatter so chart values render with the shop currency (`€12,340.00`) instead of bare integers.
+
+### Fixed
+- **Discrepancy report crash** — added missing `_GRAY_700` / `_GRAY_100` colour constants and implemented the missing `_safe()` sanitiser. PDFs render without `NameError` / `AttributeError`.
+- **Column overflow on inventory + transaction reports** — widths re-balanced so columns sum to exactly 186 mm (usable page width).
+- **Missing page numbers / orphaned continuation pages** — fixed by header/footer overrides.
+- **Reports now save to `%LOCALAPPDATA%\StockPro\StockManagerPro\reports\`** — same tree used by invoices and backups (was `%TEMP%`).
+- **Valuation pivot ambiguous column bug** — renamed the SQL alias to `brand_name` to avoid clashing with `phone_models.brand` / `inventory_items.brand`, then GROUP BY on the full expression.
+- **Brand attribution in reports** — every report resolver now falls back through `model_brand → brand → "(no brand)"`; matrix items no longer show as "(no brand)".
+- **Analytics valuation scope** — includes zero-stock brand/part-type combos so the full inventory scope is visible (no more "only Apple and Samsung"); grand total unaffected since zeros add nothing.
+
+### Changed
+- **Transaction report** accepts a date range + operation filter (was hardcoded to 30 days with no op filter).
+- **Backward-compatible analytics refresh API** — `_fetch_all_data` + `_apply_all_data` still exist so `main_window`'s existing `POOL.submit("analytics_refresh", …)` continues to work; the new implementation forwards to `refresh()` on the main thread.
+
+---
+
 ## [2.3.8] - 2026-04-17
 
 ### Added

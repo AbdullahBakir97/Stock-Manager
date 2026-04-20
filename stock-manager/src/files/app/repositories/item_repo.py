@@ -248,6 +248,17 @@ class ItemRepository(BaseRepository):
                 (new_price, item_id),
             )
 
+    def update_cost_price(self, item_id: int, new_cost: float | None) -> None:
+        """Update the cost_price (purchase / buy price) for an inventory item.
+
+        Pass None to clear the value. Schema V16+ adds `inventory_items.cost_price`.
+        """
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE inventory_items SET cost_price=?, updated_at=datetime('now') WHERE id=?",
+                (new_cost, item_id),
+            )
+
     # ── Write — stock operations ──────────────────────────────────────────────
 
     def apply_delta(self, conn: sqlite3.Connection,
@@ -533,6 +544,7 @@ class ItemRepository(BaseRepository):
             sku=row["sku"],
             barcode=row["barcode"],
             sell_price=row["sell_price"],
+            cost_price=row["cost_price"] if "cost_price" in keys else None,
             stock=row["stock"],
             min_stock=row["min_stock"],
             inventur=row["inventur"],

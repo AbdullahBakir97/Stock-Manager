@@ -11,6 +11,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.3.10] - 2026-04-21
+
+### Added
+#### Cost valuation — PIN-gated matrix redesign
+- **`cost_price` column** on `inventory_items` — purchase / buy price, persisted per item. Schema V16 migration adds the column automatically on first launch.
+- **Matrix columns bumped 5 → 7** per part-type group: `MIN-STOCK · DIFFERENCE · STOCK · ORDER · SELL · COST · TOTAL`.
+  - **SELL** = the previous "PRICE" column renamed for clarity (item.sell_price with part-type default fallback; edit flow unchanged).
+  - **COST** = new, shows `item.cost_price` in the shop's accent blue. **Hidden by default** — only shown after the owner toggles it.
+  - **TOTAL** = always visible. Metric flips with the cost toggle:
+    - Default: `stock × effective_sell_price`
+    - Admin mode: `stock × cost_price`
+  - Cell tooltip clarifies which metric is active ("Stock × sell = …" / "Stock × cost = …").
+- **👁 cost-visibility toggle** in every matrix tab toolbar. Click prompts for `ShopConfig.admin_pin` (if configured, via `QInputDialog` password-echo — same pattern as `open_admin`). Button swaps closed-eye ↔ talking-eye icon and shows a green accent border when active. One flip fans out to every matrix tab via `CostVisibility.changed`.
+- **Professional per-part-type cards** at the top of every matrix tab (name · total units · total valuation · `sell`/`cost` suffix). Live metric — switches from sell-based → cost-based totals when the toggle is on. Card strip lives inside a restored collapsible `BRAND & LEGEND` section alongside the brand filter row.
+- **Editable cost_price** — double-click a COST cell (admin mode only) opens the same numeric dialog pattern used for sell; full Undo/Redo via `ItemRepository.update_cost_price()`.
+- **Currency symbol everywhere** — SELL, COST, TOTAL cells + tooltips format through a new `_fmt_money()` helper backed by `ShopConfig.format_currency()`.
+
+### New services / repos
+- `app/services/cost_visibility.py` — session-local `COST_VIS` singleton (`QObject` with `changed` signal). Default `visible=False` on every app start — nothing persists, so sensitive valuation never leaks on an unattended laptop.
+- `ItemRepository.update_cost_price(item_id, new_cost)` — new write method; `_build()` reads `cost_price` when the column exists.
+- `_type_visible_width(table, ti)` helper in `matrix_widget.py` — sum of *visible* column widths for a part-type group, so banner chips never over-stretch when the COST column is hidden.
+- `_SUB_MIN / _SUB_BB / _SUB_STOCK / _SUB_ORDER / _SUB_SELL / _SUB_PRICE / _SUB_TOTAL` sub-column constants — arithmetic across the matrix now self-documents.
+
+### Performance
+- **Startup freeze fixed** — `rebuild_matrix_tabs()` is now deferred via `QTimer.singleShot(0, …)` so the main window paints and becomes interactive immediately after the splash, instead of blocking for several seconds while every matrix tab runs its first DB query synchronously.
+- **Settings-close freeze fixed** — the whole post-admin-dialog chain (`ensure_matrix_entries` → `rebuild_matrix_tabs` → `apply_theme_to_matrix_tabs` → `_retranslate` → `nav_ctrl.go(saved)`) is now deferred to the next event-loop tick. Closing settings returns control to the user instantly; the rebuild runs on the next frame.
+- **MatrixTab.refresh()** refactored to dispatch every DB query through `worker_pool.POOL.submit(…)`. In all-brands mode this replaced up to 12 synchronous `_item_repo.get_matrix_items()` / `_model_repo.get_all()` hits per refresh with one pooled async fetch; the UI thread no longer touches the DB during brand-combo changes, cost-toggle flips, or post-edit refreshes.
+- `_add_brand_section` / `_reload_brand_container` accept pre-fetched `models=` / `item_map=` kwargs so the worker can feed every brand section at once (fallback to sync is preserved for legacy callers).
+
+### Fixed
+- Banner chip widths now align correctly with the visible columns when the COST column is hidden (previously over-stretched by one column-width).
+- `UnboundLocalError: QScrollArea` on `MatrixTab.__init__` — a nested `from PyQt6.QtWidgets import … QScrollArea` shadowed the module-level import; removed the duplicate.
+- Duplicate `BRAND:` label (collapsible section header + filter row) — section header restored to `BRAND & LEGEND` and now wraps both cards + filter together.
+- Matrix banner reverted to a slim 30 px name-chip after totals moved to the top card strip; banner keeps column-grouping context without duplicating data.
+
+### Changed
+- Matrix edit dialogs for price split into **Sell Price** and **Cost Price** with distinct titles / Undo labels.
+- Cost edit instant-repaints the clicked COST cell + neighbouring TOTAL cell synchronously before the DB refresh lands, so the whole edit lands in a single visual frame. SELL edit does the same for TOTAL when not in cost mode.
+- Schema version bumped **15 → 16**.
+
+---
+
 ## [2.3.9] - 2026-04-20
 
 ### Added

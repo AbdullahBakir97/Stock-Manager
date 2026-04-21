@@ -66,7 +66,11 @@ class AnalyticsPage(QWidget):
         self._inv_page = None
         self._txn_page = None
         self._build_ui()
-        self.refresh()
+        # Defer the first refresh — running it inline during MainWindow's
+        # _build_ui blocks the UI thread for several seconds (5 analytics
+        # workers + skeleton paint). Let the window paint first, then fire.
+        from PyQt6.QtCore import QTimer as _QT
+        _QT.singleShot(0, self.refresh)
 
     # ── External hooks (for drill-down navigation) ─────────────────────────
 

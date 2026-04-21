@@ -189,6 +189,10 @@ class ProductTable(QTableWidget):
         self.setUpdatesEnabled(False)
         self.blockSignals(True)
         try:
+            # Set default row height ONCE before populating — calling
+            # setRowHeight(i, 48) inside the loop triggers a per-row layout
+            # recalc that adds ~500 ms of UI-thread work for 300+ items.
+            self.verticalHeader().setDefaultSectionSize(48)
             self.setRowCount(len(self._data))
             for i, item in enumerate(self._data):
                 sc  = _sc(item.stock, item.min_stock)
@@ -243,7 +247,8 @@ class ProductTable(QTableWidget):
                 action_lay.addWidget(btn_out)
 
                 self.setCellWidget(i, 9, action_w)
-                self.setRowHeight(i, 48)
+                # Row height now comes from verticalHeader.defaultSectionSize
+                # (set once before the loop) — per-row setRowHeight removed.
         finally:
             self.blockSignals(False)
             self.setUpdatesEnabled(True)

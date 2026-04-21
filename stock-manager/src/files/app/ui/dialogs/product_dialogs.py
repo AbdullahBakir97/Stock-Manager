@@ -137,6 +137,26 @@ class QuantitySpin(QWidget):
     def setRange(self, mn: int, mx: int):
         self._min = mn; self._max = mx; self.setValue(self._val)
 
+    def showEvent(self, event):
+        """When a dialog containing this spin first shows, focus the
+        inner QLineEdit and select its text so the user can just start
+        typing — no clicking required to replace the pre-filled value.
+        """
+        super().showEvent(event)
+        try:
+            # singleShot so focus lands AFTER Qt's own initial focus pass
+            from PyQt6.QtCore import QTimer as _QT
+            _QT.singleShot(0, self._focus_and_select)
+        except Exception:
+            pass
+
+    def _focus_and_select(self):
+        try:
+            self._edit.setFocus(Qt.FocusReason.OtherFocusReason)
+            self._edit.selectAll()
+        except Exception:
+            pass
+
 
 # ── Modern Dialog base ───────────────────────────────────────────────────────
 

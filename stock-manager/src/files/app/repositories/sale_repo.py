@@ -137,6 +137,59 @@ class SaleRepository(BaseRepository):
             rows = conn.execute(sql, params).fetchall()
             return [dict(r) for r in rows]
 
+    def revenue_daily(self, date_from: str, date_to: str) -> list[dict]:
+        """Per-day revenue + sale count + profit over a range.
+
+        Returns [{'date', 'count', 'revenue', 'profit'}, ...] ordered by date.
+        Days with no sales are NOT included — consumers should fill gaps.
+        """
+        with self._conn() as conn:
+            rows = conn.execute(
+                """SELECT DATE(s.timestamp) AS date,
+                          COUNT(*) AS count,
+                          COALESCE(SUM(s.total_amount - s.discount), 0) AS revenue,
+                          COALESCE(SUM(si_sub.profit), 0) AS profit
+                     FROM sales s
+                LEFT JOIN (
+                          SELECT sale_id,
+                                 SUM(si.line_total - si.cost_price * si.quantity) AS profit
+                            FROM sale_items si
+                        GROUP BY sale_id
+                     ) si_sub ON si_sub.sale_id = s.id
+                    WHERE DATE(s.timestamp) >= ?
+                      AND DATE(s.timestamp) <= ?
+                 GROUP BY DATE(s.timestamp)
+                 ORDER BY DATE(s.timestamp) ASC""",
+                (date_from, date_to),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
+    def top_customers(self, date_from: str = "", date_to: str = "",
+                      limit: int = 10) -> list[dict]:
+        """Top customers by revenue over the range. Walk-in sales
+        (no customer_id) are excluded."""
+        with self._conn() as conn:
+            sql = """SELECT s.customer_id,
+                            COALESCE(c.name, 'Walk-in') AS customer_name,
+                            COUNT(*) AS sales_count,
+                            COALESCE(SUM(s.total_amount - s.discount), 0) AS revenue
+                       FROM sales s
+                  LEFT JOIN customers c ON c.id = s.customer_id"""
+            params: list = []
+            clauses: list[str] = ["s.customer_id IS NOT NULL"]
+            if date_from:
+                clauses.append("DATE(s.timestamp) >= ?")
+                params.append(date_from)
+            if date_to:
+                clauses.append("DATE(s.timestamp) <= ?")
+                params.append(date_to)
+            sql += " WHERE " + " AND ".join(clauses)
+            sql += (" GROUP BY s.customer_id"
+                    " ORDER BY revenue DESC"
+                    " LIMIT ?")
+            params.append(int(limit))
+            return [dict(r) for r in conn.execute(sql, params).fetchall()]
+
     # ── Internal ─────────────────────────────────────────────────────────────
 
     def _get_items(self, conn, sale_id: int) -> list[SaleItem]:

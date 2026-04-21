@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 
 from app.repositories.item_repo import ItemRepository
 from app.services.stock_service import StockService
+from app.services.undo_manager import UNDO, Command
 
 _item_repo = ItemRepository()
 _stock_svc = StockService()
@@ -46,12 +47,14 @@ def bulk_op(win: MainWindow, items: list, op: str) -> None:
         return
     note = t("bulk_note", op=op)
     errors = 0
+    successful_ids = []
     for item in items:
         try:
             if op == "IN":
                 _stock_svc.stock_in(item.id, qty, note)
             else:
                 _stock_svc.stock_out(item.id, qty, note)
+            successful_ids.append(item.id)
         except Exception:
             errors += 1
     win._refresh_all()
@@ -59,6 +62,24 @@ def bulk_op(win: MainWindow, items: list, op: str) -> None:
         t("bulk_success", n=len(items) - errors), 4000,
         level="ok" if errors == 0 else "warn",
     )
+
+    # Push bulk undo: reverse the operation on all successful items (DB only)
+    if successful_ids:
+        ids, q, inverse = successful_ids, qty, "OUT" if op == "IN" else "IN"
+        def _reverse_all(action):
+            for iid in ids:
+                try:
+                    if action == "IN":
+                        _stock_svc.stock_in(iid, q, "undo")
+                    else:
+                        _stock_svc.stock_out(iid, q, "undo")
+                except Exception:
+                    pass
+        UNDO.push(Command(
+            label=f"Bulk Stock {op} ×{len(ids)} ({q} each)",
+            undo_fn=lambda: _reverse_all(inverse),
+            redo_fn=lambda: _reverse_all(op),
+        ))
 
 
 # ── Bulk Delete ─────────────────────────────────────────────────────────────
@@ -103,15 +124,19 @@ def bulk_price(win: MainWindow, items: list) -> None:
         return
     mode, val = result["mode"], result["value"]
     errors = 0
+    # Snapshot prev prices for undo
+    price_changes: list[tuple[int, float, float]] = []  # (id, old, new)
     for item in items:
         try:
+            old_price = item.sell_price or 0
             if mode == 0:
                 new_price = val
             elif mode == 1:
-                new_price = round((item.sell_price or 0) * (1 + val / 100), 2)
+                new_price = round(old_price * (1 + val / 100), 2)
             else:
-                new_price = round(max(0, (item.sell_price or 0) * (1 - val / 100)), 2)
+                new_price = round(max(0, old_price * (1 - val / 100)), 2)
             _item_repo.update_price(item.id, new_price)
+            price_changes.append((item.id, old_price, new_price))
         except Exception:
             errors += 1
     win._refresh_all()
@@ -119,3 +144,18 @@ def bulk_price(win: MainWindow, items: list) -> None:
         t("bulk_price_done", n=len(items) - errors), 4000,
         level="ok" if errors == 0 else "warn",
     )
+
+    # Push bulk price undo: restore original prices (DB only)
+    if price_changes:
+        changes = price_changes
+        def _apply(use_new):
+            for iid, old, new in changes:
+                try:
+                    _item_repo.update_price(iid, new if use_new else old)
+                except Exception:
+                    pass
+        UNDO.push(Command(
+            label=f"Bulk Price Update ×{len(changes)}",
+            undo_fn=lambda: _apply(False),
+            redo_fn=lambda: _apply(True),
+        ))

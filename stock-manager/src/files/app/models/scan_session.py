@@ -35,6 +35,8 @@ class ScanEvent:
 class PendingScanItem:
     item: InventoryItem
     quantity: int = 1
+    # Price snapshot at scan time: item.sell_price if set, else part_type.default_price
+    unit_price: float = 0.0
     timestamp: str = field(default_factory=lambda: datetime.now().strftime("%H:%M:%S"))
 
     @property
@@ -45,6 +47,11 @@ class PendingScanItem:
     @predicted_after.setter
     def predicted_after(self, val: int):
         self._predicted = val
+
+    @property
+    def line_total(self) -> float:
+        """Unit price × quantity for this line."""
+        return float(self.unit_price) * int(self.quantity)
 
     def __post_init__(self):
         self._predicted = self.item.stock

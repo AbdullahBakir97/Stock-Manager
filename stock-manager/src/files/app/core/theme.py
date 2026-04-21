@@ -946,6 +946,18 @@ QFrame#scan_feed_warn {{
     padding: 8px 12px;
 }}
 
+/* ── Quick Scan totals card ───────────────────────────────── */
+QFrame#qscan_totals_card {{
+    background: {t.card2};
+    border: 1px solid {t.border};
+    border-left: 3px solid {acc};
+    border-radius: 6px;
+    padding: 0;
+}}
+QFrame#qscan_totals_card QLabel {{
+    color: {t.t1};
+}}
+
 /* ── Quick Scan mode bars ────────────────────────────────── */
 QFrame#scan_mode_idle {{
     background: {t.card2};
@@ -1042,36 +1054,86 @@ QLabel#footer_version {{
 QLabel#footer_sync {{
     font-size: 11px; color: {t.green}; font-weight: 500;
 }}
-QLabel#footer_zoom_btn {{
-    background: transparent; color: {t.t3};
-    font-size: 11px; font-weight: 700;
+/* ── Footer zoom group ──────────────────────────────────── */
+QWidget#footer_zoom_group {{
+    background: {t.card2};
+    border: 1px solid {t.border};
+    border-radius: 4px;
 }}
-QLabel#footer_zoom_btn:hover {{
-    color: {t.t1};
+QToolButton#footer_zoom_btn {{
+    background: transparent; color: {t.t2};
+    border: none; border-radius: 3px;
+    font-size: 13px; font-weight: 600; padding: 0;
 }}
-QLabel#footer_zoom_pct {{
-    background: transparent;
-    font-size: 9px; color: {t.t3}; font-weight: 500;
+QToolButton#footer_zoom_btn:hover {{
+    background: {t.border}; color: {t.t1};
+}}
+QToolButton#footer_zoom_btn:pressed {{
+    background: {t.border2}; color: {acc};
+}}
+QToolButton#footer_zoom_preset {{
+    background: transparent; color: {t.t2};
+    border: none; border-radius: 3px;
+    font-size: 10px; font-weight: 600; padding: 0 6px;
     font-family: 'JetBrains Mono', monospace;
 }}
-QLabel#footer_zoom_pct:hover {{
-    color: {t.t1};
+QToolButton#footer_zoom_preset:hover {{
+    background: {t.border}; color: {t.t1};
+}}
+QToolButton#footer_zoom_preset::menu-indicator {{
+    image: none;
+    subcontrol-position: right center;
+    width: 0;
+}}
+QFrame#footer_zoom_divider {{
+    color: {t.border2};
+    background: {t.border2};
+    max-width: 1px;
+}}
+QMenu#footer_zoom_menu {{
+    background: {t.card};
+    border: 1px solid {t.border};
+    border-radius: 4px;
+    padding: 4px 0;
+}}
+QMenu#footer_zoom_menu::item {{
+    color: {t.t1}; padding: 6px 18px;
+    font-size: 11px; font-family: 'JetBrains Mono', monospace;
+}}
+QMenu#footer_zoom_menu::item:selected {{
+    background: {acc}; color: white;
+}}
+QMenu#footer_zoom_menu::separator {{
+    height: 1px; background: {t.border}; margin: 4px 8px;
 }}
 QSlider#footer_zoom_slider {{
     background: transparent;
+    min-height: 18px; max-height: 18px;
 }}
 QSlider#footer_zoom_slider::groove:horizontal {{
     background: {t.border};
-    height: 2px; border-radius: 1px;
+    height: 3px; border-radius: 1px;
+    margin: 0;
+}}
+QSlider#footer_zoom_slider::sub-page:horizontal {{
+    background: {acc};
+    height: 3px; border-radius: 1px;
 }}
 QSlider#footer_zoom_slider::handle:horizontal {{
-    background: {t.t3};
-    width: 7px; height: 7px;
-    margin: -3px 0;
-    border-radius: 3px;
+    background: {t.t1};
+    border: 2px solid {acc};
+    width: 8px; height: 8px;
+    margin: -4px 0;
+    border-radius: 6px;
 }}
 QSlider#footer_zoom_slider::handle:horizontal:hover {{
     background: {acc};
+    border-color: {t.t1};
+    width: 8px; height: 8px;
+}}
+QSlider#footer_zoom_slider::tick-mark:horizontal {{
+    background: {t.t4};
+    width: 1px; height: 3px;
 }}
 QLabel#footer_filter_indicator {{
     font-size: 11px; color: {acc}; font-weight: 600;
@@ -1270,6 +1332,52 @@ QLabel#analytics_chart_title {{
 }}
 QScrollArea#analytics_scroll {{
     border: none; background: transparent;
+}}
+
+/* ── New Analytics (2.3.9) ─────────────────────────────── */
+QFrame#kpi_tile {{
+    background: {t.card}; border: 1px solid {t.border};
+    border-radius: {br_card};
+}}
+QFrame#kpi_tile:hover {{
+    border-color: {acc};
+    background: {t.card2};
+}}
+QLabel#analytics_section_hdr {{
+    font-size: 11px; font-weight: 800; color: {t.t3};
+    letter-spacing: 0.10em;
+    padding: 2px 0;
+}}
+QFrame#analytics_section_card {{
+    background: {t.card}; border: 1px solid {t.border};
+    border-radius: {br_card};
+}}
+QWidget#analytics_empty_state {{
+    background: {t.card2};
+    border: 1px dashed {t.border2};
+    border-radius: {br_card};
+}}
+QTableWidget#analytics_pivot {{
+    background: {t.card};
+    border: 1px solid {t.border};
+    border-radius: {br_card};
+    gridline-color: {t.border};
+}}
+QTableWidget#analytics_pivot::item {{
+    padding: 4px 6px;
+}}
+QToolButton#analytics_preset_btn {{
+    background: {t.card2}; color: {t.t2};
+    border: 1px solid {t.border};
+    border-radius: 4px;
+    font-size: 11px; font-weight: 600;
+    padding: 4px 10px;
+}}
+QToolButton#analytics_preset_btn:hover {{
+    background: {t.border}; color: {t.t1};
+}}
+QToolButton#analytics_preset_btn:checked {{
+    background: {acc}; color: white; border-color: {acc};
 }}
 
 /* ── Sales / POS ───────────────────────────────────────── */

@@ -96,9 +96,24 @@ class _PartTypeFormDialog(QDialog):
         self._name_edit.setMinimumHeight(36)
         self._name_edit.setPlaceholderText("e.g. Display, Battery")
         self._color_btn = ColorPickerWidget(pt.accent_color if pt else "#4A9EFF")
+
+        # Default price — populated onto every item of this part type
+        # unless the item has its own sell_price.
+        from PyQt6.QtWidgets import QDoubleSpinBox
+        self._price_edit = QDoubleSpinBox()
+        self._price_edit.setMinimumHeight(36)
+        self._price_edit.setDecimals(2)
+        self._price_edit.setRange(0.0, 999999.99)
+        self._price_edit.setSingleStep(1.0)
+        self._price_edit.setSpecialValueText("—")   # shown when value is 0
+        self._price_edit.setSuffix("")
+        if pt is not None and getattr(pt, "default_price", None) is not None:
+            self._price_edit.setValue(float(pt.default_price))
+
         form.addRow(t("pt_lbl_key"), self._key_edit)
         form.addRow(t("pt_lbl_name"), self._name_edit)
         form.addRow(t("pt_lbl_color"), self._color_btn)
+        form.addRow("Default price", self._price_edit)
         lay.addLayout(form)
 
         btn_row = QHBoxLayout()
@@ -130,11 +145,18 @@ class _PartTypeFormDialog(QDialog):
             return
         self.accept()
 
-    def values(self) -> tuple[str, str, str]:
+    def values(self) -> tuple[str, str, str, float | None]:
+        """Return (key, name, color_hex, default_price).
+
+        default_price is None when the QDoubleSpinBox shows 0 (which renders
+        as '—') so callers can distinguish 'no price' from 'zero price'.
+        """
+        price = self._price_edit.value()
         return (
             self._key_edit.text().strip().upper(),
             self._name_edit.text().strip(),
             self._color_btn.hex_color(),
+            None if price <= 0 else float(price),
         )
 
 
@@ -146,6 +168,10 @@ class PartTypesPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._cat: CategoryConfig | None = None
+        # Guard flag — True while _refresh_model_colors is rebuilding the
+        # table, so programmatic setCheckState calls don't trigger the
+        # toggle handler. Avoids the fragile disconnect/reconnect dance.
+        self._mc_building = False
         self._build_ui()
         self._load_categories()
 
@@ -236,9 +262,9 @@ class PartTypesPanel(QWidget):
         top_hdr.addWidget(self._add_btn)
         top_lay.addLayout(top_hdr)
 
-        self._table = QTableWidget(0, 4)
+        self._table = QTableWidget(0, 5)
         self._table.setHorizontalHeaderLabels([
-            t("pt_col_key"), t("pt_col_name"), t("pt_col_color"), "",
+            t("pt_col_key"), t("pt_col_name"), "PRICE", t("pt_col_color"), "",
         ])
         hh = self._table.horizontalHeader()
         hh.setMinimumSectionSize(40)
@@ -246,9 +272,11 @@ class PartTypesPanel(QWidget):
         hh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        hh.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
         self._table.setColumnWidth(0, 80)
-        self._table.setColumnWidth(2, 70)
-        self._table.setColumnWidth(3, 220)
+        self._table.setColumnWidth(2, 90)
+        self._table.setColumnWidth(3, 70)
+        self._table.setColumnWidth(4, 220)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -300,7 +328,7 @@ class PartTypesPanel(QWidget):
         mc_lay.setSpacing(6)
 
         mc_hdr_row = QHBoxLayout()
-        self._mc_hdr = QLabel("MODEL COLORS")
+        self._mc_hdr = QLabel("MODELS & COLORS")
         self._mc_hdr.setObjectName("admin_form_card_title")
         mc_hdr_row.addWidget(self._mc_hdr)
         mc_hdr_row.addStretch()
@@ -310,18 +338,24 @@ class PartTypesPanel(QWidget):
         self._mc_hint.setObjectName("admin_form_card_desc")
         mc_lay.addWidget(self._mc_hint)
 
-        self._mc_table = QTableWidget(0, 2)
-        self._mc_table.setHorizontalHeaderLabels(["MODEL", "COLORS"])
+        self._mc_table = QTableWidget(0, 3)
+        self._mc_table.setHorizontalHeaderLabels(["", "MODEL", "COLORS"])
         mh = self._mc_table.horizontalHeader()
         mh.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        mh.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self._mc_table.setColumnWidth(0, 200)
+        mh.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        mh.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self._mc_table.setColumnWidth(0, 40)
+        self._mc_table.setColumnWidth(1, 200)
         self._mc_table.verticalHeader().setVisible(False)
         self._mc_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._mc_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._mc_table.setAlternatingRowColors(True)
         self._mc_table.setMinimumHeight(200)
         self._mc_table.cellDoubleClicked.connect(self._on_mc_dbl_click)
+        # Connect the toggle handler ONCE; we use self._mc_building as the
+        # guard instead of repeated disconnect/reconnect (which was losing
+        # signal delivery in some cases).
+        self._mc_table.itemChanged.connect(self._on_mc_check_changed)
         self._mc_model_ids: list[int] = []
         self._mc_model_names: list[str] = []
         mc_lay.addWidget(self._mc_table, 1)
@@ -432,18 +466,32 @@ class PartTypesPanel(QWidget):
 
         tk = THEME.tokens
 
+        from app.core.config import ShopConfig as _ShopCfg
+        _cfg = _ShopCfg.get()
+
         for pt in self._cat.part_types:
             row = self._table.rowCount()
             self._table.insertRow(row)
             self._table.setItem(row, 0, self._ro(pt.key, pt.id))
             self._table.setItem(row, 1, self._ro(pt.name, pt.id))
 
-            # Color swatch
+            # Price column — formatted via ShopConfig currency; "—" if unset
+            if pt.default_price is not None:
+                price_text = _cfg.format_currency(f"{float(pt.default_price):,.2f}")
+            else:
+                price_text = "—"
+            price_it = QTableWidgetItem(price_text)
+            price_it.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            price_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            price_it.setForeground(QColor(tk.green if pt.default_price is not None else tk.t4))
+            self._table.setItem(row, 2, price_it)
+
+            # Color swatch (now column 3)
             color_it = QTableWidgetItem(pt.accent_color)
             color_it.setBackground(QColor(pt.accent_color))
             color_it.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             color_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            self._table.setItem(row, 2, color_it)
+            self._table.setItem(row, 3, color_it)
 
             # Action buttons in a single cell widget
             action_w = QWidget()
@@ -478,7 +526,7 @@ class PartTypesPanel(QWidget):
                 btn.clicked.connect(cb)
                 action_lay.addWidget(btn)
 
-            self._table.setCellWidget(row, 3, action_w)
+            self._table.setCellWidget(row, 4, action_w)
             self._table.setRowHeight(row, 48)
 
         self._refresh_barcodes(None)
@@ -627,6 +675,10 @@ class PartTypesPanel(QWidget):
         "Green": "#10B981",
         "Purple": "#8B5CF6",
         "White": "#E0E0E0",
+        "Red": "#EF4444",
+        "Pink": "#EC4899",
+        "Yellow": "#F59E0B",
+        "Orange": "#F97316",
     }
 
     def _add_color(self) -> None:
@@ -743,33 +795,94 @@ class PartTypesPanel(QWidget):
     # ── Per-model colors ─────────────────────────────────────────────────────
 
     def _refresh_model_colors(self, pt: PartTypeConfig | None) -> None:
-        """Show models that have items for this part type, with their color overrides."""
+        """Show the phone models for this part type's brand, with their
+        inclusion state and per-model color overrides.
+
+        Brand is auto-detected: we look at which brand has the most items
+        (or exclusion markers) for this part type and scope the list to
+        that brand. Models without items yet also appear so the user can
+        decide to include/exclude them (demo-data models, etc.).
+        """
+        # Guard flag — _on_mc_check_changed ignores events while this is True
+        self._mc_building = True
         self._mc_table.setRowCount(0)
         self._mc_model_ids.clear()
         self._mc_model_names.clear()
 
         if not pt or not self._cat:
-            self._mc_hdr.setText("MODEL COLORS")
+            self._mc_hdr.setText("MODELS & COLORS")
             self._mc_hint.setText("Select a part type to manage per-model colors")
             self._mc_hint.show()
+            self._mc_building = False
             return
 
-        self._mc_hdr.setText(f"MODEL COLORS — {pt.name}  (double-click to edit)")
-
-        # Only get models that have inventory items for this part type
+        # ── Auto-detect the brand this part type belongs to ──
+        # Pick the brand with the most inventory items (or exclusion markers)
+        # in this part type. This matches the matrix view's implicit scoping.
         from app.core.database import get_connection
         with get_connection() as conn:
+            row = conn.execute(
+                """
+                SELECT pm.brand, COUNT(*) AS n FROM (
+                    SELECT model_id FROM inventory_items WHERE part_type_id = ?
+                    UNION
+                    SELECT model_id FROM model_part_type_colors
+                      WHERE part_type_id = ? AND color_name = '__EXCLUDED__'
+                ) AS rel
+                JOIN phone_models pm ON pm.id = rel.model_id
+                GROUP BY pm.brand
+                ORDER BY n DESC
+                LIMIT 1
+                """,
+                (pt.id, pt.id),
+            ).fetchone()
+            detected_brand = row["brand"] if row else None
+
+            if detected_brand is None:
+                # No data yet for this part type — fall back to the first
+                # brand alphabetically so the user still sees models to tick
+                row = conn.execute(
+                    "SELECT brand FROM phone_models "
+                    "ORDER BY brand COLLATE NOCASE LIMIT 1"
+                ).fetchone()
+                detected_brand = row["brand"] if row else None
+
+            if detected_brand is None:
+                self._mc_hdr.setText(f"MODELS & COLORS — {pt.name}")
+                self._mc_hint.setText(
+                    "No phone models in database — add them in Admin → Models"
+                )
+                self._mc_hint.show()
+                self._mc_building = False
+                return
+
             models = conn.execute(
-                "SELECT DISTINCT pm.id, pm.name FROM phone_models pm "
-                "JOIN inventory_items ii ON ii.model_id = pm.id "
-                "WHERE ii.part_type_id = ? "
-                "ORDER BY pm.sort_order, pm.name",
-                (pt.id,),
+                "SELECT id, brand, name FROM phone_models "
+                "WHERE brand = ? "
+                "ORDER BY sort_order, name COLLATE NOCASE",
+                (detected_brand,),
             ).fetchall()
 
+            # Which models already have inventory items in THIS part type?
+            # These are the ones currently "active" in the matrix view.
+            active_rows = conn.execute(
+                "SELECT DISTINCT model_id FROM inventory_items "
+                "WHERE part_type_id = ?",
+                (pt.id,),
+            ).fetchall()
+            active_model_ids: set[int] = {r["model_id"] for r in active_rows}
+
+        self._mc_hdr.setText(
+            f"MODELS & COLORS — {detected_brand} · {pt.name}  "
+            f"(uncheck to exclude, double-click to edit colors)"
+        )
+
         if not models:
-            self._mc_hint.setText("No models found for this part type")
+            self._mc_hint.setText(
+                f"No {detected_brand} models — add them in Admin → Models"
+            )
             self._mc_hint.show()
+            self._mc_building = False
             return
         self._mc_hint.hide()
 
@@ -782,9 +895,34 @@ class PartTypesPanel(QWidget):
             mname = model["name"]
 
             override = _cat_repo.get_model_pt_colors(mid, pt.id)
-            if override:
-                color_text = ", ".join(override)
+            is_excluded_marked = override == ["__EXCLUDED__"]
+            is_user_included_marker = override == ["__USER_INCLUDED__"]
+
+            # A model is ACTIVE in the matrix when it has inventory items for
+            # this part type AND is not explicitly excluded.
+            is_active = (mid in active_model_ids) and not is_excluded_marked
+
+            if is_excluded_marked:
+                color_text = "— excluded —"
                 is_custom = True
+            elif not is_active:
+                color_text = "— not in matrix —"
+                is_custom = False
+            elif is_user_included_marker:
+                # User just toggled it in — show global defaults, not a marker
+                color_text = ", ".join(global_colors) if global_colors else "—"
+                is_custom = False
+            elif override:
+                if override == ["__NONE__"]:
+                    color_text = "No Colors"
+                    is_custom = True
+                else:
+                    visible = [c for c in override
+                               if c not in ("__NONE__", "__EXCLUDED__", "__USER_INCLUDED__")]
+                    color_text = ", ".join(visible) if visible else (
+                        ", ".join(global_colors) if global_colors else "—"
+                    )
+                    is_custom = bool(visible)
             else:
                 color_text = ", ".join(global_colors) if global_colors else "—"
                 is_custom = False
@@ -794,24 +932,169 @@ class PartTypesPanel(QWidget):
             self._mc_model_ids.append(mid)
             self._mc_model_names.append(mname)
 
+            # Include/exclude checkbox — checked only when the model is
+            # actually active in the matrix for this part type
+            chk = QTableWidgetItem()
+            chk.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+            chk.setCheckState(
+                Qt.CheckState.Checked if is_active else Qt.CheckState.Unchecked
+            )
+            chk.setToolTip(
+                "Check to include this model in the matrix for this part type"
+            )
+            self._mc_table.setItem(row, 0, chk)
+
             # Model name
             name_it = QTableWidgetItem(mname)
             name_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            self._mc_table.setItem(row, 0, name_it)
+            if not is_active:
+                name_it.setForeground(QColor(tk.t4))
+            self._mc_table.setItem(row, 1, name_it)
 
             # Colors display
             clr_it = QTableWidgetItem(color_text)
             clr_it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
-            if is_custom:
+            if is_excluded_marked:
+                clr_it.setForeground(QColor(tk.red))
+            elif not is_active:
+                clr_it.setForeground(QColor(tk.t4))
+            elif is_custom:
                 clr_it.setForeground(QColor(tk.green))
             else:
                 clr_it.setForeground(QColor(tk.t3))
-            self._mc_table.setItem(row, 1, clr_it)
-            self._mc_table.setRowHeight(row, 36)
+            self._mc_table.setItem(row, 2, clr_it)
+            self._mc_table.setRowHeight(row, 32)
 
-    def _on_mc_dbl_click(self, row: int, _col: int) -> None:
+        # Rebuild complete — release the guard so user-triggered
+        # checkbox changes now reach _on_mc_check_changed normally.
+        self._mc_building = False
+
+    def _on_mc_dbl_click(self, row: int, col: int) -> None:
+        # Column 0 is the checkbox — don't open editor on double-click there
+        if col == 0:
+            return
         if row < len(self._mc_model_ids):
-            self._edit_model_colors(self._mc_model_ids[row], self._mc_model_names[row])
+            model_id = self._mc_model_ids[row]
+            # Defensive: skip any placeholder rows
+            if model_id == -1:
+                return
+            self._edit_model_colors(model_id, self._mc_model_names[row])
+
+    def _on_mc_check_changed(self, item) -> None:
+        """Toggle model inclusion in the current part type via checkbox.
+
+        Skipped during rebuild (self._mc_building=True) so programmatic
+        setCheckState calls don't trigger DB writes.
+        """
+        if self._mc_building:
+            return
+        if item.column() != 0:
+            return
+        pt = self._current_pt()
+        if not pt or not self._cat:
+            return
+        row = item.row()
+        if row >= len(self._mc_model_ids):
+            return
+        model_id = self._mc_model_ids[row]
+        # Skip brand-header rows (model_id == -1 placeholder)
+        if model_id == -1:
+            return
+        is_checked = item.checkState() == Qt.CheckState.Checked
+
+        from app.core.database import get_connection
+        import logging
+        log = logging.getLogger(__name__)
+
+        conn = get_connection()
+        try:
+            if is_checked:
+                # Re-include: clear any marker, write __USER_INCLUDED__,
+                # create the inventory rows (colorless parent + every global
+                # color so the row is fully materialised immediately).
+                conn.execute(
+                    "DELETE FROM model_part_type_colors "
+                    "WHERE model_id=? AND part_type_id=? "
+                    "  AND color_name IN ('__EXCLUDED__', '__USER_INCLUDED__')",
+                    (model_id, pt.id),
+                )
+                conn.execute(
+                    "INSERT OR IGNORE INTO model_part_type_colors "
+                    "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                    (model_id, pt.id, "__USER_INCLUDED__"),
+                )
+                # Parent (colorless) row — this is what makes the model
+                # appear in the matrix
+                conn.execute(
+                    "INSERT OR IGNORE INTO inventory_items "
+                    "(model_id, part_type_id, color, is_active) "
+                    "VALUES (?, ?, '', 1)",
+                    (model_id, pt.id),
+                )
+                # Also materialise global-color sub-rows so the model has
+                # the full palette available immediately
+                global_color_rows = conn.execute(
+                    "SELECT color_name FROM part_type_colors WHERE part_type_id=?",
+                    (pt.id,),
+                ).fetchall()
+                for r in global_color_rows:
+                    cn = r["color_name"]
+                    if cn and cn not in ("__EXCLUDED__", "__NONE__", "__USER_INCLUDED__"):
+                        conn.execute(
+                            "INSERT OR IGNORE INTO inventory_items "
+                            "(model_id, part_type_id, color, is_active) "
+                            "VALUES (?, ?, ?, 1)",
+                            (model_id, pt.id, cn),
+                        )
+                # Ensure any previously inactive rows for this pair are
+                # reactivated so they show up in the matrix
+                conn.execute(
+                    "UPDATE inventory_items SET is_active=1 "
+                    "WHERE model_id=? AND part_type_id=? AND is_active=0",
+                    (model_id, pt.id),
+                )
+                conn.commit()
+                log.info("check: model=%s pt=%s included; rows_after=%s",
+                         model_id, pt.id,
+                         conn.execute(
+                             "SELECT COUNT(*) FROM inventory_items "
+                             "WHERE model_id=? AND part_type_id=?",
+                             (model_id, pt.id),
+                         ).fetchone()[0])
+            else:
+                # Exclude: marker + prune zero-stock rows
+                conn.execute(
+                    "DELETE FROM model_part_type_colors "
+                    "WHERE model_id=? AND part_type_id=?",
+                    (model_id, pt.id),
+                )
+                conn.execute(
+                    "INSERT INTO model_part_type_colors "
+                    "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                    (model_id, pt.id, "__EXCLUDED__"),
+                )
+                conn.execute(
+                    "DELETE FROM inventory_items "
+                    "WHERE model_id=? AND part_type_id=? "
+                    "  AND stock=0 AND min_stock=0 "
+                    "  AND (inventur IS NULL OR inventur=0)",
+                    (model_id, pt.id),
+                )
+                conn.commit()
+                log.info("uncheck: model=%s pt=%s excluded", model_id, pt.id)
+        except Exception as e:
+            try:
+                conn.rollback()
+            except Exception:
+                pass
+            log.exception("check-toggle failed: %s", e)
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.warning(
+                self, "Error", f"Could not update model: {e}"
+            )
+
+        # Refresh the row display
+        self._refresh_model_colors(pt)
 
     def _edit_model_colors(self, model_id: int, model_name: str) -> None:
         """Open the same color toggle popup as the matrix right-click."""
@@ -830,6 +1113,7 @@ class PartTypesPanel(QWidget):
         use_all = len(current) == 0
 
         _ALL_HEX = {
+            "Without Color": "#808080",
             "Black": "#333333", "Blue": "#2563EB", "Silver": "#A0A0B0",
             "Gold": "#D4A520", "Green": "#10B981", "Purple": "#8B5CF6",
             "White": "#E0E0E0", "Red": "#EF4444", "Pink": "#EC4899",
@@ -920,6 +1204,42 @@ class PartTypesPanel(QWidget):
         sel_all.clicked.connect(_select_all)
         btn_row.addWidget(sel_all)
 
+        # "No Colors" — remove all color variants for this model
+        no_clr_btn = QPushButton("No Colors")
+        no_clr_btn.setObjectName("btn_ghost")
+        no_clr_btn.setFixedHeight(32)
+        no_clr_btn.setToolTip("Remove all colors — only the base product")
+        def _no_colors():
+            from app.core.database import get_connection
+            all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]
+            with get_connection() as conn:
+                for ptid in all_pt_ids:
+                    conn.execute(
+                        "DELETE FROM model_part_type_colors WHERE model_id=? AND part_type_id=?",
+                        (model_id, ptid),
+                    )
+                    conn.execute(
+                        "INSERT OR IGNORE INTO model_part_type_colors "
+                        "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
+                        (model_id, ptid, "__NONE__"),
+                    )
+                    conn.execute(
+                        "DELETE FROM inventory_items "
+                        "WHERE model_id=? AND part_type_id=? AND color != '' "
+                        "AND stock=0 AND min_stock=0 "
+                        "AND (inventur IS NULL OR inventur=0)",
+                        (model_id, ptid),
+                    )
+                    conn.execute(
+                        "INSERT OR IGNORE INTO inventory_items "
+                        "(model_id, part_type_id, color) VALUES (?,?,'')",
+                        (model_id, ptid),
+                    )
+            dlg.accept()
+            self._refresh_model_colors(pt)
+        no_clr_btn.clicked.connect(_no_colors)
+        btn_row.addWidget(no_clr_btn)
+
         reset_btn = QPushButton("Use Default")
         reset_btn.setObjectName("btn_ghost")
         reset_btn.setFixedHeight(32)
@@ -1002,8 +1322,8 @@ class PartTypesPanel(QWidget):
         existing = [pt.key for pt in self._cat.part_types]
         dlg = _PartTypeFormDialog(existing, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            key, name, color = dlg.values()
-            _cat_repo.add_part_type(self._cat.id, key, name, color)
+            key, name, color, price = dlg.values()
+            _cat_repo.add_part_type(self._cat.id, key, name, color, default_price=price)
             self._cat = _cat_repo.get_by_id(self._cat.id)
             self._refresh_table()
             self._update_kpis()
@@ -1014,8 +1334,8 @@ class PartTypesPanel(QWidget):
         existing = [p.key for p in self._cat.part_types]
         dlg = _PartTypeFormDialog(existing, pt=pt, parent=self)
         if dlg.exec() == QDialog.DialogCode.Accepted:
-            key, name, color = dlg.values()
-            _cat_repo.update_part_type(pt.id, key, name, color)
+            key, name, color, price = dlg.values()
+            _cat_repo.update_part_type(pt.id, key, name, color, default_price=price)
             self._cat = _cat_repo.get_by_id(self._cat.id)
             self._refresh_table()
 

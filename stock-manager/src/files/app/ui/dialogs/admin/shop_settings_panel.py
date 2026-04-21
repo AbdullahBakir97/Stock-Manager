@@ -167,6 +167,33 @@ class ShopSettingsPanel(QWidget):
         self._theme.currentIndexChanged.connect(self._preview_theme)
         regional_card.form.addRow(t("shop_lbl_theme"), self._theme)
 
+        # ── UI Scale (whole-app size, requires restart) ──
+        self._ui_scale = QComboBox()
+        self._ui_scale.addItem("Small (85%)", "small")
+        self._ui_scale.addItem("Normal (100%)", "normal")
+        self._ui_scale.addItem("Large (115%)", "large")
+        self._ui_scale.addItem("Extra Large (130%)", "xlarge")
+        self._ui_scale.setToolTip(
+            "Overall app size — sidebar, header, footer, and base font.\n"
+            "Takes effect after restarting the application."
+        )
+        regional_card.form.addRow("UI Scale", self._ui_scale)
+
+        # ── Show sell totals (matrix) ──
+        # When off, the TOTAL column in the matrix table and the value
+        # portion of the part-type cards + the grand-total card are hidden,
+        # so shop assistants can see stock without seeing valuation.
+        # Cost totals have their own separate PIN-gated toggle (COST column).
+        self._show_sell_totals = QCheckBox()
+        self._show_sell_totals.setToolTip(
+            "Show the TOTAL column and value on part-type cards in matrix tabs.\n"
+            "Turn off to hide sell valuations from shop assistants.\n"
+            "Units / stock counts stay visible either way."
+        )
+        regional_card.form.addRow(
+            "Show sell totals in matrix", self._show_sell_totals
+        )
+
         # Theme preview swatch
         self._preview_frame = QFrame()
         self._preview_frame.setFixedHeight(48)
@@ -276,6 +303,12 @@ class ShopSettingsPanel(QWidget):
         self._theme.setCurrentIndex(max(0, idx))
         self._original_theme = cfg.theme  # remember for revert on cancel
         self._preview_theme()
+        # UI Scale
+        idx = self._ui_scale.findData(cfg.ui_scale or "normal")
+        self._ui_scale.setCurrentIndex(max(0, idx))
+        self._original_ui_scale = cfg.ui_scale or "normal"
+        # Show sell totals
+        self._show_sell_totals.setChecked(cfg.is_show_sell_totals)
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
         # Auto-backup
@@ -332,6 +365,8 @@ class ShopSettingsPanel(QWidget):
         cfg.currency_position = self._cur_pos.currentData()
         cfg.default_language = self._lang.currentData()
         cfg.theme = self._theme.currentData()
+        cfg.ui_scale = self._ui_scale.currentData()
+        cfg.show_sell_totals = "1" if self._show_sell_totals.isChecked() else "0"
         cfg.admin_pin = self._pin.text()
         cfg.contact_info = self._contact.text().strip()
         # Auto-backup
@@ -339,8 +374,20 @@ class ShopSettingsPanel(QWidget):
         cfg.auto_backup_interval_hours = str(self._backup_interval.value())
         cfg.auto_backup_retain = str(self._backup_retain.value())
         cfg.auto_backup_dir = self._backup_dir.text().strip()
+        # Detect UI scale change — requires restart
+        ui_scale_changed = (
+            self._ui_scale.currentData()
+            != getattr(self, "_original_ui_scale", "normal")
+        )
         cfg.save()
         ShopConfig.invalidate()
+        if ui_scale_changed:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "UI Scale changed",
+                "The new UI Scale will take effect after restarting the application.",
+            )
+            self._original_ui_scale = self._ui_scale.currentData()
         self._feedback.setText(
             t("shop_saved") if t("shop_saved") != "shop_saved" else "✓ Settings saved"
         )

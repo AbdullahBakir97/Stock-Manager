@@ -248,6 +248,17 @@ class ItemRepository(BaseRepository):
                 (new_price, item_id),
             )
 
+    def update_cost_price(self, item_id: int, new_cost: float | None) -> None:
+        """Update the cost_price (purchase / buy price) for an inventory item.
+
+        Pass None to clear the value. Schema V16+ adds `inventory_items.cost_price`.
+        """
+        with self._conn() as conn:
+            conn.execute(
+                "UPDATE inventory_items SET cost_price=?, updated_at=datetime('now') WHERE id=?",
+                (new_cost, item_id),
+            )
+
     # ── Write — stock operations ──────────────────────────────────────────────
 
     def apply_delta(self, conn: sqlite3.Connection,
@@ -405,6 +416,122 @@ class ItemRepository(BaseRepository):
         with self._conn() as conn:
             return [self._build(r) for r in conn.execute(sql).fetchall()]
 
+    # ── Analytics helpers ────────────────────────────────────────────────────
+
+    def get_value_by_brand(self) -> list[dict]:
+        """Per-brand stock summary — units and stock value.
+
+        Uses phone_models.brand (for matrix items) or inventory_items.brand
+        (standalone products) via COALESCE. Value = stock * sell_price,
+        falling back to part_types.default_price when sell_price is NULL.
+        """
+        # SQLite 'brand' would be ambiguous because both pm.brand and ii.brand
+        # exist. We alias as brand_name and GROUP BY the full expression.
+        sql = """
+            SELECT COALESCE(NULLIF(pm.brand, ''), NULLIF(ii.brand, ''), '(no brand)') AS brand_name,
+                   SUM(CASE WHEN ii.stock > 0 THEN 1 ELSE 0 END) AS skus,
+                   COALESCE(SUM(ii.stock), 0)                    AS units,
+                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+              FROM inventory_items ii
+         LEFT JOIN phone_models pm ON pm.id = ii.model_id
+         LEFT JOIN part_types   pt ON pt.id = ii.part_type_id
+             WHERE ii.is_active = 1
+          GROUP BY COALESCE(NULLIF(pm.brand, ''), NULLIF(ii.brand, ''), '(no brand)')
+          ORDER BY value DESC, units DESC
+        """
+        with self._conn() as conn:
+            rows = [dict(r) for r in conn.execute(sql).fetchall()]
+        # Expose the brand column under the expected 'brand' key for consumers
+        for r in rows:
+            r["brand"] = r.pop("brand_name")
+        return rows
+
+    def get_value_by_part_type(self) -> list[dict]:
+        """Per-part-type stock summary with category grouping info."""
+        sql = """
+            SELECT pt.id AS pt_id, pt.name AS pt_name, pt.sort_order AS pt_order,
+                   c.id AS cat_id, c.name_en AS cat_name, c.sort_order AS cat_order,
+                   SUM(CASE WHEN ii.stock > 0 THEN 1 ELSE 0 END) AS skus,
+                   COALESCE(SUM(ii.stock), 0) AS units,
+                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+              FROM inventory_items ii
+              JOIN part_types pt ON pt.id = ii.part_type_id
+              JOIN categories c  ON c.id  = pt.category_id
+             WHERE ii.is_active = 1
+          GROUP BY pt.id
+          ORDER BY c.sort_order, pt.sort_order
+        """
+        with self._conn() as conn:
+            return [dict(r) for r in conn.execute(sql).fetchall()]
+
+    def get_value_pivot(self) -> dict:
+        """Brand × part-type pivot. Returns:
+            {
+              'brands': [brand_name, ...],         # sorted, non-empty only
+              'part_types': [(cat_id, cat_name, pt_id, pt_name), ...],
+              'cells': {(brand, pt_id): {'units': n, 'value': v}},
+              'totals': {
+                'by_brand': {brand: {'units','value'}},
+                'by_pt':    {pt_id: {'units','value'}},
+                'grand':    {'units', 'value'},
+              }
+            }
+        """
+        sql = """
+            SELECT COALESCE(NULLIF(pm.brand, ''), NULLIF(ii.brand, ''), '(no brand)') AS brand_name,
+                   pt.id   AS pt_id,
+                   pt.name AS pt_name,
+                   pt.sort_order AS pt_order,
+                   c.id    AS cat_id,
+                   c.name_en AS cat_name,
+                   c.sort_order AS cat_order,
+                   COALESCE(SUM(ii.stock), 0) AS units,
+                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+              FROM inventory_items ii
+              JOIN part_types pt ON pt.id = ii.part_type_id
+              JOIN categories c  ON c.id  = pt.category_id
+         LEFT JOIN phone_models pm ON pm.id = ii.model_id
+             WHERE ii.is_active = 1
+          GROUP BY COALESCE(NULLIF(pm.brand, ''), NULLIF(ii.brand, ''), '(no brand)'), pt.id
+        """
+        with self._conn() as conn:
+            rows = [dict(r) for r in conn.execute(sql).fetchall()]
+
+        # Include every brand + part_type that has an inventory row,
+        # even if current stock = 0. The user wants the full valuation
+        # scope so they can see brands/categories that exist but hold
+        # no stock right now.
+        brands: set[str] = set()
+        pt_order_map: dict[int, tuple] = {}
+        cells: dict[tuple[str, int], dict] = {}
+        by_brand: dict[str, dict] = {}
+        by_pt: dict[int, dict] = {}
+        grand = {"units": 0, "value": 0.0}
+        for r in rows:
+            b = r["brand_name"]; pt_id = r["pt_id"]
+            u = int(r["units"] or 0); v = float(r["value"] or 0)
+            brands.add(b)
+            pt_order_map[pt_id] = (r["cat_order"], r["cat_id"], r["cat_name"],
+                                    r["pt_order"], pt_id, r["pt_name"])
+            cells[(b, pt_id)] = {"units": u, "value": v}
+            bb = by_brand.setdefault(b, {"units": 0, "value": 0.0})
+            bb["units"] += u; bb["value"] += v
+            pp = by_pt.setdefault(pt_id, {"units": 0, "value": 0.0})
+            pp["units"] += u; pp["value"] += v
+            grand["units"] += u; grand["value"] += v
+
+        brand_list = sorted(brands, key=lambda s: s.lower())
+        pt_list = sorted(pt_order_map.values())
+        pt_list_clean = [(cat_id, cat_name, pt_id, pt_name)
+                         for (_cord, cat_id, cat_name, _pord, pt_id, pt_name)
+                         in pt_list]
+        return {
+            "brands": brand_list,
+            "part_types": pt_list_clean,
+            "cells": cells,
+            "totals": {"by_brand": by_brand, "by_pt": by_pt, "grand": grand},
+        }
+
     # ── Builder ───────────────────────────────────────────────────────────────
 
     def _build(self, row) -> InventoryItem:
@@ -417,6 +544,7 @@ class ItemRepository(BaseRepository):
             sku=row["sku"],
             barcode=row["barcode"],
             sell_price=row["sell_price"],
+            cost_price=row["cost_price"] if "cost_price" in keys else None,
             stock=row["stock"],
             min_stock=row["min_stock"],
             inventur=row["inventur"],

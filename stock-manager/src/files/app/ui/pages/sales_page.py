@@ -24,6 +24,7 @@ from app.models.item import InventoryItem
 from app.core.i18n import t
 from app.core.config import ShopConfig
 from app.ui.components.responsive_table import make_table_responsive
+from app.ui.workers.worker_pool import POOL
 
 _sale_repo = SaleRepository()
 _item_repo = ItemRepository()
@@ -241,11 +242,13 @@ class POSDialog(QDialog):
             self._customer_combo.addItem(label, c.id)
 
     def _load_products(self) -> None:
-        self._products = [
-            item for item in _item_repo.get_all_items()
-            if item.stock > 0
-        ]
-        self._render_products(self._products)
+        """Fetch all in-stock items off the UI thread, render on return."""
+        def _fetch():
+            return [item for item in _item_repo.get_all_items() if item.stock > 0]
+        def _apply(items):
+            self._products = items
+            self._render_products(self._products)
+        POOL.submit("sales_products", _fetch, _apply)
 
     def _filter_products(self) -> None:
         query = self._search.text().strip().lower()
@@ -515,8 +518,17 @@ class SalesPage(QWidget):
             self._refresh()
 
     def _refresh(self) -> None:
+        """Fetch all sales off the UI thread, then render KPIs + table."""
         search = self._search.text().strip().lower()
-        self._sales = _sale_repo.get_all(limit=500)
+        def _fetch():
+            return _sale_repo.get_all(limit=500)
+        def _apply(sales):
+            self._apply_sales(sales, search)
+        POOL.submit("sales_refresh", _fetch, _apply)
+
+    def _apply_sales(self, sales, search: str) -> None:
+        """Main-thread render of sales KPIs + table with pre-fetched data."""
+        self._sales = sales
 
         # KPIs (from all sales, before filtering)
         cfg = ShopConfig.get()

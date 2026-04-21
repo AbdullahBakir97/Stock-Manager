@@ -278,6 +278,12 @@ class TransactionsPage(QWidget):
         """Called when page becomes visible."""
         self._apply_filters()
 
+    # ── Zoom ─────────────────────────────────────────────────────────────────
+    def apply_zoom(self, factor: float) -> None:
+        """Forward to the inner transaction table."""
+        if hasattr(self, "_table") and hasattr(self._table, "apply_zoom"):
+            self._table.apply_zoom(factor)
+
     def retranslate(self) -> None:
         self._title.setText(t("txn_page_title"))
         self._search.setPlaceholderText(t("txn_search_ph"))

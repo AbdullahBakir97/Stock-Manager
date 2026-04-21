@@ -22,6 +22,17 @@ class ShopConfig:
     auto_backup_dir:            str = ""    # empty = use default backups/ folder
     # Auto-update settings
     update_auto_check:          str = "1"   # "1" = check on startup, "0" = manual only
+    # UI — persistent table zoom level (50-200%, footer slider)
+    zoom_level:                 str = "100"
+    # UI — whole-app size preset (admin setting, requires restart)
+    # Values: "small" | "normal" | "large" | "xlarge"
+    ui_scale:                   str = "normal"
+    # UI — show/hide "sell total" (stock × sell-price) displays in the
+    # matrix tabs. Owners who don't want a shop assistant to see the
+    # valuation turn this off. Default "1" = shown (backward compatible).
+    # Affects: TOTAL column in matrix table · per-part-type card value ·
+    # grand-total card at the end of the cards strip.
+    show_sell_totals:           str = "1"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -29,6 +40,9 @@ class ShopConfig:
         "auto_backup_enabled", "auto_backup_interval_hours",
         "auto_backup_retain", "auto_backup_dir",
         "update_auto_check",
+        "zoom_level",
+        "ui_scale",
+        "show_sell_totals",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -54,6 +68,34 @@ class ShopConfig:
     @property
     def is_update_auto_check_enabled(self) -> bool:
         return self.update_auto_check != "0"
+
+    @property
+    def zoom_level_int(self) -> int:
+        """Parsed zoom percentage, clamped to 50–200."""
+        try:
+            v = int(self.zoom_level)
+        except (ValueError, TypeError):
+            return 100
+        return max(50, min(200, v))
+
+    @property
+    def is_show_sell_totals(self) -> bool:
+        """Typed accessor — is the matrix 'sell total' display enabled?"""
+        return (self.show_sell_totals or "1") != "0"
+
+    @property
+    def ui_scale_factor(self) -> float:
+        """UI scale factor mapped from preset name to float multiplier.
+
+        Requires app restart to take effect. Affects sidebar width,
+        header height, footer height, and application base font size.
+        """
+        return {
+            "small":  0.85,
+            "normal": 1.00,
+            "large":  1.15,
+            "xlarge": 1.30,
+        }.get((self.ui_scale or "normal").lower(), 1.0)
 
     _instance: Optional["ShopConfig"] = None
 
@@ -95,8 +137,18 @@ class ShopConfig:
                 )
 
     def format_currency(self, amount) -> str:
-        """Format a numeric amount with the shop currency symbol."""
-        s = str(amount)
+        """Format a numeric amount with the shop currency symbol.
+
+        Always renders with exactly 2 decimals and a thousands separator
+        so floating-point artefacts like 160.92999999999998 never leak
+        into the UI. Non-numeric input is stringified as-is (legacy
+        behaviour — some callers pass pre-formatted strings).
+        """
+        try:
+            v = float(amount)
+            s = f"{v:,.2f}"
+        except (TypeError, ValueError):
+            s = str(amount)
         if self.currency_position == "suffix":
             return f"{s} {self.currency}"
         return f"{self.currency}{s}"

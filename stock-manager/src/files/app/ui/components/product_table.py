@@ -98,6 +98,62 @@ class ProductTable(QTableWidget):
     def retranslate(self):
         self.setHorizontalHeaderLabels([t(k) for k in self._COL_KEYS])
 
+    # ── Zoom ─────────────────────────────────────────────────────────────────
+    def apply_zoom(self, factor: float) -> None:
+        """Content-aware zoom — columns always fit header + widest data."""
+        from app.services.zoom_service import ZOOM
+        from PyQt6.QtGui import QFont, QFontMetrics
+
+        body_pt = ZOOM.scale(11, minimum=6)
+        header_pt = ZOOM.scale(10, minimum=6)
+        body_font = QFont("Segoe UI", body_pt)
+        header_font = QFont("Segoe UI", header_pt, QFont.Weight.Bold)
+        self.setFont(body_font)
+        self.horizontalHeader().setFont(header_font)
+
+        fm_header = QFontMetrics(header_font)
+        fm_body = QFontMetrics(body_font)
+
+        hdr_pad = max(6, int(round(header_pt * 1.4)))
+        hdr_vpad = max(3, int(round(header_pt * 0.5)))
+        body_pad = max(4, int(round(body_pt * 1.0)))
+
+        # Override app-wide QSS rules that force 11px / padding:10px 16px
+        self.horizontalHeader().setStyleSheet(
+            f"QHeaderView::section {{ font-size: {header_pt}pt; "
+            f"font-weight: 700; padding: {hdr_vpad}px {hdr_pad}px; }}"
+        )
+
+        hdr_side = hdr_pad + 4
+        body_side = body_pad + 4
+
+        # Scale all columns except column 1 (name — uses Stretch mode)
+        for i, w in enumerate(self._WIDTHS):
+            if i == 1:
+                continue
+            hdr_txt = self.horizontalHeaderItem(i).text() if self.horizontalHeaderItem(i) else ""
+            hdr_w = fm_header.horizontalAdvance(hdr_txt) + hdr_side * 2
+            data_w = 0
+            for r in range(self.rowCount()):
+                it = self.item(r, i)
+                if it and it.text():
+                    dw = fm_body.horizontalAdvance(it.text())
+                    if dw > data_w:
+                        data_w = dw
+            data_w += body_side * 2
+            final_w = max(ZOOM.scale(w, minimum=30), hdr_w, data_w)
+            self.setColumnWidth(i, final_w)
+
+        # Header height fits the font + padding
+        hdr_h = max(fm_header.height() + hdr_vpad * 2 + 4, 22)
+        self.horizontalHeader().setFixedHeight(hdr_h)
+
+        row_h = max(fm_body.height() + 8, ZOOM.scale(48, minimum=20))
+        self.verticalHeader().setDefaultSectionSize(row_h)
+        for r in range(self.rowCount()):
+            self.setRowHeight(r, row_h)
+        self.viewport().update()
+
     def reset_column_widths(self):
         """Reset columns to default widths — name column keeps Stretch mode."""
         hh = self.horizontalHeader()
@@ -133,6 +189,10 @@ class ProductTable(QTableWidget):
         self.setUpdatesEnabled(False)
         self.blockSignals(True)
         try:
+            # Set default row height ONCE before populating — calling
+            # setRowHeight(i, 48) inside the loop triggers a per-row layout
+            # recalc that adds ~500 ms of UI-thread work for 300+ items.
+            self.verticalHeader().setDefaultSectionSize(48)
             self.setRowCount(len(self._data))
             for i, item in enumerate(self._data):
                 sc  = _sc(item.stock, item.min_stock)
@@ -187,7 +247,8 @@ class ProductTable(QTableWidget):
                 action_lay.addWidget(btn_out)
 
                 self.setCellWidget(i, 9, action_w)
-                self.setRowHeight(i, 48)
+                # Row height now comes from verticalHeader.defaultSectionSize
+                # (set once before the loop) — per-row setRowHeight removed.
         finally:
             self.blockSignals(False)
             self.setUpdatesEnabled(True)

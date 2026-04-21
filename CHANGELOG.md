@@ -7,10 +7,58 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.3.10] - 2026-04-20
+## [2.4.0] - 2026-04-21
 
 
-> Add your next changes here before tagging a release.
+## [2.4.0] - 2026-04-21
+
+### Added
+#### Lazy UI construction — startup & settings-close no longer freeze
+
+- **`NavController.register_lazy(key, page_index, factory, on_activate)`** — new API. The factory runs on first navigation; a lightweight `QWidget` placeholder holds the stack slot until then. `register_placeholder(page_index)` + `realize(key)` + `get_lazy_instance(key)` complete the contract.
+- **`_MatrixPlaceholder`** — matrix category tabs are now placeholders until the user clicks their sidebar entry. On first click `NavController._go_matrix` swaps the placeholder for a real `MatrixTab` in the same stack slot, emits `navigated`, then kicks the first `refresh()` via `QTimer.singleShot(0, …)` so the switch paints before the DB round-trip lands.
+- **10 static pages migrated to lazy**: `SalesPage`, `CustomersPanel`, `PurchaseOrdersPage`, `ReturnsPage`, `BarcodeGenPage`, `ReportsPage`, `SuppliersPage`, `AnalyticsPage`, `AuditPage`, `PriceListsPage`. Each has a closure-style factory that sets `self._xxx_page` before returning; the `AnalyticsPage` factory also wires `navigate_to.connect(nav_ctrl.go)` after construction. Eager pages (`InventoryPage`, `TransactionsPage`, `QuickScanTab`) stay immediate.
+- **`AsyncRefreshMixin`** (new `app/ui/workers/async_refresh.py`) — single contract for pages/tabs: `self.async_refresh(fetch, apply, key_suffix, debounce_ms)`. Keyed cancellation, `_is_alive()` guard using `sip.isdeleted`, error-path falls through to a non-blocking `_show_empty_state` instead of a modal. Baked into `BaseTab` so every matrix tab inherits it.
+- **UI-thread watchdog** (new `app/ui/workers/ui_watchdog.py`) — opt-in via `SM_UI_WATCHDOG=1`. A 10 ms `QTimer` stamps `time.monotonic()`; a daemon thread warns whenever the main thread hasn't heartbeat in > 50 ms. Zero cost when disabled. Regressions that put sync DB calls back on the UI thread show up instantly in the logs.
+- **Grand-total card** at the end of the matrix cards strip — emerald-accent anchor showing total units and total valuation across every part-type in the current filter. Metric tag flips `sell` ↔ `cost` with the admin toggle, exactly like the per-part-type cards.
+
+### Performance
+
+- **Worker pool hardening** (`app/ui/workers/worker_pool.py`) —
+  - Epoch-based stale-result guard: every `submit(key, …)` bumps a per-key monotonic epoch; result / error callbacks are gated by the captured epoch so a late signal carrying stale data is silently dropped even if the cancel-event check missed it.
+  - `POOL.has_pending(key)` helper so callers can coordinate with in-flight critical workers.
+  - `POOL.shutdown(timeout_ms)` — called from `MainWindow.closeEvent`; cancels all work, stops debounce timers, `waitForDone()` the underlying `QThreadPool`. No more leaked workers on exit.
+  - Callback error containment: exceptions inside `on_result` / `on_error` are logged instead of silently killing the signal chain.
+
+- **Settings-close freeze — fully resolved.** `ensure_matrix_entries` (can touch 1000+ rows) now runs on `POOL` keyed `"admin:matrix_ensure"`. The admin dialog returns **instantly**. The worker's `on_result` on the main thread does the pure-widget rebuild (`rebuild_matrix_tabs` → fast-path, `apply_theme_to_matrix_tabs`, `_retranslate`, `nav_ctrl.go(saved)`). `on_error` fallback still rebuilds so the user never gets a stuck UI on a DB hiccup.
+
+- **`rebuild_matrix_tabs` fast path** — if the active-category set hasn't changed (the common case on settings close), existing realised tabs are KEPT intact and just marked `_dirty=True`; the currently-visible tab gets a refresh via `QTimer.singleShot(0, …)`. Previously rebuild unconditionally nuked every realised tab into a placeholder, leaving the user looking at an empty page for a moment. Only true category adds/removes/reorders take the slow path and recreate placeholders.
+
+- **`MatrixTab.refresh()`** fully async — every DB query (`get_matrix_items`, `get_all`, `get_brands`) runs off the UI thread via `POOL.submit`. In all-brands mode this replaced up to 12 synchronous repo hits per refresh with one pooled fetch; the UI thread no longer touches the DB during brand-combo changes, cost-toggle flips, or post-edit refreshes. `_add_brand_section` / `_reload_brand_container` accept pre-fetched `models=` / `item_map=` kwargs so the worker feeds every brand section at once.
+
+- **Matrix lazy refresh** — per-category `POOL_KEY_PREFIX` (`f"matrix_{category_key}"`) so keys never collide between tabs. Each tab has a `_dirty` flag; on `COST_VIS.changed`, only the currently visible tab refreshes immediately, others flip `_dirty=True` and reconcile on their next `showEvent`. No more stampede of 5-6 parallel DB queries every time the 👁 button is clicked.
+
+- **`ProductTable.load()`** — replaced per-row `setRowHeight(i, 48)` loop with a single pre-loop `verticalHeader().setDefaultSectionSize(48)`. The per-row call triggered a layout recalc even with `setUpdatesEnabled(False)` — saves 400-600 ms of startup UI-thread work for a 300-item inventory.
+
+- **Per-page async conversions** —
+  - `SalesPage._load_products` + `_refresh` split into worker-fetch + UI-thread `_apply_sales` / `_render_products`. Keys: `"sales_products"`, `"sales_refresh"`.
+  - `PurchaseOrdersPage._refresh` combined `po_repo.get_all` + `po_repo.get_summary` into one `POOL.submit_debounced("po_refresh", …, 150)` and applied via `_apply_po_data`.
+  - `AuditPage._load_data` combined `get_all_audits` + `get_summary` into one pooled fetch; KPIs + table render in `_apply_audits` on the main thread.
+
+- **`AnalyticsPage.__init__`** — inline `self.refresh()` deferred via `QTimer.singleShot(0, self.refresh)` so widget-tree construction completes before the skeleton paint + 5 POOL workers fire. Combined with lazy construction, analytics costs nothing until the user actually opens the page.
+
+- **`StartupController._on_ok`** — removed the eager `analytics_page.refresh()` call now that analytics is lazy. Saved 200-400 ms of skeleton-paint + worker dispatch at startup for a page the user may never open.
+
+### Fixed
+
+- **Blank matrix tab after settings close** — root cause was a `POOL.has_pending("admin:matrix_ensure")` guard inside `MatrixTab.refresh()`. Qt dispatches slots in connection order, so user callbacks fire **before** the pool's own `_cleanup` slot; the guard incorrectly returned `True` inside the very callback that was triggered by result delivery. Guard removed (WAL handles concurrent reads safely); the fast-path `refresh()` in `rebuild_matrix_tabs` is now deferred via `QTimer.singleShot(0, …)` so it runs on a clean event-loop idle tick.
+- **Silent matrix refresh failures** — `MatrixTab.refresh()`'s `POOL.submit` now has an `on_error` handler that logs the failure with the category key. No more invisible worker exceptions leaving a page blank.
+- **`ProductTable.setRowHeight` in loop** — per-row call triggered layout recalcs that `setUpdatesEnabled(False)` couldn't suppress. Moved to `defaultSectionSize` once before the loop.
+
+### Changed
+
+- Matrix staggering experiment reverted — staggering brand sections across ticks via `QTimer.singleShot(0, …)` opened race windows where a second refresh mid-chain left the page blank. Correctness > 200 ms of visual smoothness: `_apply_refresh` builds all sections inline.
+- `MainWindow.closeEvent` now calls `POOL.shutdown(2000)` for graceful worker drain.
 
 ---
 
@@ -37,11 +85,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `_type_visible_width(table, ti)` helper in `matrix_widget.py` — sum of *visible* column widths for a part-type group, so banner chips never over-stretch when the COST column is hidden.
 - `_SUB_MIN / _SUB_BB / _SUB_STOCK / _SUB_ORDER / _SUB_SELL / _SUB_PRICE / _SUB_TOTAL` sub-column constants — arithmetic across the matrix now self-documents.
 
-### Performance
-- **Startup freeze fixed** — `rebuild_matrix_tabs()` is now deferred via `QTimer.singleShot(0, …)` so the main window paints and becomes interactive immediately after the splash, instead of blocking for several seconds while every matrix tab runs its first DB query synchronously.
-- **Settings-close freeze fixed** — the whole post-admin-dialog chain (`ensure_matrix_entries` → `rebuild_matrix_tabs` → `apply_theme_to_matrix_tabs` → `_retranslate` → `nav_ctrl.go(saved)`) is now deferred to the next event-loop tick. Closing settings returns control to the user instantly; the rebuild runs on the next frame.
-- **MatrixTab.refresh()** refactored to dispatch every DB query through `worker_pool.POOL.submit(…)`. In all-brands mode this replaced up to 12 synchronous `_item_repo.get_matrix_items()` / `_model_repo.get_all()` hits per refresh with one pooled async fetch; the UI thread no longer touches the DB during brand-combo changes, cost-toggle flips, or post-edit refreshes.
-- `_add_brand_section` / `_reload_brand_container` accept pre-fetched `models=` / `item_map=` kwargs so the worker can feed every brand section at once (fallback to sync is preserved for legacy callers).
+### Performance — professional worker-pool overhaul
+
+- **Pool hardening** (`app/ui/workers/worker_pool.py`) —
+  - Epoch-based stale-result guard: every `submit(key, …)` bumps a per-key monotonic epoch; result and error callbacks are gated by the captured epoch, so a late signal carrying stale data is silently dropped even if the cancel-event check missed it.
+  - New `POOL.has_pending(key)` helper so callers can skip a refresh while a critical worker (e.g. `admin:matrix_ensure`) is still writing.
+  - New `POOL.shutdown(timeout_ms)` that cancels everything, stops debounce timers, and `waitForDone()` the underlying `QThreadPool`. Called from `MainWindow.closeEvent` — no more leaked workers on exit.
+  - Callback-error containment: exceptions inside `on_result` / `on_error` handlers are now logged instead of swallowing the signal stream.
+
+- **`AsyncRefreshMixin`** (new `app/ui/workers/async_refresh.py`) — single contract every page/tab now follows:
+  - `self.async_refresh(fetch=…, apply=…, key_suffix=…, debounce_ms=…)`
+  - Auto-cancels prior task via `POOL` keyed as `f"{POOL_KEY_PREFIX}:{key_suffix}"`.
+  - `_is_alive()` guard using `sip.isdeleted` so callbacks skip deleted widgets (tab closed mid-load, language rebuild, etc.).
+  - Error path falls through to `_show_empty_state(msg)` inline, not a modal — no more freezing on an error dialog.
+  - Baked into `BaseTab` so every matrix tab and future tab gets it for free.
+
+- **Startup freeze — resolved** —
+  - `MainWindow._build_ui` defers `rebuild_matrix_tabs()` via `QTimer.singleShot(0, …)`; the main window paints and becomes interactive before any DB work.
+  - On first-run setup, `ensure_matrix_entries()` (can touch 1000+ rows) runs on a `POOL` worker; the widget rebuild runs in the `on_result` callback on the main thread.
+
+- **Settings-close freeze — resolved** —
+  - Admin-dialog close now submits `ensure_matrix_entries` to `POOL` keyed `"admin:matrix_ensure"`. The dialog returns instantly. The worker's `on_result` on the main thread does the pure-widget rebuild (`rebuild_matrix_tabs`, `apply_theme_to_matrix_tabs`, `_retranslate`, `nav_ctrl.go(saved)`).
+  - `on_error` fallback still rebuilds tabs so the user never gets a stuck UI on a DB hiccup.
+  - `MatrixTab.refresh()` early-returns when `POOL.has_pending("admin:matrix_ensure")` — prevents mid-write reads and sets `_dirty=True` so the tab reconciles on its next `showEvent`.
+
+- **Matrix lazy refresh** —
+  - Every `MatrixTab` now has a `_dirty` flag. On `COST_VIS.changed`, only the **currently visible** tab refreshes immediately; others flip the flag and reconcile on their next `showEvent`. No more stampede of 5-6 parallel DB queries when the 👁 button is clicked.
+  - Each `MatrixTab` uses a per-category `POOL_KEY_PREFIX` (`f"matrix_{category_key}"`) so keys never collide between parallel tabs.
+
+- **Per-page migrations off the UI thread** —
+  - `SalesPage._load_products` + `SalesPage._refresh` — both split into worker-fetch + UI-thread `_apply_sales` / `_render_products`. Keys: `"sales_products"`, `"sales_refresh"`.
+  - `PurchaseOrdersPage._refresh` — `po_repo.get_all` + `po_repo.get_summary` combined into a single `POOL.submit_debounced("po_refresh", …, delay_ms=150)` and applied via `_apply_po_data`.
+  - `AuditPage._load_data` — `get_all_audits` + `get_summary` combined into one pooled fetch; KPIs + table render in `_apply_audits` on the main thread.
+
+- **UI watchdog** (new `app/ui/workers/ui_watchdog.py`) —
+  - Opt-in dev diagnostic enabled via `SM_UI_WATCHDOG=1`.
+  - A 10 ms `QTimer` on the UI thread stamps `time.monotonic()`; a daemon thread polls every 50 ms and logs a warning whenever the stamp is older than a configurable threshold (default 50 ms). Instantly surfaces any regression that puts a sync DB call back on the UI thread.
+
+### Fixed
+- Banner chip widths now align correctly with the visible columns when the COST column is hidden (previously over-stretched by one column-width).
+- `UnboundLocalError: QScrollArea` on `MatrixTab.__init__` — a nested `from PyQt6.QtWidgets import … QScrollArea` shadowed the module-level import; removed the duplicate.
+- Duplicate `BRAND:` label (collapsible section header + filter row) — section header restored to `BRAND & LEGEND` and now wraps both cards + filter together.
+- Matrix banner reverted to a slim 30 px name-chip after totals moved to the top card strip; banner keeps column-grouping context without duplicating data.
 
 ### Fixed
 - Banner chip widths now align correctly with the visible columns when the COST column is hidden (previously over-stretched by one column-width).

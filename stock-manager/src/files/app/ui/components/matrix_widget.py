@@ -251,9 +251,11 @@ class MatrixWidget(QTableWidget):
         self._cat: CategoryConfig | None = None
         self._skip_banner = skip_banner_row
         self.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
-        # Whole-row selection for easier reading across wide matrices
-        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        # Excel-like selection: click a cell → one cell; click-drag → rect
+        # selection; Shift-click → extend; Ctrl-click → toggle. Required
+        # for the Ctrl+D "Fill Down" feature (see `_fill_down_from_selection`).
+        self.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
         self.verticalHeader().setVisible(False)
         self.verticalHeader().setMinimumSectionSize(1)
         self.setAlternatingRowColors(False)
@@ -291,6 +293,23 @@ class MatrixWidget(QTableWidget):
             if parent is not None and hasattr(parent, "_on_data_hover_row"):
                 parent._on_data_hover_row(-1)
         super().leaveEvent(event)
+
+    def keyPressEvent(self, event):
+        """Excel-style keyboard shortcuts on the matrix table.
+
+        Ctrl+D — Fill Down. The top-left cell in the current selection
+        is the source; its value is copied to every other selected cell
+        that shares the same field type (Min-Stock / Sell / Cost).
+        """
+        try:
+            is_ctrl = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            if is_ctrl and event.key() == Qt.Key.Key_D:
+                self._fill_down_from_selection()
+                event.accept()
+                return
+        except Exception:
+            pass
+        super().keyPressEvent(event)
 
     def load(self, cat: CategoryConfig, models,
              item_map: dict[tuple[int, str], InventoryItem],
@@ -836,6 +855,21 @@ class MatrixWidget(QTableWidget):
         act_order = menu.addAction(f"📋  Set Order…")
         act_order.triggered.connect(lambda _=False, i=_id, m=_mn, d=_dl, s=_st: self._ctx_order(i, m, d, s))
 
+        # ── Excel-style fill-down ───────────────────────────────────────
+        # Only offered when the user has multi-selected cells AND the
+        # current (top-left anchor) cell is a fillable field.
+        field = meta.get("field")
+        sel_count = len(self.selectedIndexes())
+        if field in ("stamm_zahl", "price", "cost_price") and sel_count > 1:
+            menu.addSeparator()
+            label_map = {
+                "stamm_zahl": "Fill Down — Min-Stock",
+                "price":      "Fill Down — Sell Price",
+                "cost_price": "Fill Down — Cost Price",
+            }
+            act_fill = menu.addAction(f"⬇  {label_map[field]}  (Ctrl+D)")
+            act_fill.triggered.connect(self._fill_down_from_selection)
+
         menu.addSeparator()
 
         act_bc = menu.addAction(f"🏷  {t('barcode_ctx_assign')}")
@@ -853,6 +887,150 @@ class MatrixWidget(QTableWidget):
             )
 
         menu.exec(self.viewport().mapToGlobal(pos))
+
+    # ── Excel-style fill-down ─────────────────────────────────────────────────
+
+    def _fill_down_from_selection(self) -> None:
+        """Apply the top-left selected cell's value to every other selected
+        cell of the same field type.
+
+        Only the three fillable fields are honoured:
+          · `stamm_zahl` → `ItemRepository.update_min_stock`
+          · `price`      → `ItemRepository.update_price`      (sell price)
+          · `cost_price` → `ItemRepository.update_cost_price`
+
+        Cells that belong to a different field (STOCK, ORDER, TOTAL, …) or
+        have no underlying item_id are skipped silently. Everything runs
+        inside a single Undo Command so Ctrl+Z reverts the whole fill.
+        Cost fills require COST_VIS.visible (PIN-unlocked) defensively.
+        """
+        sel = self.selectedIndexes()
+        if not sel or len(sel) < 2:
+            return
+
+        # Anchor = top-most / left-most selected cell. Sort by (row, col)
+        # so drag direction doesn't matter — Excel always fills from top-left.
+        sel_sorted = sorted(sel, key=lambda idx: (idx.row(), idx.column()))
+        src_idx = sel_sorted[0]
+        src_item = self.item(src_idx.row(), src_idx.column())
+        if src_item is None:
+            return
+        src_meta = src_item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(src_meta, dict):
+            return
+
+        field = src_meta.get("field")
+        if field not in ("stamm_zahl", "price", "cost_price"):
+            return  # not a fillable field
+
+        # Extra safety: cost fills are gated by COST_VIS just like editing
+        if field == "cost_price":
+            try:
+                from app.services.cost_visibility import COST_VIS
+                if not COST_VIS.visible:
+                    return
+            except Exception:
+                return
+
+        # Resolve the source value straight from the DB (the cached meta
+        # might be stale after a previous edit)
+        src_id = src_meta.get("item_id")
+        if src_id is None:
+            return
+        src_item_row = _item_repo.get_by_id(src_id)
+        if src_item_row is None:
+            return
+
+        if field == "stamm_zahl":
+            value = int(getattr(src_item_row, "min_stock", 0) or 0)
+        elif field == "price":
+            sp = getattr(src_item_row, "sell_price", None)
+            value = float(sp) if sp is not None else None
+        else:  # cost_price
+            cp = getattr(src_item_row, "cost_price", None)
+            value = float(cp) if cp is not None else None
+
+        # Collect targets (selection minus source), keyed by field match
+        targets: list[tuple[int, tuple]] = []   # (item_id, prev_tuple_for_undo)
+        seen_ids: set[int] = set()
+        for idx in sel_sorted[1:]:
+            it = self.item(idx.row(), idx.column())
+            if it is None:
+                continue
+            meta = it.data(Qt.ItemDataRole.UserRole)
+            if not isinstance(meta, dict):
+                continue
+            if meta.get("field") != field:
+                continue
+            tgt_id = meta.get("item_id")
+            if tgt_id is None or tgt_id in seen_ids or tgt_id == src_id:
+                continue
+            seen_ids.add(tgt_id)
+            cur = _item_repo.get_by_id(tgt_id)
+            if cur is None:
+                continue
+            if field == "stamm_zahl":
+                prev = int(getattr(cur, "min_stock", 0) or 0)
+            elif field == "price":
+                prev = getattr(cur, "sell_price", None)
+                prev = float(prev) if prev is not None else None
+            else:
+                prev = getattr(cur, "cost_price", None)
+                prev = float(prev) if prev is not None else None
+            targets.append((tgt_id, prev))
+
+        if not targets:
+            return
+
+        # Pick the right repo-writer per field
+        if field == "stamm_zahl":
+            writer = _item_repo.update_min_stock
+            field_lbl = "Min-Stock"
+        elif field == "price":
+            writer = _item_repo.update_price
+            field_lbl = "Sell"
+        else:
+            writer = _item_repo.update_cost_price
+            field_lbl = "Cost"
+
+        # Apply in one sweep, then push ONE Undo Command so Ctrl+Z
+        # reverts the entire fill.
+        for tgt_id, _prev in targets:
+            try:
+                writer(tgt_id, value)
+            except Exception:
+                # Don't stall the whole fill on one bad row
+                pass
+
+        try:
+            from app.services.undo_manager import UNDO, Command
+            ids_values = list(targets)  # snapshot for closure
+            new_value = value
+
+            def _undo(ids_values=ids_values, writer=writer):
+                for tgt_id, prev in ids_values:
+                    try:
+                        writer(tgt_id, prev)
+                    except Exception:
+                        pass
+
+            def _redo(ids_values=ids_values, writer=writer, new_value=new_value):
+                for tgt_id, _prev in ids_values:
+                    try:
+                        writer(tgt_id, new_value)
+                    except Exception:
+                        pass
+
+            UNDO.push(Command(
+                label=f"Fill Down {field_lbl} → {len(ids_values)} cell(s)",
+                undo_fn=_undo,
+                redo_fn=_redo,
+            ))
+        except Exception:
+            pass
+
+        # Trigger the container refresh
+        self._refresh_cb()
 
     def _ctx_stock(self, item_id: int, dtype_lbl: str) -> None:
         item = _item_repo.get_by_id(item_id)
@@ -1241,14 +1419,18 @@ class MatrixWidget(QTableWidget):
             prev_price = None
             if item_cur is not None and item_cur.sell_price is not None:
                 prev_price = float(item_cur.sell_price)
-            initial = prev_price if prev_price is not None else (
-                float(meta.get("pt_default_price") or 0.0)
+            # Always open at 0 — user types the new value straight away.
+            # Previous value is shown in the prompt body so nothing's lost.
+            prev_txt = (
+                f"{prev_price:.2f}" if prev_price is not None
+                else f"(default {float(meta.get('pt_default_price') or 0.0):.2f})"
             )
             new_val, ok = QInputDialog.getDouble(
                 self,
                 f"Sell Price — {model_name} · {dtype_lbl}",
-                "Unit sell price (0 = clear override → use part-type default):",
-                initial, 0.0, 999999.99, 2,
+                f"Current: {prev_txt}\nNew unit sell price "
+                f"(0 = clear override → use part-type default):",
+                0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return
@@ -1301,12 +1483,14 @@ class MatrixWidget(QTableWidget):
             prev_cost = None
             if item_cur is not None and getattr(item_cur, "cost_price", None) is not None:
                 prev_cost = float(item_cur.cost_price)
-            initial = prev_cost if prev_cost is not None else 0.0
+            prev_txt = f"{prev_cost:.2f}" if prev_cost is not None else "—"
+            # Always open at 0 so the owner just types the new amount.
             new_val, ok = QInputDialog.getDouble(
                 self,
                 f"Cost Price — {model_name} · {dtype_lbl}",
-                "Unit cost / purchase price (0 = clear):",
-                initial, 0.0, 999999.99, 2,
+                f"Current: {prev_txt}\nNew unit cost / purchase price "
+                f"(0 = clear):",
+                0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return

@@ -131,9 +131,11 @@ class StockOpDialog(QDialog):
         self._btn_set.clicked.connect(lambda: self._set_op("ADJUST"))
         lay.addLayout(op_row)
 
-        # Quantity
+        # Quantity — always start at 0 so the user just types the new
+        # amount. The inner QLineEdit is auto-focused + all-selected on
+        # show, so typing replaces the 0 with no extra click.
         form = QFormLayout(); form.setSpacing(12)
-        self.qty_spin = QuantitySpin(0, 9999, max(1, needed) if needed > 0 else 1)
+        self.qty_spin = QuantitySpin(0, 9999, 0)
         form.addRow(t("disp_qty_lbl"), self.qty_spin)
         lay.addLayout(form)
 
@@ -195,7 +197,10 @@ class ThresholdDialog(QDialog):
                 self._bc_edit = _barcode_row(item, lay)
 
         form = QFormLayout(); form.setSpacing(12)
-        self._spin = QuantitySpin(0, 9999, current)
+        # Always open at 0 — user types the new value immediately.
+        # Current value is shown in the dialog's info/context row, not
+        # pre-filled here (would need an extra click to clear).
+        self._spin = QuantitySpin(0, 9999, 0)
         form.addRow(t("lbl_stamm_zahl"), self._spin)
         lay.addLayout(form)
 
@@ -256,7 +261,8 @@ class InventurDialog(QDialog):
                 self._bc_edit = _barcode_row(item, lay)
 
         form = QFormLayout(); form.setSpacing(12)
-        self._spin = QuantitySpin(0, 9999, current_stock)
+        # Always open at 0 — current stock shown in the sys_lbl above.
+        self._spin = QuantitySpin(0, 9999, 0)
         form.addRow(t("col_inventur"), self._spin)
         lay.addLayout(form)
 

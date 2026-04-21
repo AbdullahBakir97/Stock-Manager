@@ -63,7 +63,12 @@ class StartupController(QObject):
 
     def begin(self) -> None:
         """Call once, after the first paint (via QTimer.singleShot(0, ...))."""
-        overlay = LoadingOverlay(self._analytics_page)
+        # Overlay parent: prefer the analytics page if it exists, else fall
+        # back to the inventory page (always eager). Analytics is now lazy
+        # and often None on fresh startup — don't crash just because the
+        # user hasn't opened it yet.
+        overlay_target = self._analytics_page if self._analytics_page is not None else self._inv_page
+        overlay = LoadingOverlay(overlay_target)
         overlay.show_loading(t("loading_dashboard"))
         self._load_summary(overlay)
 
@@ -75,7 +80,11 @@ class StartupController(QObject):
 
         def _on_ok(summary: dict) -> None:
             self._inv_page.dashboard.update_data(summary)
-            self._analytics_page.refresh()
+            # Analytics is a lazy page now — its own `on_activate` runs a
+            # refresh the first time the user navigates to it, so we don't
+            # need to fire one here. Previously this call cost 200-400 ms
+            # of skeleton-paint + POOL dispatch on the startup UI thread
+            # for a page the user might never open.
             overlay.hide_loading()
             self._alert_ctrl.refresh()
             self._on_status(t("statusbar_ready"))

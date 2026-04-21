@@ -95,9 +95,17 @@ class MatrixTab(BaseTab):
     Instantiate with the DB category key: MatrixTab("displays").
     """
 
+    #: Overridden per-instance in __init__ so each category has its own
+    #: isolated POOL key-space (no collisions across parallel tabs).
+    POOL_KEY_PREFIX: str = "matrix_tab"
+
     def __init__(self, category_key: str, parent=None):
         super().__init__(parent)
         self._cat_key = category_key
+        self.POOL_KEY_PREFIX = f"matrix_{category_key}"
+        # Lazy-refresh dirty flag — set when a refresh was skipped because
+        # the tab wasn't visible; consumed on the next showEvent.
+        self._dirty: bool = True
         self._cat: CategoryConfig | None = _cat_repo.get_by_key(category_key)
 
         lay = QVBoxLayout(self)
@@ -311,13 +319,21 @@ class MatrixTab(BaseTab):
         COST_VIS.set_visible(target_visible)
 
     def _on_cost_visibility_changed(self, visible: bool) -> None:
-        """Mirror the shared COST_VIS state on this tab: button style + cards."""
+        """Mirror the shared COST_VIS state on this tab: button style + cards.
+
+        Lazy-refresh: only the visible tab refreshes immediately. Other
+        matrix tabs flip their button style and mark themselves dirty so
+        they refresh when the user navigates to them — avoids a stampede
+        of 5-6 parallel DB queries every time the owner toggles the eye.
+        """
         self._cost_toggle_btn.blockSignals(True)
         self._cost_toggle_btn.setChecked(visible)
         self._cost_toggle_btn.blockSignals(False)
         self._apply_cost_toggle_style(visible)
-        # Rebuild top cards so their metric flips (sell total ↔ cost total)
-        self.refresh()
+        if self.isVisible():
+            self.refresh()
+        else:
+            self._dirty = True
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -458,6 +474,85 @@ class MatrixTab(BaseTab):
             self._cards_row.addWidget(card)
             self._pt_cards.append(card)
 
+        # ── Grand-total card (sum across every part-type in the filter) ──
+        # Shows an at-a-glance roll-up: total units + total valuation for
+        # the currently-displayed brand filter, using the same sell/cost
+        # metric as the per-part-type cards. Styled with the shop accent
+        # (emerald) so it reads as the summary/anchor at the end of the strip.
+        grand_units = sum(u for (u, _v) in totals.values())
+        grand_value = sum(v for (_u, v) in totals.values())
+        try:
+            grand_val_text = fmt_cur(grand_value)
+        except Exception:
+            grand_val_text = f"{grand_value:,.2f}"
+        grand_val_text = f"{grand_val_text}  {metric_suffix}"
+
+        tk_g = THEME.tokens
+        accent = tk_g.green if hasattr(tk_g, "green") else "#10B981"
+        if tk_g.is_dark:
+            g_top, g_bot = 36, 18
+            g_hair = 32
+            g_muted = "rgba(255,255,255,160)"
+        else:
+            g_top, g_bot = 232, 215
+            g_hair = 80
+            g_muted = "rgba(0,0,0,140)"
+
+        total_card = QFrame()
+        total_card.setFixedSize(220, 60)
+        total_card.setObjectName("pt_total_card")
+        total_card.setStyleSheet(
+            "QFrame#pt_total_card {"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1,"
+            f"  stop:0 rgba(16,185,129,{g_top}),"
+            f"  stop:1 rgba(16,185,129,{g_bot}));"
+            "border: none;"
+            f"border-top: 1px solid rgba(255,255,255,{g_hair});"
+            f"border-bottom: 2px solid {accent};"
+            "border-radius: 6px;"
+            "}"
+            "QFrame#pt_total_card QLabel { background: transparent; border: none; }"
+        )
+
+        gcol = QVBoxLayout(total_card)
+        gcol.setContentsMargins(12, 5, 12, 5)
+        gcol.setSpacing(2)
+
+        g_name = QLabel("TOTAL")
+        g_name.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        g_name_f = QFont("Segoe UI", 10, QFont.Weight.Bold)
+        g_name_f.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 110)
+        g_name.setFont(g_name_f)
+        g_name.setStyleSheet(f"color: {accent}; background: transparent;")
+        gcol.addWidget(g_name)
+
+        g_metrics_row = QHBoxLayout()
+        g_metrics_row.setContentsMargins(0, 0, 0, 0)
+        g_metrics_row.setSpacing(4)
+
+        g_units = QLabel(f"{grand_units:,} pcs")
+        g_units.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        g_units_f = QFont("Segoe UI", 8, QFont.Weight.Medium)
+        g_units.setFont(g_units_f)
+        g_units.setStyleSheet(f"color: {g_muted}; background: transparent;")
+
+        g_value = QLabel(grand_val_text)
+        g_value.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        g_value_f = QFont("Segoe UI", 10, QFont.Weight.Bold)
+        g_value.setFont(g_value_f)
+        g_value.setStyleSheet(f"color: {accent}; background: transparent;")
+
+        g_metrics_row.addWidget(g_units, 1)
+        g_metrics_row.addWidget(g_value, 1)
+        gcol.addLayout(g_metrics_row)
+
+        self._cards_row.addWidget(total_card)
+        self._pt_cards.append(total_card)
+
         self._cards_row.addStretch()
 
     def _populate_brand_combo(self) -> None:
@@ -498,11 +593,25 @@ class MatrixTab(BaseTab):
 
     # ── BaseTab interface ─────────────────────────────────────────────────────
 
+    def showEvent(self, event):
+        """Reconcile lazy refresh — if a COST_VIS flip or admin close
+        occurred while this tab wasn't visible, run the deferred refresh
+        now that we're back on screen. Uses QTimer.singleShot so the show
+        transition paints first, then data arrives."""
+        super().showEvent(event)
+        if getattr(self, "_dirty", False):
+            from PyQt6.QtCore import QTimer as _QT
+            _QT.singleShot(0, self.refresh)
+
     def refresh(self) -> None:
         if not self._cat:
             self._cat = _cat_repo.get_by_key(self._cat_key)
         if not self._cat:
             return
+        # Claim the dirty state — any subsequent COST_VIS flip while this
+        # refresh is in-flight will flip the flag back on and showEvent
+        # will reconcile on the next activation.
+        self._dirty = False
 
         # Save scroll position (v-scroll of single mode, v-scroll of multi area)
         self._saved_v = self._single_container.data_table.verticalScrollBar().value()
@@ -550,10 +659,24 @@ class MatrixTab(BaseTab):
 
         # Per-tab key so rapid brand-combo changes collapse to one query
         pool_key = f"matrix_refresh_{self._cat_key}"
-        POOL.submit(pool_key, _fetch, self._apply_refresh)
+
+        def _on_error(msg: str):
+            # Log visibly so silent worker exceptions don't leave the page blank.
+            import logging as _lg
+            _lg.getLogger(__name__).error(
+                "MatrixTab[%s] refresh failed: %s", self._cat_key, msg
+            )
+
+        POOL.submit(pool_key, _fetch, self._apply_refresh, _on_error)
 
     def _apply_refresh(self, payload: dict) -> None:
-        """Run widget updates with data pre-fetched by the worker pool."""
+        """Run widget updates with data pre-fetched by the worker pool.
+
+        Synchronous application — we tried staggering brand sections across
+        ticks to reduce the single-frame spike, but it opened race windows
+        where a second refresh mid-chain left the page empty. Correctness
+        over 200 ms of visual smoothness: build all sections inline.
+        """
         if not payload or not self._cat:
             return
         from app.models.category import CategoryConfig
@@ -576,7 +699,7 @@ class MatrixTab(BaseTab):
             self._container = self._single_container
             self._table = self._single_container.data_table
         else:
-            # All-brands
+            # All-brands mode
             self._content_stack.setCurrentIndex(1)
             self._rebuild_cards(self._cat, payload["all_items"])
 
@@ -586,13 +709,14 @@ class MatrixTab(BaseTab):
 
             if (existing_brands == brands_now
                     and len(self._brand_containers) == len(brands_now)):
-                # Fast path — reuse containers, reload rows with pre-fetched data
+                # Fast path — reuse containers, reload rows
                 for (b, b_models, b_items), container in zip(
                         per_brand, self._brand_containers):
-                    self._reload_brand_container(b, container,
-                                                 models=b_models, item_map=b_items)
+                    self._reload_brand_container(
+                        b, container, models=b_models, item_map=b_items
+                    )
             else:
-                # Slow path — rebuild every section
+                # Slow path — tear down, rebuild every section
                 for w in self._brand_widgets:
                     w.deleteLater()
                 self._brand_widgets.clear()
@@ -608,7 +732,7 @@ class MatrixTab(BaseTab):
                 self._multi_lay.addStretch()
                 self._brand_order = brands_now
 
-        # ── Post-apply: zoom + scroll restore (runs on the UI thread) ─────
+        # Post-apply: zoom + scroll restore
         self._post_apply_refresh(single_mode=(payload["mode"] == "single"))
 
     def _post_apply_refresh(self, single_mode: bool) -> None:

@@ -23,6 +23,7 @@ from app.repositories.item_repo import ItemRepository
 from app.repositories.supplier_repo import SupplierRepository
 from app.services.purchase_order_service import PurchaseOrderService
 from app.models.purchase_order import PurchaseOrder
+from app.ui.workers.worker_pool import POOL
 
 _po_repo = PurchaseOrderRepository()
 _po_svc = PurchaseOrderService()
@@ -361,13 +362,23 @@ class PurchaseOrdersPage(QWidget):
     # ── Data ──────────────────────────────────────────────────────────────────
 
     def _refresh(self):
+        """Fetch orders + summary off the UI thread; apply on return."""
         status = self._status_combo.currentData() if hasattr(self, '_status_combo') else ""
         search = self._search.text().strip() if hasattr(self, '_search') else ""
-        orders = _po_repo.get_all(status=status or "", search=search)
+        def _fetch():
+            return {
+                "orders":  _po_repo.get_all(status=status or "", search=search),
+                "summary": _po_repo.get_summary(),
+            }
+        POOL.submit_debounced("po_refresh", _fetch, self._apply_po_data, delay_ms=150)
+
+    def _apply_po_data(self, payload: dict):
+        """Main-thread render of PO KPIs + table with pre-fetched data."""
+        orders = payload.get("orders", [])
+        summary = payload.get("summary", {})
         self._orders = orders
 
         # KPIs
-        summary = _po_repo.get_summary()
         self._kpi_total.set_data(t("po_kpi_total"), str(summary.get("total", 0) or 0))
         self._kpi_draft.set_data(t("po_kpi_draft"), str(summary.get("draft_count", 0) or 0))
         self._kpi_sent.set_data(t("po_kpi_sent"), str(summary.get("sent_count", 0) or 0))

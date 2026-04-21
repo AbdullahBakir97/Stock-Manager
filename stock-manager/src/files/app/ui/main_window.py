@@ -181,22 +181,35 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
         self._stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
 
-        # ── Static pages (order must match _PAGE_* constants) ────────────
+        # ── EAGER pages (user lands here or uses frequently; must be
+        # ready immediately) ──────────────────────────────────────────────
         self._inv_page        = InventoryPage();         self._stack.addWidget(self._inv_page)
         self._txn_page        = TransactionsPage();      self._stack.addWidget(self._txn_page)
         self._quick_scan_tab  = QuickScanTab();          self._stack.addWidget(self._quick_scan_tab)
-        self._sales_page      = SalesPage();             self._stack.addWidget(self._sales_page)
-        self._customers_page  = CustomersPanel();        self._stack.addWidget(self._customers_page)
-        self._po_page         = PurchaseOrdersPage();    self._stack.addWidget(self._po_page)
-        self._returns_page    = ReturnsPage();           self._stack.addWidget(self._returns_page)
-        self._barcode_gen_page= BarcodeGenPage();        self._stack.addWidget(self._barcode_gen_page)
-        self._reports_page    = ReportsPage();           self._stack.addWidget(self._reports_page)
-        self._suppliers_page  = SuppliersPage();         self._stack.addWidget(self._suppliers_page)
-        self._analytics_page  = AnalyticsPage();         self._stack.addWidget(self._analytics_page)
-        self._audit_page      = AuditPage();             self._stack.addWidget(self._audit_page)
-        self._price_lists_page= PriceListsPage();        self._stack.addWidget(self._price_lists_page)
 
-        self._analytics_page.navigate_to.connect(lambda k: self._nav_ctrl.go(k))
+        # ── LAZY pages (heavy widget trees — built on first navigation)
+        # Attributes are None until realised; every cross-reference must
+        # guard with `if self._xxx_page is not None`.
+        # Placeholders occupy the stack slots so _PAGE_* indices remain stable.
+        self._sales_page      = None
+        self._customers_page  = None
+        self._po_page         = None
+        self._returns_page    = None
+        self._barcode_gen_page= None
+        self._reports_page    = None
+        self._suppliers_page  = None
+        self._analytics_page  = None
+        self._audit_page      = None
+        self._price_lists_page= None
+
+        for _idx in (self._PAGE_SALES, self._PAGE_CUSTOMERS,
+                     self._PAGE_PURCHASE_ORDERS, self._PAGE_RETURNS,
+                     self._PAGE_BARCODE_GEN, self._PAGE_REPORTS,
+                     self._PAGE_SUPPLIERS, self._PAGE_ANALYTICS,
+                     self._PAGE_AUDIT, self._PAGE_PRICE_LISTS):
+            _ph = QWidget()
+            _ph.setObjectName("page_placeholder")
+            self._stack.addWidget(_ph)
 
         # ── NavController (created here so matrix tabs wire before connect) ─
         self._nav_ctrl = NavController(
@@ -209,32 +222,98 @@ class MainWindow(QMainWindow):
             help_fn=self._open_help,
             parent=self,
         )
-        # Register all static pages with their optional refresh callbacks
+
+        # ── Lazy-page factories (closures so `self` stays current) ────────
+        def _build_sales():
+            self._sales_page = SalesPage()
+            return self._sales_page
+        def _build_customers():
+            self._customers_page = CustomersPanel()
+            return self._customers_page
+        def _build_po():
+            self._po_page = PurchaseOrdersPage()
+            return self._po_page
+        def _build_returns():
+            self._returns_page = ReturnsPage()
+            return self._returns_page
+        def _build_barcode_gen():
+            self._barcode_gen_page = BarcodeGenPage()
+            return self._barcode_gen_page
+        def _build_reports():
+            self._reports_page = ReportsPage()
+            return self._reports_page
+        def _build_suppliers():
+            self._suppliers_page = SuppliersPage()
+            return self._suppliers_page
+        def _build_analytics():
+            self._analytics_page = AnalyticsPage()
+            # Analytics drill-down signal — wire AFTER the real page exists
+            self._analytics_page.navigate_to.connect(lambda k: self._nav_ctrl.go(k))
+            return self._analytics_page
+        def _build_audit():
+            self._audit_page = AuditPage()
+            return self._audit_page
+        def _build_price_lists():
+            self._price_lists_page = PriceListsPage()
+            return self._price_lists_page
+
+        # Register all static pages with their optional refresh callbacks.
+        # Eager pages use register(); lazy pages use register_lazy().
         self._nav_ctrl.register("nav_inventory",       self._PAGE_INVENTORY)
         self._nav_ctrl.register("nav_transactions",    self._PAGE_TRANSACTIONS,
                                 lambda: self._txn_page.refresh())
         self._nav_ctrl.register("nav_quick_scan",      self._PAGE_QUICK_SCAN,
                                 lambda: self._quick_scan_tab.focus_input())
-        self._nav_ctrl.register("nav_sales",           self._PAGE_SALES,
-                                lambda: self._sales_page.refresh())
-        self._nav_ctrl.register("nav_customers",       self._PAGE_CUSTOMERS,
-                                lambda: self._customers_page.reload())
-        self._nav_ctrl.register("nav_purchase_orders", self._PAGE_PURCHASE_ORDERS,
-                                lambda: self._po_page.refresh())
-        self._nav_ctrl.register("nav_returns",         self._PAGE_RETURNS,
-                                lambda: self._returns_page.refresh())
-        self._nav_ctrl.register("nav_barcode_gen",     self._PAGE_BARCODE_GEN,
-                                lambda: self._barcode_gen_page.refresh())
-        self._nav_ctrl.register("nav_reports",         self._PAGE_REPORTS,
-                                lambda: self._reports_page.refresh())
-        self._nav_ctrl.register("nav_suppliers",       self._PAGE_SUPPLIERS,
-                                lambda: self._suppliers_page.refresh())
-        self._nav_ctrl.register("nav_analytics",       self._PAGE_ANALYTICS,
-                                lambda: self._analytics_page.refresh())
-        self._nav_ctrl.register("nav_audit",           self._PAGE_AUDIT,
-                                lambda: self._audit_page.refresh())
-        self._nav_ctrl.register("nav_price_lists",     self._PAGE_PRICE_LISTS,
-                                lambda: self._price_lists_page.refresh())
+        self._nav_ctrl.register_lazy(
+            "nav_sales", self._PAGE_SALES, _build_sales,
+            on_activate=lambda: (self._sales_page.refresh()
+                                 if self._sales_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_customers", self._PAGE_CUSTOMERS, _build_customers,
+            on_activate=lambda: (self._customers_page.reload()
+                                 if self._customers_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_purchase_orders", self._PAGE_PURCHASE_ORDERS, _build_po,
+            on_activate=lambda: (self._po_page.refresh()
+                                 if self._po_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_returns", self._PAGE_RETURNS, _build_returns,
+            on_activate=lambda: (self._returns_page.refresh()
+                                 if self._returns_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_barcode_gen", self._PAGE_BARCODE_GEN, _build_barcode_gen,
+            on_activate=lambda: (self._barcode_gen_page.refresh()
+                                 if self._barcode_gen_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_reports", self._PAGE_REPORTS, _build_reports,
+            on_activate=lambda: (self._reports_page.refresh()
+                                 if self._reports_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_suppliers", self._PAGE_SUPPLIERS, _build_suppliers,
+            on_activate=lambda: (self._suppliers_page.refresh()
+                                 if self._suppliers_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_analytics", self._PAGE_ANALYTICS, _build_analytics,
+            on_activate=lambda: (self._analytics_page.refresh()
+                                 if self._analytics_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_audit", self._PAGE_AUDIT, _build_audit,
+            on_activate=lambda: (self._audit_page.refresh()
+                                 if self._audit_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_price_lists", self._PAGE_PRICE_LISTS, _build_price_lists,
+            on_activate=lambda: (self._price_lists_page.refresh()
+                                 if self._price_lists_page is not None else None),
+        )
 
         # Populate initial dynamic matrix tabs — DEFERRED to after first
         # paint so the main window becomes interactive immediately.
@@ -395,12 +474,18 @@ class MainWindow(QMainWindow):
         if not row:
             wizard = SetupWizard(self); wizard.exec()
             ShopConfig.invalidate()
-            # Defer heavy rebuild — wizard returns instantly, rebuild runs next tick
-            def _post_wizard():
-                ensure_matrix_entries()
+            # Move the DB seeding (can touch 1000+ rows) off the UI thread
+            # entirely, then do the pure-widget rebuild in the on_result
+            # callback on the main thread.
+            from app.ui.workers.worker_pool import POOL as _POOL
+            def _on_wizard_entries_done(_v):
                 self._nav_ctrl.rebuild_matrix_tabs()
                 self._retranslate()
-            QTimer.singleShot(0, _post_wizard)
+            _POOL.submit(
+                "admin:matrix_ensure",
+                ensure_matrix_entries,
+                _on_wizard_entries_done,
+            )
 
     def _open_admin(self) -> None:
         saved = self._nav_ctrl.current
@@ -450,17 +535,30 @@ class MainWindow(QMainWindow):
                         child.style().unpolish(child)
                         child.style().polish(child)
                 widget.update()
-        # Defer the heavy post-settings rebuild (ensure_matrix_entries +
-        # rebuild_matrix_tabs + theme re-apply + retranslate) so that
-        # closing the settings dialog returns control to the user
-        # immediately. The rebuild runs on the next event-loop tick.
-        def _post_admin_close():
-            ensure_matrix_entries()
+        # ── Post-settings rebuild ────────────────────────────────────────
+        # Heavy work: `ensure_matrix_entries` walks every model × part-type
+        # combo and inserts the missing rows — easily 1000+ writes on any
+        # real DB. Run it off the UI thread via POOL; rebuild the tabs +
+        # re-apply theme/translation on the main thread when the worker
+        # finishes. The admin dialog returns INSTANTLY.
+        from app.ui.workers.worker_pool import POOL as _POOL
+        def _on_admin_entries_done(_v):
             self._nav_ctrl.rebuild_matrix_tabs()
             self._nav_ctrl.apply_theme_to_matrix_tabs()
             self._retranslate()
             self._nav_ctrl.go(saved)
-        QTimer.singleShot(0, _post_admin_close)
+        def _on_admin_entries_error(_msg):
+            # Fall back to the sync path so the user still gets a refreshed UI
+            self._nav_ctrl.rebuild_matrix_tabs()
+            self._nav_ctrl.apply_theme_to_matrix_tabs()
+            self._retranslate()
+            self._nav_ctrl.go(saved)
+        _POOL.submit(
+            "admin:matrix_ensure",
+            ensure_matrix_entries,
+            _on_admin_entries_done,
+            _on_admin_entries_error,
+        )
 
     # ── Language ─────────────────────────────────────────────────────────────
 
@@ -472,20 +570,26 @@ class MainWindow(QMainWindow):
     def _retranslate(self) -> None:
         cfg = ShopConfig.get()
         self.setWindowTitle(cfg.name if cfg.name else t("app_title"))
-        # Phase 1: visible text — synchronous, no DB
+        # Phase 1: visible text — synchronous, no DB.
+        # Lazy pages may still be unrealised; skip their retranslate —
+        # they'll read the current language when the factory runs on
+        # first navigation.
         self._header.retranslate()
         self._footer.retranslate()
         self._sidebar.retranslate()
         self._inv_page.retranslate()
         self._txn_page.retranslate()
         self._quick_scan_tab.retranslate()
-        self._po_page.retranslate()
-        self._returns_page.retranslate()
-        self._reports_page.retranslate()
-        self._suppliers_page.retranslate()
-        self._audit_page.retranslate()
-        self._price_lists_page.retranslate()
-        self._analytics_page.retranslate()
+        for _lazy in (self._po_page, self._returns_page, self._reports_page,
+                      self._suppliers_page, self._audit_page,
+                      self._price_lists_page, self._analytics_page,
+                      self._sales_page, self._customers_page,
+                      self._barcode_gen_page):
+            if _lazy is not None:
+                try:
+                    _lazy.retranslate()
+                except Exception:
+                    pass
         self._nav_ctrl.retranslate_matrix_tabs()
         self._footer.show_status(t("statusbar_ready"))
         # Phase 2: DB data — deferred so Qt paints new labels first
@@ -496,9 +600,11 @@ class MainWindow(QMainWindow):
         self._refresh_products()
         self._refresh_summary()
         self._alert_ctrl.refresh()
-        POOL.submit("analytics_refresh",
-                    self._analytics_page._fetch_all_data,
-                    self._analytics_page._apply_all_data)
+        # Analytics is a lazy page — only refresh if it has been realised
+        if self._analytics_page is not None:
+            POOL.submit("analytics_refresh",
+                        self._analytics_page._fetch_all_data,
+                        self._analytics_page._apply_all_data)
         POOL.submit_debounced("txn_filter",
                               self._txn_page.fetch_filtered,
                               self._txn_page.load_results,
@@ -532,9 +638,10 @@ class MainWindow(QMainWindow):
                               self._txn_page.fetch_filtered,
                               self._txn_page.load_results,
                               delay_ms=0)
-        POOL.submit("analytics_refresh",
-                    self._analytics_page._fetch_all_data,
-                    self._analytics_page._apply_all_data)
+        if self._analytics_page is not None:
+            POOL.submit("analytics_refresh",
+                        self._analytics_page._fetch_all_data,
+                        self._analytics_page._apply_all_data)
         if self._cp:
             cp_id = self._cp.id
             POOL.submit(
@@ -860,20 +967,32 @@ class MainWindow(QMainWindow):
         cur = getattr(self._nav_ctrl, "current", "")
 
         if cur.startswith("cat_"):
-            # A matrix tab is visible — refresh it directly
+            # A matrix tab is visible — refresh it directly.
+            # The matrix_tabs list may hold a lazy placeholder for tabs
+            # the user hasn't opened yet; placeholders have no refresh()
+            # so route through the nav controller, which upgrades the
+            # placeholder to a real MatrixTab on demand.
             cat_key = cur[4:]
-            for tab in self._nav_ctrl.matrix_tabs:
-                if tab._cat_key == cat_key:
-                    tab.refresh()
-                    break
+            if hasattr(self._nav_ctrl, "_go_matrix"):
+                self._nav_ctrl._go_matrix(cat_key)
+            else:
+                for tab in self._nav_ctrl.matrix_tabs:
+                    if getattr(tab, "_cat_key", None) == cat_key and hasattr(tab, "refresh"):
+                        tab.refresh()
+                        break
         elif cur == "nav_transactions":
             POOL.submit("txn_filter",
                         self._txn_page.fetch_filtered,
                         self._txn_page.load_results)
         elif cur == "nav_analytics":
-            POOL.submit("analytics_refresh",
-                        self._analytics_page._fetch_all_data,
-                        self._analytics_page._apply_all_data)
+            # Analytics is lazy — realise it if the user is on this page
+            # somehow without having navigated through nav_ctrl.go
+            if self._analytics_page is None:
+                self._nav_ctrl.realize("nav_analytics")
+            if self._analytics_page is not None:
+                POOL.submit("analytics_refresh",
+                            self._analytics_page._fetch_all_data,
+                            self._analytics_page._apply_all_data)
         else:
             # Inventory (or any other) — refresh product table WITHOUT debounce
             filters = self._inv_page.filter_bar.get_filters()
@@ -958,12 +1077,15 @@ class MainWindow(QMainWindow):
             if txn is not None and hasattr(txn, "apply_zoom"):
                 targets.append(txn)
         elif cur_key.startswith("cat_") and nav is not None:
-            # Only zoom the ACTIVE matrix tab (not all 6)
+            # Only zoom the ACTIVE matrix tab (not all 6). Skip any
+            # lazy placeholders (no _single_container until realised).
             cat_key = cur_key[4:]
             from app.ui.components.matrix_widget import FrozenMatrixContainer
             for tab in nav.matrix_tabs:
-                if tab._cat_key != cat_key:
+                if getattr(tab, "_cat_key", None) != cat_key:
                     continue
+                if not hasattr(tab, "_single_container"):
+                    break  # placeholder — nothing to zoom yet
                 containers = [getattr(tab, "_single_container", None)]
                 for w in getattr(tab, "_brand_widgets", []):
                     if isinstance(w, FrozenMatrixContainer):
@@ -1029,4 +1151,11 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         try: self._timer.stop(); self._global_bc_timer.stop()
         except Exception: pass
+        # Gracefully drain the worker pool so background tasks don't
+        # keep the process alive or deliver signals to dead widgets.
+        try:
+            from app.ui.workers.worker_pool import POOL as _POOL
+            _POOL.shutdown(timeout_ms=2000)
+        except Exception:
+            pass
         event.accept()

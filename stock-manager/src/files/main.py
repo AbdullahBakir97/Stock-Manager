@@ -79,6 +79,14 @@ def main():
     window.show()
     splash.finish()   # animates to 100 % then fades out
 
+    # Optional UI-thread watchdog (enable via SM_UI_WATCHDOG=1).
+    # Logs a warning when the main thread blocks longer than 50 ms.
+    try:
+        from app.ui.workers.ui_watchdog import start as _start_watchdog
+        _start_watchdog(threshold_ms=50)
+    except Exception:
+        pass
+
     _log.info("Main window displayed successfully")
     sys.exit(app.exec())
 

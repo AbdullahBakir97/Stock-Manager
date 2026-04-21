@@ -30,6 +30,7 @@ from app.models.audit import AuditLine, InventoryAudit
 from app.services.audit_service import AuditService
 from app.ui.components.dashboard_widget import SummaryCard
 from app.ui.components.empty_state import EmptyState
+from app.ui.workers.worker_pool import POOL
 from app.ui.dialogs.dialog_base import DialogBase
 from app.ui.components.responsive_table import make_table_responsive
 
@@ -213,10 +214,19 @@ class AuditListView(QWidget):
         self.setLayout(layout)
 
     def _load_data(self) -> None:
-        """Load audits from service."""
+        """Fetch audits + summary off the UI thread, apply on return."""
+        def _fetch():
+            return {
+                "audits":  self._svc.get_all_audits(),
+                "summary": self._svc.get_summary(),
+            }
+        POOL.submit("audit_load", _fetch, self._apply_audits)
+
+    def _apply_audits(self, payload: dict) -> None:
+        """Main-thread render of audit KPIs + table with pre-fetched data."""
         try:
-            audits = self._svc.get_all_audits()
-            summary = self._svc.get_summary()
+            audits = payload.get("audits", [])
+            summary = payload.get("summary", {})
 
             # Update KPIs
             self.kpi_total.set_value(summary["total_audits"], t("aud_kpi_total"))
@@ -238,7 +248,7 @@ class AuditListView(QWidget):
                 self.empty_state.hide()
 
         except Exception as e:
-            print(f"Failed to load audits: {e}")
+            print(f"Failed to render audits: {e}")
 
     def _populate_row(self, row: int, audit: InventoryAudit) -> None:
         """Populate table row with audit data."""

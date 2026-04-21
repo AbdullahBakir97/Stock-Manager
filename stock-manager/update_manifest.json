@@ -1,7 +1,7 @@
 {
-  "version": "2.4.0",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.0/StockManagerPro-2.4.0-setup.exe",
-  "release_notes": "**`NavController.register_lazy(key, page_index, factory, on_activate)`** \u2014 new API. The factory runs on first navigation; a lightweight `QWidget` placeholder holds the stack slot until then. `register_placeholder(page_index)` + `realize(key)` + `get_lazy_instance(key)` complete the contract.; **`_MatrixPlaceholder`** \u2014 matrix category tabs are now placeholders until the user clicks their sidebar entry. On first click `NavController._go_matrix` swaps the placeholder for a real `MatrixTab` in the same stack slot, emits `navigated`, then kicks the first `refresh()` via `QTimer.singleShot(0, \u2026)` so the switch paints before the DB round-trip lands.; **10 static pages migrated to lazy**: `SalesPage`, `CustomersPanel`, `PurchaseOrdersPage`, `ReturnsPage`, `BarcodeGenPage`, `ReportsPage`, `SuppliersPage`, `AnalyticsPage`, `AuditPage`, `PriceListsPage`. Each has a closure-style factory that sets `self._xxx_page` before returning; the `AnalyticsPage` factory also wires `navigate_to.connect(nav_ctrl.go)` after construction. Eager pages (`InventoryPage`, `TransactionsPage`, `QuickScanTab`) stay immediate.",
+  "version": "2.4.1",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.1/StockManagerPro-2.4.1-setup.exe",
+  "release_notes": "**Shop setting: \"Show sell totals in matrix\"** \u2014 new checkbox in Admin \u2192 Shop Settings (Regional card, under UI Scale). When off, the matrix TOTAL column and the value portion of the per-part-type cards + the grand-total card are hidden, so shop assistants see stock counts without seeing sell valuation. Units stay visible either way. Cost mode (PIN-gated via \ud83d\udc41) overrides the hide so the cost/sell comparison still makes sense when the owner has authenticated.; Persisted via `ShopConfig.show_sell_totals` (reuses the existing `app_config` key-value mechanism \u2014 no DB migration needed).; Typed accessor `ShopConfig.is_show_sell_totals`.",
   "release_date": "2026-04-21",
-  "checksum_sha256": "2661d412e946ace731272f95c29ef22507b687564aed391f5e0b96b6b4b28623"
+  "checksum_sha256": "d59de0b47c44089c53d7c00b30b3c15ad6633ebb81dcfe615bfd39162edb9c8a"
 }

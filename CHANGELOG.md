@@ -11,6 +11,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.4.1] - 2026-04-21
+
+### Added
+- **Shop setting: "Show sell totals in matrix"** — new checkbox in Admin → Shop Settings (Regional card, under UI Scale). When off, the matrix TOTAL column and the value portion of the per-part-type cards + the grand-total card are hidden, so shop assistants see stock counts without seeing sell valuation. Units stay visible either way. Cost mode (PIN-gated via 👁) overrides the hide so the cost/sell comparison still makes sense when the owner has authenticated.
+  - Persisted via `ShopConfig.show_sell_totals` (reuses the existing `app_config` key-value mechanism — no DB migration needed).
+  - Typed accessor `ShopConfig.is_show_sell_totals`.
+  - Default is ON — existing users see zero change until they toggle it off.
+  - Live-update on Save: the existing settings-close rebuild chain (`ShopConfig.invalidate()` → `rebuild_matrix_tabs()` fast path → `tab.refresh()`) propagates the new state to every matrix tab instantly.
+
+### Fixed
+- **Float-precision display bug** — `7 × 22.99` was rendering as `€160.9299999999998` in matrix TOTAL cells and cards. `ShopConfig.format_currency` used `str(amount)` which exposed the full Python-float representation. Now formats with `f"{float(amount):,.2f}"` — always exactly 2 decimals, thousands separator included. One-line fix at source means every money display across the whole app (matrix cells, cards, Quick Scan, Sales, POS, Analytics, Reports, Purchase Orders) benefits automatically.
+
+---
+
 ## [2.4.0] - 2026-04-21
 
 ### Added

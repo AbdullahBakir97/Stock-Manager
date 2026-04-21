@@ -179,6 +179,21 @@ class ShopSettingsPanel(QWidget):
         )
         regional_card.form.addRow("UI Scale", self._ui_scale)
 
+        # ── Show sell totals (matrix) ──
+        # When off, the TOTAL column in the matrix table and the value
+        # portion of the part-type cards + the grand-total card are hidden,
+        # so shop assistants can see stock without seeing valuation.
+        # Cost totals have their own separate PIN-gated toggle (COST column).
+        self._show_sell_totals = QCheckBox()
+        self._show_sell_totals.setToolTip(
+            "Show the TOTAL column and value on part-type cards in matrix tabs.\n"
+            "Turn off to hide sell valuations from shop assistants.\n"
+            "Units / stock counts stay visible either way."
+        )
+        regional_card.form.addRow(
+            "Show sell totals in matrix", self._show_sell_totals
+        )
+
         # Theme preview swatch
         self._preview_frame = QFrame()
         self._preview_frame.setFixedHeight(48)
@@ -292,6 +307,8 @@ class ShopSettingsPanel(QWidget):
         idx = self._ui_scale.findData(cfg.ui_scale or "normal")
         self._ui_scale.setCurrentIndex(max(0, idx))
         self._original_ui_scale = cfg.ui_scale or "normal"
+        # Show sell totals
+        self._show_sell_totals.setChecked(cfg.is_show_sell_totals)
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
         # Auto-backup
@@ -349,6 +366,7 @@ class ShopSettingsPanel(QWidget):
         cfg.default_language = self._lang.currentData()
         cfg.theme = self._theme.currentData()
         cfg.ui_scale = self._ui_scale.currentData()
+        cfg.show_sell_totals = "1" if self._show_sell_totals.isChecked() else "0"
         cfg.admin_pin = self._pin.text()
         cfg.contact_info = self._contact.text().strip()
         # Auto-backup

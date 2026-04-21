@@ -369,6 +369,16 @@ class MatrixTab(BaseTab):
         cost_mode = COST_VIS.visible
         metric_suffix = "cost" if cost_mode else "sell"
 
+        # Shop-wide setting — may hide the value portion of every card and
+        # suppress the grand-total card entirely. Cost mode overrides it
+        # (the owner has already PIN-unlocked the valuation data).
+        try:
+            from app.core.config import ShopConfig
+            _cfg = ShopConfig.get()
+            show_totals = _cfg.is_show_sell_totals or cost_mode
+        except Exception:
+            show_totals = True
+
         # Aggregate totals per part-type key
         totals: dict[str, tuple[int, float]] = {}
         dp_map = {pt.key: float(pt.default_price or 0.0) for pt in cat.part_types}
@@ -457,27 +467,42 @@ class MatrixTab(BaseTab):
             units_lbl.setFont(units_f)
             units_lbl.setStyleSheet(f"color: {muted}; background: transparent;")
 
-            value_lbl = QLabel(val_text)
-            value_lbl.setAlignment(
-                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-            )
-            val_f = QFont("Segoe UI", 9, QFont.Weight.Bold)
-            value_lbl.setFont(val_f)
-            value_lbl.setStyleSheet(
-                f"color: {pt.accent_color}; background: transparent;"
-            )
-
             metrics_row.addWidget(units_lbl, 1)
-            metrics_row.addWidget(value_lbl, 1)
+            if show_totals:
+                # Full card — name + units + value. Value only rendered
+                # when the owner has enabled sell-total display (or is in
+                # PIN-unlocked cost mode).
+                value_lbl = QLabel(val_text)
+                value_lbl.setAlignment(
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+                )
+                val_f = QFont("Segoe UI", 9, QFont.Weight.Bold)
+                value_lbl.setFont(val_f)
+                value_lbl.setStyleSheet(
+                    f"color: {pt.accent_color}; background: transparent;"
+                )
+                metrics_row.addWidget(value_lbl, 1)
+            else:
+                # Valuation hidden — right-align the units label so the
+                # card doesn't look lopsided with a lone left-aligned count.
+                units_lbl.setAlignment(
+                    Qt.AlignmentFlag.AlignCenter | Qt.AlignmentFlag.AlignVCenter
+                )
             col.addLayout(metrics_row)
 
             self._cards_row.addWidget(card)
             self._pt_cards.append(card)
 
-        # ── Grand-total card (sum across every part-type in the filter) ──
-        # Shows an at-a-glance roll-up: total units + total valuation for
-        # the currently-displayed brand filter, using the same sell/cost
-        # metric as the per-part-type cards. Styled with the shop accent
+        # ── Grand-total card ────────────────────────────────────────────
+        # Skip entirely when sell totals are hidden shop-wide. In cost
+        # mode the owner has already authenticated, so we keep it.
+        if not show_totals:
+            self._cards_row.addStretch()
+            return
+
+        # Sum across every part-type in the filter — at-a-glance roll-up
+        # using the same sell/cost metric as the per-part-type cards.
+        # Styled with the shop accent
         # (emerald) so it reads as the summary/anchor at the end of the strip.
         grand_units = sum(u for (u, _v) in totals.values())
         grand_value = sum(v for (_u, v) in totals.values())

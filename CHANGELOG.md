@@ -7,10 +7,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.1] - 2026-04-21
+## [2.4.2] - 2026-04-21
 
 
-## [2.4.1] - 2026-04-21
+## [2.4.2] - 2026-04-21
 
 ### Added
 - **Shop setting: "Show sell totals in matrix"** — new checkbox in Admin → Shop Settings (Regional card, under UI Scale). When off, the matrix TOTAL column and the value portion of the per-part-type cards + the grand-total card are hidden, so shop assistants see stock counts without seeing sell valuation. Units stay visible either way. Cost mode (PIN-gated via 👁) overrides the hide so the cost/sell comparison still makes sense when the owner has authenticated.

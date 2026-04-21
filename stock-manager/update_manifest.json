@@ -1,7 +1,7 @@
 {
-  "version": "2.3.4",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.4/StockManagerPro-2.3.4-setup.exe",
-  "release_notes": "**Sticky model column** \u2014 frozen left-side table for model names stays visible when scrolling horizontally in the matrix; **Part-type banner bar** \u2014 colour-coded part-type names displayed above column headers via synced QScrollArea; **Excel-like zoom** \u2014 Ctrl+Scroll / Ctrl+Plus/Minus zoom (50\u2013200%) with compact footer slider, auto-reset on page switch, hidden on non-table pages",
-  "release_date": "2026-04-12",
-  "checksum_sha256": "d2570cd789024a23c1f522752311b9a7b677078aaf32d30109ec06a98f7c8ab3"
+  "version": "2.4.2",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.2/StockManagerPro-2.4.2-setup.exe",
+  "release_notes": "**Shop setting: \"Show sell totals in matrix\"** \u2014 new checkbox in Admin \u2192 Shop Settings (Regional card, under UI Scale). When off, the matrix TOTAL column and the value portion of the per-part-type cards + the grand-total card are hidden, so shop assistants see stock counts without seeing sell valuation. Units stay visible either way. Cost mode (PIN-gated via \ud83d\udc41) overrides the hide so the cost/sell comparison still makes sense when the owner has authenticated.; Persisted via `ShopConfig.show_sell_totals` (reuses the existing `app_config` key-value mechanism \u2014 no DB migration needed).; Typed accessor `ShopConfig.is_show_sell_totals`.",
+  "release_date": "2026-04-21",
+  "checksum_sha256": "442de9f0774718fafa6c776f8fde4496a2ada3cdc7d2c31d79bd830cf9278e6f"
 }

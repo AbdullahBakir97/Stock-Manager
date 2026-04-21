@@ -720,22 +720,34 @@ class MatrixWidget(QTableWidget):
         self.setItem(r, b + _SUB_TOTAL, tot_cell)
 
     def _apply_cost_columns_visible(self) -> None:
-        """Hide/show the PRICE (cost) column across every part-type group.
+        """Hide/show the PRICE (cost) and TOTAL columns per part-type group.
 
-        TOTAL stays VISIBLE at all times — its metric flips:
-          · COST_VIS.visible == False  →  TOTAL = stock × sell_price
-          · COST_VIS.visible == True   →  TOTAL = stock × cost_price
-        Only the raw cost number is PIN-gated (the PRICE column), since
-        that's the sensitive datum; the sell-valuation totals are not.
+        Two independent toggles drive column visibility:
+
+        * **PRICE** (cost_price) — controlled by `COST_VIS.visible`
+          (session-local, PIN-gated via the 👁 button). Hidden by default.
+
+        * **TOTAL** — controlled by the shop setting
+          `ShopConfig.show_sell_totals` (persisted, toggled in the admin
+          Shop Settings panel). Visible by default. When cost mode is on,
+          we always show TOTAL regardless of the setting because the user
+          has already authenticated — showing cost valuation without its
+          corresponding TOTAL would be pointless.
         """
         from app.services.cost_visibility import COST_VIS
-        show = COST_VIS.visible
+        cost_on = COST_VIS.visible
+        try:
+            from app.core.config import ShopConfig
+            show_total = ShopConfig.get().is_show_sell_totals
+        except Exception:
+            show_total = True
+        total_visible = show_total or cost_on
+
         n_types = len(self._cat.part_types) if self._cat else 0
         for i in range(n_types):
             b = _base(i)
-            self.setColumnHidden(b + _SUB_PRICE, not show)
-            # TOTAL column is always visible
-            self.setColumnHidden(b + _SUB_TOTAL, False)
+            self.setColumnHidden(b + _SUB_PRICE, not cost_on)
+            self.setColumnHidden(b + _SUB_TOTAL, not total_visible)
 
     def retranslate(self) -> None:
         if not self._cat:

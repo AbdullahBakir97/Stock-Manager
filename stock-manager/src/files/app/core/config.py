@@ -27,6 +27,12 @@ class ShopConfig:
     # UI — whole-app size preset (admin setting, requires restart)
     # Values: "small" | "normal" | "large" | "xlarge"
     ui_scale:                   str = "normal"
+    # UI — show/hide "sell total" (stock × sell-price) displays in the
+    # matrix tabs. Owners who don't want a shop assistant to see the
+    # valuation turn this off. Default "1" = shown (backward compatible).
+    # Affects: TOTAL column in matrix table · per-part-type card value ·
+    # grand-total card at the end of the cards strip.
+    show_sell_totals:           str = "1"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -36,6 +42,7 @@ class ShopConfig:
         "update_auto_check",
         "zoom_level",
         "ui_scale",
+        "show_sell_totals",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -70,6 +77,11 @@ class ShopConfig:
         except (ValueError, TypeError):
             return 100
         return max(50, min(200, v))
+
+    @property
+    def is_show_sell_totals(self) -> bool:
+        """Typed accessor — is the matrix 'sell total' display enabled?"""
+        return (self.show_sell_totals or "1") != "0"
 
     @property
     def ui_scale_factor(self) -> float:
@@ -125,8 +137,18 @@ class ShopConfig:
                 )
 
     def format_currency(self, amount) -> str:
-        """Format a numeric amount with the shop currency symbol."""
-        s = str(amount)
+        """Format a numeric amount with the shop currency symbol.
+
+        Always renders with exactly 2 decimals and a thousands separator
+        so floating-point artefacts like 160.92999999999998 never leak
+        into the UI. Non-numeric input is stringified as-is (legacy
+        behaviour — some callers pass pre-formatted strings).
+        """
+        try:
+            v = float(amount)
+            s = f"{v:,.2f}"
+        except (TypeError, ValueError):
+            s = str(amount)
         if self.currency_position == "suffix":
             return f"{s} {self.currency}"
         return f"{self.currency}{s}"

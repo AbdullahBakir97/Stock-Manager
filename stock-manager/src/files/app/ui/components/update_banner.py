@@ -206,6 +206,36 @@ class UpdateBanner(QFrame):
 
     # ── Button handlers ────────────────────────────────────────────────────────
 
+    # ── Background download callback ───────────────────────────────────────────
+
+    def set_installer_ready(self, installer_path: str) -> None:
+        """
+        Called by UpdateController when the silent background download finishes.
+
+        Stores the path and flips the button to "Install Now" so the user can
+        install instantly without waiting for a re-download.
+        """
+        self._installer_path = installer_path
+        self._download_btn.setText(t("update_install_now"))
+        self._download_btn.setEnabled(True)
+        # Rewire click: skip download, go straight to install confirmation
+        try:
+            self._download_btn.clicked.disconnect()
+        except RuntimeError:
+            pass
+        self._download_btn.clicked.connect(self._confirm_and_install)
+
+    def _confirm_and_install(self) -> None:
+        """Installer already cached — confirm with user then launch."""
+        reply = QMessageBox.question(
+            self.window(),
+            t("update_available"),
+            t("update_download_done"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply == QMessageBox.StandardButton.Yes:
+            self._launch_installer()
+
     def _on_later(self) -> None:
         """Hide for this session but do not persist the decision."""
         self._hide_animated()

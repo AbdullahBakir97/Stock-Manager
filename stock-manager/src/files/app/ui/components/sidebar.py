@@ -19,14 +19,19 @@ _cat_repo = CategoryRepository()
 
 
 class Sidebar(QFrame):
-    """240px fixed sidebar with main nav + collapsible category tabs."""
+    """192px fixed sidebar (slim default) with main nav + collapsible category tabs.
+
+    The base 192 px matches what previously rendered at 80% zoom — a more
+    professional slimline layout. The UI Scale admin setting can enlarge
+    it at startup (Small/Normal/Large/XL maps to 0.85/1.0/1.15/1.30).
+    """
 
     nav_clicked = pyqtSignal(str)  # emits nav key like "nav_inventory" or "cat_displays"
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(240)
+        self.setFixedWidth(192)
         self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Expanding)
 
         self._nav_btns: list[QPushButton] = []
@@ -223,3 +228,19 @@ class Sidebar(QFrame):
             self._shop_name_lbl.setText(cfg.name)
         if self._shop_meta_lbl and cfg.contact_info:
             self._shop_meta_lbl.setText(cfg.contact_info)
+
+    # ── UI Scale (one-shot at startup, not tied to table zoom slider) ─────
+    def apply_ui_scale(self, factor: float) -> None:
+        """Scale sidebar width + button heights for the global UI scale.
+        Called ONCE at app startup from MainWindow after reading ShopConfig.ui_scale.
+        """
+        from PyQt6.QtGui import QFont
+
+        # Base width 192 px (slimmed down from 240), floor 160
+        w = max(160, int(round(192 * factor)))
+        self.setFixedWidth(w)
+        btn_h = max(26, int(round(38 * factor)))
+        btn_font = QFont("Segoe UI", max(8, int(round(10 * factor))))
+        for btn in list(self._nav_btns) + list(self._cat_nav_btns):
+            btn.setMinimumHeight(btn_h)
+            btn.setFont(btn_font)

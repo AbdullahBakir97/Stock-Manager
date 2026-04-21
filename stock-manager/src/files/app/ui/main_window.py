@@ -181,22 +181,35 @@ class MainWindow(QMainWindow):
         self._stack = QStackedWidget()
         self._stack.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Ignored)
 
-        # ── Static pages (order must match _PAGE_* constants) ────────────
+        # ── EAGER pages (user lands here or uses frequently; must be
+        # ready immediately) ──────────────────────────────────────────────
         self._inv_page        = InventoryPage();         self._stack.addWidget(self._inv_page)
         self._txn_page        = TransactionsPage();      self._stack.addWidget(self._txn_page)
         self._quick_scan_tab  = QuickScanTab();          self._stack.addWidget(self._quick_scan_tab)
-        self._sales_page      = SalesPage();             self._stack.addWidget(self._sales_page)
-        self._customers_page  = CustomersPanel();        self._stack.addWidget(self._customers_page)
-        self._po_page         = PurchaseOrdersPage();    self._stack.addWidget(self._po_page)
-        self._returns_page    = ReturnsPage();           self._stack.addWidget(self._returns_page)
-        self._barcode_gen_page= BarcodeGenPage();        self._stack.addWidget(self._barcode_gen_page)
-        self._reports_page    = ReportsPage();           self._stack.addWidget(self._reports_page)
-        self._suppliers_page  = SuppliersPage();         self._stack.addWidget(self._suppliers_page)
-        self._analytics_page  = AnalyticsPage();         self._stack.addWidget(self._analytics_page)
-        self._audit_page      = AuditPage();             self._stack.addWidget(self._audit_page)
-        self._price_lists_page= PriceListsPage();        self._stack.addWidget(self._price_lists_page)
 
-        self._analytics_page.navigate_to.connect(lambda k: self._nav_ctrl.go(k))
+        # ── LAZY pages (heavy widget trees — built on first navigation)
+        # Attributes are None until realised; every cross-reference must
+        # guard with `if self._xxx_page is not None`.
+        # Placeholders occupy the stack slots so _PAGE_* indices remain stable.
+        self._sales_page      = None
+        self._customers_page  = None
+        self._po_page         = None
+        self._returns_page    = None
+        self._barcode_gen_page= None
+        self._reports_page    = None
+        self._suppliers_page  = None
+        self._analytics_page  = None
+        self._audit_page      = None
+        self._price_lists_page= None
+
+        for _idx in (self._PAGE_SALES, self._PAGE_CUSTOMERS,
+                     self._PAGE_PURCHASE_ORDERS, self._PAGE_RETURNS,
+                     self._PAGE_BARCODE_GEN, self._PAGE_REPORTS,
+                     self._PAGE_SUPPLIERS, self._PAGE_ANALYTICS,
+                     self._PAGE_AUDIT, self._PAGE_PRICE_LISTS):
+            _ph = QWidget()
+            _ph.setObjectName("page_placeholder")
+            self._stack.addWidget(_ph)
 
         # ── NavController (created here so matrix tabs wire before connect) ─
         self._nav_ctrl = NavController(
@@ -209,35 +222,105 @@ class MainWindow(QMainWindow):
             help_fn=self._open_help,
             parent=self,
         )
-        # Register all static pages with their optional refresh callbacks
+
+        # ── Lazy-page factories (closures so `self` stays current) ────────
+        def _build_sales():
+            self._sales_page = SalesPage()
+            return self._sales_page
+        def _build_customers():
+            self._customers_page = CustomersPanel()
+            return self._customers_page
+        def _build_po():
+            self._po_page = PurchaseOrdersPage()
+            return self._po_page
+        def _build_returns():
+            self._returns_page = ReturnsPage()
+            return self._returns_page
+        def _build_barcode_gen():
+            self._barcode_gen_page = BarcodeGenPage()
+            return self._barcode_gen_page
+        def _build_reports():
+            self._reports_page = ReportsPage()
+            return self._reports_page
+        def _build_suppliers():
+            self._suppliers_page = SuppliersPage()
+            return self._suppliers_page
+        def _build_analytics():
+            self._analytics_page = AnalyticsPage()
+            # Analytics drill-down signal — wire AFTER the real page exists
+            self._analytics_page.navigate_to.connect(lambda k: self._nav_ctrl.go(k))
+            return self._analytics_page
+        def _build_audit():
+            self._audit_page = AuditPage()
+            return self._audit_page
+        def _build_price_lists():
+            self._price_lists_page = PriceListsPage()
+            return self._price_lists_page
+
+        # Register all static pages with their optional refresh callbacks.
+        # Eager pages use register(); lazy pages use register_lazy().
         self._nav_ctrl.register("nav_inventory",       self._PAGE_INVENTORY)
         self._nav_ctrl.register("nav_transactions",    self._PAGE_TRANSACTIONS,
                                 lambda: self._txn_page.refresh())
         self._nav_ctrl.register("nav_quick_scan",      self._PAGE_QUICK_SCAN,
                                 lambda: self._quick_scan_tab.focus_input())
-        self._nav_ctrl.register("nav_sales",           self._PAGE_SALES,
-                                lambda: self._sales_page.refresh())
-        self._nav_ctrl.register("nav_customers",       self._PAGE_CUSTOMERS,
-                                lambda: self._customers_page.reload())
-        self._nav_ctrl.register("nav_purchase_orders", self._PAGE_PURCHASE_ORDERS,
-                                lambda: self._po_page.refresh())
-        self._nav_ctrl.register("nav_returns",         self._PAGE_RETURNS,
-                                lambda: self._returns_page.refresh())
-        self._nav_ctrl.register("nav_barcode_gen",     self._PAGE_BARCODE_GEN,
-                                lambda: self._barcode_gen_page.refresh())
-        self._nav_ctrl.register("nav_reports",         self._PAGE_REPORTS,
-                                lambda: self._reports_page.refresh())
-        self._nav_ctrl.register("nav_suppliers",       self._PAGE_SUPPLIERS,
-                                lambda: self._suppliers_page.refresh())
-        self._nav_ctrl.register("nav_analytics",       self._PAGE_ANALYTICS,
-                                lambda: self._analytics_page.refresh())
-        self._nav_ctrl.register("nav_audit",           self._PAGE_AUDIT,
-                                lambda: self._audit_page.refresh())
-        self._nav_ctrl.register("nav_price_lists",     self._PAGE_PRICE_LISTS,
-                                lambda: self._price_lists_page.refresh())
+        self._nav_ctrl.register_lazy(
+            "nav_sales", self._PAGE_SALES, _build_sales,
+            on_activate=lambda: (self._sales_page.refresh()
+                                 if self._sales_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_customers", self._PAGE_CUSTOMERS, _build_customers,
+            on_activate=lambda: (self._customers_page.reload()
+                                 if self._customers_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_purchase_orders", self._PAGE_PURCHASE_ORDERS, _build_po,
+            on_activate=lambda: (self._po_page.refresh()
+                                 if self._po_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_returns", self._PAGE_RETURNS, _build_returns,
+            on_activate=lambda: (self._returns_page.refresh()
+                                 if self._returns_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_barcode_gen", self._PAGE_BARCODE_GEN, _build_barcode_gen,
+            on_activate=lambda: (self._barcode_gen_page.refresh()
+                                 if self._barcode_gen_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_reports", self._PAGE_REPORTS, _build_reports,
+            on_activate=lambda: (self._reports_page.refresh()
+                                 if self._reports_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_suppliers", self._PAGE_SUPPLIERS, _build_suppliers,
+            on_activate=lambda: (self._suppliers_page.refresh()
+                                 if self._suppliers_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_analytics", self._PAGE_ANALYTICS, _build_analytics,
+            on_activate=lambda: (self._analytics_page.refresh()
+                                 if self._analytics_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_audit", self._PAGE_AUDIT, _build_audit,
+            on_activate=lambda: (self._audit_page.refresh()
+                                 if self._audit_page is not None else None),
+        )
+        self._nav_ctrl.register_lazy(
+            "nav_price_lists", self._PAGE_PRICE_LISTS, _build_price_lists,
+            on_activate=lambda: (self._price_lists_page.refresh()
+                                 if self._price_lists_page is not None else None),
+        )
 
-        # Populate initial dynamic matrix tabs
-        self._nav_ctrl.rebuild_matrix_tabs()
+        # Populate initial dynamic matrix tabs — DEFERRED to after first
+        # paint so the main window becomes interactive immediately.
+        # Instantiating every MatrixTab runs DB queries and builds heavy
+        # QTableWidgets; doing it synchronously here caused a multi-second
+        # freeze right after the splash finished.
+        QTimer.singleShot(0, self._nav_ctrl.rebuild_matrix_tabs)
 
         content.addSpacing(12)
         content.addWidget(self._stack, 1)
@@ -252,6 +335,11 @@ class MainWindow(QMainWindow):
         self._footer = FooterBar()
         outer.addWidget(self._footer, 0)
 
+        # ── Apply UI Scale (whole-app size preset) ONCE at startup ─────────
+        # Read ShopConfig.ui_scale → factor, then resize chrome components.
+        # This is a restart-required setting (unlike the table zoom slider).
+        self._apply_ui_scale_once()
+
         # Initial nav: analytics dashboard
         self._nav_ctrl.go("nav_analytics")
 
@@ -263,6 +351,14 @@ class MainWindow(QMainWindow):
         self._header.lang_changed.connect(self._set_lang)
         self._header.alerts_clicked.connect(self._alert_ctrl.toggle_panel)
         self._header.refresh_clicked.connect(self._refresh_all)
+        self._header.undo_clicked.connect(self._undo_action)
+        self._header.redo_clicked.connect(self._redo_action)
+
+        # Wire undo manager to enable/disable header buttons
+        # Use queued connection so signals from worker threads reach main thread
+        from app.services.undo_manager import UNDO
+        UNDO.changed.connect(self._on_undo_changed, Qt.ConnectionType.QueuedConnection)
+        self._on_undo_changed()  # initial state
         self._header.theme_toggled.connect(self._toggle_mode)
         self._header.admin_clicked.connect(self._open_admin)
         self._header.search.barcode_scanned.connect(self._barcode)
@@ -321,13 +417,23 @@ class MainWindow(QMainWindow):
         QShortcut(QKeySequence("Ctrl+7"),     self).activated.connect(lambda: self._nav_ctrl.go("nav_suppliers"))
         QShortcut(QKeySequence("Escape"),     self).activated.connect(self._escape_handler)
 
-        # Zoom shortcuts
-        QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(self._zoom_in)
-        QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(self._zoom_out)
-        QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(self._zoom_reset)
+        # Zoom shortcuts — route to ZoomService (authoritative)
+        from app.services.zoom_service import ZOOM
+        QShortcut(QKeySequence("Ctrl+="),     self).activated.connect(ZOOM.zoom_in)
+        QShortcut(QKeySequence("Ctrl++"),     self).activated.connect(ZOOM.zoom_in)
+        QShortcut(QKeySequence("Ctrl+-"),     self).activated.connect(ZOOM.zoom_out)
+        QShortcut(QKeySequence("Ctrl+0"),     self).activated.connect(ZOOM.reset)
 
-        # Footer zoom controls
-        self._footer.zoom_changed.connect(self._apply_zoom)
+        # Undo / Redo
+        QShortcut(QKeySequence("Ctrl+Z"),       self).activated.connect(self._undo_action)
+        QShortcut(QKeySequence("Ctrl+Y"),       self).activated.connect(self._redo_action)
+        QShortcut(QKeySequence("Ctrl+Shift+Z"), self).activated.connect(self._redo_action)
+
+        # ZoomService → apply to all views. Startup load fires this too.
+        from app.services.zoom_service import ZOOM
+        ZOOM.pct_changed.connect(self._apply_zoom_all, Qt.ConnectionType.QueuedConnection)
+        # Load persisted zoom level from ShopConfig and apply
+        ZOOM.load_from_config()
 
         # Global barcode buffer
         self._global_bc_buf: list[str] = []
@@ -367,9 +473,19 @@ class MainWindow(QMainWindow):
             ).fetchone()
         if not row:
             wizard = SetupWizard(self); wizard.exec()
-            ShopConfig.invalidate(); ensure_matrix_entries()
-            self._nav_ctrl.rebuild_matrix_tabs()
-            self._retranslate()
+            ShopConfig.invalidate()
+            # Move the DB seeding (can touch 1000+ rows) off the UI thread
+            # entirely, then do the pure-widget rebuild in the on_result
+            # callback on the main thread.
+            from app.ui.workers.worker_pool import POOL as _POOL
+            def _on_wizard_entries_done(_v):
+                self._nav_ctrl.rebuild_matrix_tabs()
+                self._retranslate()
+            _POOL.submit(
+                "admin:matrix_ensure",
+                ensure_matrix_entries,
+                _on_wizard_entries_done,
+            )
 
     def _open_admin(self) -> None:
         saved = self._nav_ctrl.current
@@ -385,7 +501,17 @@ class MainWindow(QMainWindow):
 
         dlg = AdminDialog(self)
         dlg.preview_banner_requested.connect(self._upd_ctrl.show_banner)
+        # Track the live admin dialog so the zoom dispatcher can reach
+        # any QTableWidget inside admin panels
+        self._admin_dialog = dlg
+        # Apply current zoom to admin tables immediately on open
+        try:
+            from app.services.zoom_service import ZOOM
+            self._zoom_admin_tables(dlg, ZOOM.factor)
+        except Exception:
+            pass
         dlg.exec()
+        self._admin_dialog = None
 
         ShopConfig.invalidate()
         cfg = ShopConfig.get()
@@ -393,10 +519,46 @@ class MainWindow(QMainWindow):
             THEME.set_theme(cfg.theme)
             self._header.theme_toggle._update_text()
             self._bg.update()
-        ensure_matrix_entries()
-        self._nav_ctrl.rebuild_matrix_tabs()
-        self._retranslate()
-        self._nav_ctrl.go(saved)
+            # Run same full repaint chain as _toggle_mode so every widget updates
+            self._inv_page.dashboard.apply_theme()
+            self._inv_page.apply_theme()
+            for widget, children in [
+                (self._sidebar, True),
+                (self._header, True),
+                (self._footer, True),
+            ]:
+                widget.style().unpolish(widget)
+                widget.style().polish(widget)
+                if children:
+                    from PyQt6.QtWidgets import QWidget as _QW
+                    for child in widget.findChildren(_QW):
+                        child.style().unpolish(child)
+                        child.style().polish(child)
+                widget.update()
+        # ── Post-settings rebuild ────────────────────────────────────────
+        # Heavy work: `ensure_matrix_entries` walks every model × part-type
+        # combo and inserts the missing rows — easily 1000+ writes on any
+        # real DB. Run it off the UI thread via POOL; rebuild the tabs +
+        # re-apply theme/translation on the main thread when the worker
+        # finishes. The admin dialog returns INSTANTLY.
+        from app.ui.workers.worker_pool import POOL as _POOL
+        def _on_admin_entries_done(_v):
+            self._nav_ctrl.rebuild_matrix_tabs()
+            self._nav_ctrl.apply_theme_to_matrix_tabs()
+            self._retranslate()
+            self._nav_ctrl.go(saved)
+        def _on_admin_entries_error(_msg):
+            # Fall back to the sync path so the user still gets a refreshed UI
+            self._nav_ctrl.rebuild_matrix_tabs()
+            self._nav_ctrl.apply_theme_to_matrix_tabs()
+            self._retranslate()
+            self._nav_ctrl.go(saved)
+        _POOL.submit(
+            "admin:matrix_ensure",
+            ensure_matrix_entries,
+            _on_admin_entries_done,
+            _on_admin_entries_error,
+        )
 
     # ── Language ─────────────────────────────────────────────────────────────
 
@@ -408,20 +570,26 @@ class MainWindow(QMainWindow):
     def _retranslate(self) -> None:
         cfg = ShopConfig.get()
         self.setWindowTitle(cfg.name if cfg.name else t("app_title"))
-        # Phase 1: visible text — synchronous, no DB
+        # Phase 1: visible text — synchronous, no DB.
+        # Lazy pages may still be unrealised; skip their retranslate —
+        # they'll read the current language when the factory runs on
+        # first navigation.
         self._header.retranslate()
         self._footer.retranslate()
         self._sidebar.retranslate()
         self._inv_page.retranslate()
         self._txn_page.retranslate()
         self._quick_scan_tab.retranslate()
-        self._po_page.retranslate()
-        self._returns_page.retranslate()
-        self._reports_page.retranslate()
-        self._suppliers_page.retranslate()
-        self._audit_page.retranslate()
-        self._price_lists_page.retranslate()
-        self._analytics_page.retranslate()
+        for _lazy in (self._po_page, self._returns_page, self._reports_page,
+                      self._suppliers_page, self._audit_page,
+                      self._price_lists_page, self._analytics_page,
+                      self._sales_page, self._customers_page,
+                      self._barcode_gen_page):
+            if _lazy is not None:
+                try:
+                    _lazy.retranslate()
+                except Exception:
+                    pass
         self._nav_ctrl.retranslate_matrix_tabs()
         self._footer.show_status(t("statusbar_ready"))
         # Phase 2: DB data — deferred so Qt paints new labels first
@@ -432,9 +600,11 @@ class MainWindow(QMainWindow):
         self._refresh_products()
         self._refresh_summary()
         self._alert_ctrl.refresh()
-        POOL.submit("analytics_refresh",
-                    self._analytics_page._fetch_all_data,
-                    self._analytics_page._apply_all_data)
+        # Analytics is a lazy page — only refresh if it has been realised
+        if self._analytics_page is not None:
+            POOL.submit("analytics_refresh",
+                        self._analytics_page._fetch_all_data,
+                        self._analytics_page._apply_all_data)
         POOL.submit_debounced("txn_filter",
                               self._txn_page.fetch_filtered,
                               self._txn_page.load_results,
@@ -468,9 +638,10 @@ class MainWindow(QMainWindow):
                               self._txn_page.fetch_filtered,
                               self._txn_page.load_results,
                               delay_ms=0)
-        POOL.submit("analytics_refresh",
-                    self._analytics_page._fetch_all_data,
-                    self._analytics_page._apply_all_data)
+        if self._analytics_page is not None:
+            POOL.submit("analytics_refresh",
+                        self._analytics_page._fetch_all_data,
+                        self._analytics_page._apply_all_data)
         if self._cp:
             cp_id = self._cp.id
             POOL.submit(
@@ -688,81 +859,289 @@ class MainWindow(QMainWindow):
 
     # ── Zoom ────────────────────────────────────────────────────────────────
 
+    # ── UI Scale (whole-app size preset, applied once at startup) ───────────
+    def _apply_ui_scale_once(self) -> None:
+        """Read ShopConfig.ui_scale and resize the chrome (sidebar + header +
+        footer + application base font) once at app startup.
+
+        This is the admin-controlled 'whole app size' setting — NOT the
+        table zoom slider. Changes here require restart to take effect.
+        """
+        try:
+            factor = ShopConfig.get().ui_scale_factor
+        except Exception:
+            factor = 1.0
+        if abs(factor - 1.0) < 0.001:
+            return  # No change needed at Normal
+
+        # Application-wide base font (labels, dialogs, dropdowns)
+        base_pt = max(8, int(round(10 * factor)))
+        QApplication.instance().setFont(QFont("Segoe UI", base_pt))
+
+        # Sidebar, header, footer — each knows its base sizes
+        for name in ("_sidebar", "_header", "_footer"):
+            w = getattr(self, name, None)
+            if w is not None and hasattr(w, "apply_ui_scale"):
+                try:
+                    w.apply_ui_scale(factor)
+                except Exception:
+                    pass
+
+    # Legacy wrappers kept for anything still calling the old names —
+    # all routing goes through ZoomService so footer + shortcuts stay in sync.
     def _zoom_in(self) -> None:
-        self._footer.set_zoom(self._footer.zoom_pct + 10)
+        from app.services.zoom_service import ZOOM
+        ZOOM.zoom_in()
 
     def _zoom_out(self) -> None:
-        self._footer.set_zoom(self._footer.zoom_pct - 10)
+        from app.services.zoom_service import ZOOM
+        ZOOM.zoom_out()
 
     def _zoom_reset(self) -> None:
-        self._footer.set_zoom(100)
+        from app.services.zoom_service import ZOOM
+        ZOOM.reset()
 
-    def _apply_zoom(self, pct: int) -> None:
-        """Apply zoom level to all table widgets by scaling fonts and row heights."""
-        factor = pct / 100.0
+    # ── Undo / Redo ─────────────────────────────────────────────────────────
 
-        # Scale the application-wide base font
-        base_font = QFont("Segoe UI", max(8, int(10 * factor)))
-        QApplication.instance().setFont(base_font)
+    def _undo_action(self) -> None:
+        """Run undo on the worker pool so the UI stays responsive."""
+        from app.services.undo_manager import UNDO
+        if not UNDO.can_undo():
+            return
+        # Disable buttons immediately to prevent double-clicks during the operation
+        self._header.undo_btn.setEnabled(False)
+        self._header.redo_btn.setEnabled(False)
+        self._show_status("Undoing…", 0)
 
-        # Scale product table
-        tbl = self._inv_page.table
-        tbl.verticalHeader().setDefaultSectionSize(int(48 * factor))
-        tbl_font = QFont("Segoe UI", max(8, int(10 * factor)))
-        tbl.setFont(tbl_font)
-        tbl.horizontalHeader().setFont(tbl_font)
-        for i, w in enumerate(tbl._WIDTHS):
-            if i != 1:  # skip stretch column
-                tbl.setColumnWidth(i, int(w * factor))
-        tbl.viewport().update()
+        POOL.submit(
+            "undo_op",
+            UNDO.undo,
+            lambda label: self._on_undo_done(label, "Undo"),
+            on_error=lambda msg: self._on_undo_error("Undo", msg),
+        )
 
-        # Scale all matrix tabs (data table + frozen model column)
-        for tab in self._nav_ctrl.matrix_tabs:
-            container = tab._container
-            mtx = container.data_table
-            model_tbl = container._model_table
-            mtx_font = QFont("Segoe UI", max(8, int(10 * factor)))
-            mtx.setFont(mtx_font)
-            mtx.horizontalHeader().setFont(mtx_font)
-            model_tbl.setFont(mtx_font)
-            model_tbl.horizontalHeader().setFont(mtx_font)
-            # Scale column widths
-            from app.ui.components.matrix_widget import _COL_W, _base
-            model_w = int(_COL_W["model"] * factor)
-            mtx.setColumnWidth(0, model_w)
-            model_tbl.setColumnWidth(0, model_w)
-            model_tbl.setFixedWidth(model_w + 2)
-            if mtx._cat:
-                for ti in range(len(mtx._cat.part_types)):
-                    b = _base(ti)
-                    mtx.setColumnWidth(b,     int(_COL_W["stamm"] * factor))
-                    mtx.setColumnWidth(b + 1, int(_COL_W["bestbung"] * factor))
-                    mtx.setColumnWidth(b + 2, int(_COL_W["stock"] * factor))
-                    mtx.setColumnWidth(b + 3, int(_COL_W["inventur"] * factor))
-            # Scale row heights in both tables (skip separator rows)
-            for r in range(mtx.rowCount()):
-                cur_h = mtx.rowHeight(r)
-                if cur_h <= 5:
-                    # Separator row — keep at 3px, don't scale
+    def _redo_action(self) -> None:
+        """Run redo on the worker pool so the UI stays responsive."""
+        from app.services.undo_manager import UNDO
+        if not UNDO.can_redo():
+            return
+        self._header.undo_btn.setEnabled(False)
+        self._header.redo_btn.setEnabled(False)
+        self._show_status("Redoing…", 0)
+
+        POOL.submit(
+            "undo_op",
+            UNDO.redo,
+            lambda label: self._on_undo_done(label, "Redo"),
+            on_error=lambda msg: self._on_undo_error("Redo", msg),
+        )
+
+    def _on_undo_done(self, label, action: str) -> None:
+        """Called on main thread after undo/redo succeeds.
+
+        Order matters for UX responsiveness:
+        1. Re-enable buttons FIRST so the user can fire another undo immediately
+        2. Show status label
+        3. Defer the (potentially heavy) view refresh to the next event loop tick
+           via QTimer.singleShot(0, ...) so the button state + status update
+           paint before the refresh blocks the main thread.
+        """
+        # 1. Re-enable buttons immediately based on new stack state
+        self._on_undo_changed()
+
+        # 2. Status message
+        if label:
+            self._show_status(f"{action}: {label}", 3000, level="ok")
+
+        # 3. Defer refresh so UI paints button state first
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._post_undo_refresh)
+
+    def _post_undo_refresh(self) -> None:
+        """Refresh the currently visible view after an undo/redo.
+
+        All heavy DB work goes through POOL (async). Only the matrix widget
+        rebuild is main-thread work — that's unavoidable since Qt widgets
+        can only be updated from the main thread.
+        """
+        cur = getattr(self._nav_ctrl, "current", "")
+
+        if cur.startswith("cat_"):
+            # A matrix tab is visible — refresh it directly.
+            # The matrix_tabs list may hold a lazy placeholder for tabs
+            # the user hasn't opened yet; placeholders have no refresh()
+            # so route through the nav controller, which upgrades the
+            # placeholder to a real MatrixTab on demand.
+            cat_key = cur[4:]
+            if hasattr(self._nav_ctrl, "_go_matrix"):
+                self._nav_ctrl._go_matrix(cat_key)
+            else:
+                for tab in self._nav_ctrl.matrix_tabs:
+                    if getattr(tab, "_cat_key", None) == cat_key and hasattr(tab, "refresh"):
+                        tab.refresh()
+                        break
+        elif cur == "nav_transactions":
+            POOL.submit("txn_filter",
+                        self._txn_page.fetch_filtered,
+                        self._txn_page.load_results)
+        elif cur == "nav_analytics":
+            # Analytics is lazy — realise it if the user is on this page
+            # somehow without having navigated through nav_ctrl.go
+            if self._analytics_page is None:
+                self._nav_ctrl.realize("nav_analytics")
+            if self._analytics_page is not None:
+                POOL.submit("analytics_refresh",
+                            self._analytics_page._fetch_all_data,
+                            self._analytics_page._apply_all_data)
+        else:
+            # Inventory (or any other) — refresh product table WITHOUT debounce
+            filters = self._inv_page.filter_bar.get_filters()
+            POOL.submit(
+                "inventory_filter",
+                lambda: self._inv_page.fetch_filtered(filters),
+                self._on_items_ready,
+            )
+
+        # Always refresh header KPIs + alerts regardless of visible tab
+        self._refresh_summary()
+        try:
+            self._alert_ctrl.refresh()
+        except Exception:
+            pass
+
+        # Sync currently-selected product pointer + detail panel
+        if self._cp:
+            cp_id = self._cp.id
+            POOL.submit(
+                "refresh_selected",
+                lambda: _item_repo.get_by_id(cp_id),
+                self._on_refresh_selected,
+            )
+
+    def _on_refresh_selected(self, item) -> None:
+        """Main-thread callback: update _cp + detail panel after undo/redo."""
+        if item is None:
+            return
+        self._cp = item
+        try:
+            self._inv_page.detail.set_product(item)
+        except Exception:
+            pass
+
+    def _on_undo_error(self, action: str, msg: str) -> None:
+        self._show_status(f"{action} failed: {msg}", 4000, level="err")
+        self._on_undo_changed()
+
+    def _on_undo_changed(self) -> None:
+        """Enable/disable header buttons and update tooltips based on stack state."""
+        from app.services.undo_manager import UNDO
+        self._header.undo_btn.setEnabled(UNDO.can_undo())
+        self._header.redo_btn.setEnabled(UNDO.can_redo())
+        u_lbl = UNDO.undo_label()
+        r_lbl = UNDO.redo_label()
+        self._header.undo_btn.setToolTip(f"Undo: {u_lbl} (Ctrl+Z)" if u_lbl else "Nothing to undo (Ctrl+Z)")
+        self._header.redo_btn.setToolTip(f"Redo: {r_lbl} (Ctrl+Y)" if r_lbl else "Nothing to redo (Ctrl+Y)")
+
+    # ── Table-zoom dispatcher ──────────────────────────────────────────────
+    # The footer slider zooms DATA TABLES ONLY:
+    #   • Matrix tabs (Displays, Batteries, Cases, …)
+    #   • Inventory product table
+    #   • Transaction table
+    #   • Admin panel tables (part types, models, customers, suppliers, …)
+    #
+    # It does NOT affect the sidebar, header, footer, dashboard KPIs, or
+    # analytics charts — those are controlled by the UI Scale admin setting.
+
+    def _apply_zoom_all(self, pct: int) -> None:
+        """Apply zoom to the CURRENTLY VISIBLE view only.
+
+        Inactive tabs are zoomed lazily when the user navigates to them
+        (matrix_tab.refresh() re-applies the current ZOOM.factor). This
+        keeps slider drags responsive — we don't re-scale hundreds of
+        items in tabs the user can't see.
+        """
+        from app.services.zoom_service import ZOOM
+        factor = ZOOM.factor
+
+        targets: list = []
+
+        nav = getattr(self, "_nav_ctrl", None)
+        cur_key = getattr(nav, "current", "") if nav is not None else ""
+
+        if cur_key == "nav_inventory":
+            inv = getattr(self, "_inv_page", None)
+            if inv is not None and hasattr(inv, "apply_zoom"):
+                targets.append(inv)
+        elif cur_key == "nav_transactions":
+            txn = getattr(self, "_txn_page", None)
+            if txn is not None and hasattr(txn, "apply_zoom"):
+                targets.append(txn)
+        elif cur_key.startswith("cat_") and nav is not None:
+            # Only zoom the ACTIVE matrix tab (not all 6). Skip any
+            # lazy placeholders (no _single_container until realised).
+            cat_key = cur_key[4:]
+            from app.ui.components.matrix_widget import FrozenMatrixContainer
+            for tab in nav.matrix_tabs:
+                if getattr(tab, "_cat_key", None) != cat_key:
                     continue
-                default_h = 48 if r > 0 else 36
-                h = int(default_h * factor)
-                mtx.setRowHeight(r, h)
-                if r < model_tbl.rowCount():
-                    model_tbl.setRowHeight(r, h)
-            mtx.viewport().update()
-            model_tbl.viewport().update()
+                if not hasattr(tab, "_single_container"):
+                    break  # placeholder — nothing to zoom yet
+                containers = [getattr(tab, "_single_container", None)]
+                for w in getattr(tab, "_brand_widgets", []):
+                    if isinstance(w, FrozenMatrixContainer):
+                        containers.append(w)
+                for c in containers:
+                    if c is not None and hasattr(c, "apply_zoom"):
+                        targets.append(c)
+                break
+
+        for w in targets:
+            try:
+                w.apply_zoom(factor)
+            except Exception:
+                pass
+
+        # Admin panel tables (if admin dialog is live)
+        admin_dlg = getattr(self, "_admin_dialog", None)
+        if admin_dlg is not None and admin_dlg.isVisible():
+            self._zoom_admin_tables(admin_dlg, factor)
 
         self._show_status(f"Zoom: {pct}%", 1500)
 
+    def _zoom_admin_tables(self, host: QWidget, factor: float) -> None:
+        """Scale every QTableWidget under *host* proportionally.
+
+        Used for admin panels — avoids needing an apply_zoom method on
+        each individual panel class. Fonts + row heights scale; column
+        widths are preserved (admin tables usually auto-size).
+        """
+        from PyQt6.QtWidgets import QTableWidget
+        from app.services.zoom_service import ZOOM
+        body_pt = ZOOM.scale(11, minimum=6)
+        header_pt = ZOOM.scale(10, minimum=6)
+        body_font = QFont("Segoe UI", body_pt)
+        header_font = QFont("Segoe UI", header_pt, QFont.Weight.Bold)
+        row_h = ZOOM.scale(32, minimum=16)
+        for tbl in host.findChildren(QTableWidget):
+            try:
+                tbl.setFont(body_font)
+                tbl.horizontalHeader().setFont(header_font)
+                tbl.verticalHeader().setDefaultSectionSize(row_h)
+                for r in range(tbl.rowCount()):
+                    tbl.setRowHeight(r, row_h)
+                tbl.viewport().update()
+            except Exception:
+                pass
+
     def wheelEvent(self, event: QWheelEvent) -> None:
-        """Ctrl+Scroll to zoom in/out."""
+        """Ctrl+Scroll to zoom — route to ZoomService."""
         if event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            from app.services.zoom_service import ZOOM
             delta = event.angleDelta().y()
             if delta > 0:
-                self._zoom_in()
+                ZOOM.zoom_in()
             elif delta < 0:
-                self._zoom_out()
+                ZOOM.zoom_out()
             event.accept()
         else:
             super().wheelEvent(event)
@@ -772,4 +1151,11 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         try: self._timer.stop(); self._global_bc_timer.stop()
         except Exception: pass
+        # Gracefully drain the worker pool so background tasks don't
+        # keep the process alive or deliver signals to dead widgets.
+        try:
+            from app.ui.workers.worker_pool import POOL as _POOL
+            _POOL.shutdown(timeout_ms=2000)
+        except Exception:
+            pass
         event.accept()

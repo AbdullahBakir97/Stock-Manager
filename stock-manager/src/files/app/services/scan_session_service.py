@@ -10,13 +10,43 @@ from typing import Optional
 
 from app.core.scan_config import ScanConfig
 from app.repositories.item_repo import ItemRepository
+from app.repositories.category_repo import CategoryRepository
+from app.repositories.invoice_repo import InvoiceRepository
 from app.services.stock_service import StockService
 from app.models.scan_session import PendingScanItem, ScanEvent, ScanEventType
 from app.models.item import InventoryItem
 from app.core.i18n import t
 
 _item_repo = ItemRepository()
+_cat_repo = CategoryRepository()
+_invoice_repo = InvoiceRepository()
 _stock_svc = StockService()
+
+
+def _resolve_unit_price(item: InventoryItem) -> float:
+    """Return the unit price for an item.
+
+    Priority: per-item sell_price (if set) > part_type.default_price > 0.
+    """
+    sp = getattr(item, "sell_price", None)
+    if sp is not None:
+        try:
+            return float(sp)
+        except (TypeError, ValueError):
+            pass
+    pt_id = getattr(item, "part_type_id", None)
+    if pt_id:
+        try:
+            from app.core.database import get_connection
+            with get_connection() as conn:
+                row = conn.execute(
+                    "SELECT default_price FROM part_types WHERE id=?", (pt_id,),
+                ).fetchone()
+            if row and row["default_price"] is not None:
+                return float(row["default_price"])
+        except Exception:
+            pass
+    return 0.0
 
 
 class ScanSessionService:
@@ -65,6 +95,16 @@ class ScanSessionService:
     @property
     def pending_item_count(self) -> int:
         return len(self._pending)
+
+    @property
+    def subtotal(self) -> float:
+        """Sum of all line totals in the pending list."""
+        return sum(p.line_total for p in self._pending)
+
+    @property
+    def total(self) -> float:
+        """Grand total (same as subtotal for now — no tax/discount)."""
+        return self.subtotal
 
     def process_barcode(self, barcode: str) -> ScanEvent:
         """Process a scanned barcode."""
@@ -172,8 +212,9 @@ class ScanSessionService:
                                    name=item.display_name, qty=p.quantity),
                                  item=item)
 
-        # New item
-        pending = PendingScanItem(item=item)
+        # New item — snapshot price at scan time
+        unit_price = _resolve_unit_price(item)
+        pending = PendingScanItem(item=item, unit_price=unit_price)
         self._pending.append(pending)
         self._recalc_predictions()
         return ScanEvent(ScanEventType.ITEM_ADDED,
@@ -185,11 +226,23 @@ class ScanSessionService:
         self._waiting_item = None
         self._waiting_colors.clear()
 
-    def commit(self) -> ScanEvent:
-        """Execute all pending operations."""
+    def commit(self, *, layout: str = "a4", customer_name: str = "") -> ScanEvent:
+        """Execute all pending operations AND write an invoice record.
+
+        The `layout` hint ('a4' | 'thermal') is stored on the invoice and
+        read later by ScanInvoiceService to render the PDF. The invoice id
+        is returned via ScanEvent.results[0]['invoice_id'] when any line
+        committed successfully (and via the top-level invoice_id attr).
+        """
         results = []
         ok_count = 0
         fail_count = 0
+
+        # Snapshot pending rows BEFORE mutating stock (we need the original
+        # prices & descriptions for the invoice record).
+        invoice_items: list[dict] = []
+        from app.core.config import ShopConfig
+        currency = ShopConfig.get().currency or "€"
 
         for p in self._pending:
             try:
@@ -199,7 +252,17 @@ class ScanSessionService:
                     res = _stock_svc.stock_in(p.item.id, p.quantity, "Quick Scan")
                 results.append({"item": p.item, "qty": p.quantity,
                                 "before": res["before"], "after": res["after"],
+                                "unit_price": p.unit_price,
+                                "line_total": p.line_total,
                                 "ok": True})
+                invoice_items.append({
+                    "item_id": p.item.id,
+                    "item_snapshot": p.item.display_name,
+                    "barcode": getattr(p.item, "barcode", "") or "",
+                    "quantity": p.quantity,
+                    "unit_price": p.unit_price,
+                    "line_total": p.line_total,
+                })
                 ok_count += 1
             except (ValueError, Exception) as e:
                 results.append({"item": p.item, "qty": p.quantity,
@@ -207,6 +270,23 @@ class ScanSessionService:
                 fail_count += 1
 
         mode = self._mode
+
+        # Persist the invoice if anything committed successfully
+        invoice_id: Optional[int] = None
+        if invoice_items:
+            try:
+                invoice_id = _invoice_repo.create_invoice(
+                    operation=mode or "OUT",
+                    layout=(layout or "a4").lower(),
+                    customer_name=customer_name or "",
+                    currency=currency,
+                    items=invoice_items,
+                    note="Quick Scan",
+                )
+            except Exception:
+                # Stock already moved; failing invoice storage shouldn't block
+                invoice_id = None
+
         self._mode = None
         self._pending.clear()
         self._clear_waiting()
@@ -216,8 +296,11 @@ class ScanSessionService:
         else:
             msg = t("qscan_commit_partial", ok=ok_count, fail=fail_count)
 
-        return ScanEvent(ScanEventType.BATCH_COMMITTED, msg,
-                         mode=mode, results=results)
+        ev = ScanEvent(ScanEventType.BATCH_COMMITTED, msg,
+                       mode=mode, results=results)
+        # Expose invoice id for the UI without changing ScanEvent schema
+        setattr(ev, "invoice_id", invoice_id)
+        return ev
 
     def cancel(self) -> None:
         self._mode = None

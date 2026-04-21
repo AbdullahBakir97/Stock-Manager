@@ -182,15 +182,34 @@ jobs:
               f.write(content)
           print(f"Stamped {iss} -> {version}")
 
-          # 4. README.md — version badge
+          # 4. README.md — version badge + SQLite schema badge
           readme = "README.md"
           with open(readme, "r", encoding="utf-8") as f:
               content = f.read()
+          # 4a. Green version badge — e.g. Version-2.4.2-10B981
           content = re.sub(
               r"Version-[\d.]+-10B981",
               f"Version-{version}-10B981",
               content,
           )
+          # 4b. Blue SQLite schema badge — extract _SCHEMA_VERSION from
+          #     database.py (single source of truth) and stamp the badge
+          #     so README always shows the current schema generation.
+          try:
+              db_path = "stock-manager/src/files/app/core/database.py"
+              with open(db_path, "r", encoding="utf-8") as f:
+                  db_src = f.read()
+              m = re.search(r'_SCHEMA_VERSION\s*=\s*"(\d+)"', db_src)
+              if m:
+                  schema = m.group(1)
+                  content = re.sub(
+                      r"Schema_V\d+-003B57",
+                      f"Schema_V{schema}-003B57",
+                      content,
+                  )
+                  print(f"Stamped {readme} -> schema V{schema}")
+          except Exception as exc:
+              print(f"WARN: schema badge not stamped ({exc})")
           with open(readme, "w", encoding="utf-8") as f:
               f.write(content)
           print(f"Stamped {readme} -> {version}")

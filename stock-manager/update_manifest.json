@@ -1,7 +1,7 @@
 {
-  "version": "2.3.10",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.3.10/StockManagerPro-2.3.10-setup.exe",
-  "release_notes": "**`cost_price` column** on `inventory_items` \u2014 purchase / buy price, persisted per item. Schema V16 migration adds the column automatically on first launch.; **Matrix columns bumped 5 \u2192 7** per part-type group: `MIN-STOCK \u00b7 DIFFERENCE \u00b7 STOCK \u00b7 ORDER \u00b7 SELL \u00b7 COST \u00b7 TOTAL`.; **SELL** = the previous \"PRICE\" column renamed for clarity (item.sell_price with part-type default fallback; edit flow unchanged).",
-  "release_date": "2026-04-20",
-  "checksum_sha256": "a4a15b447887b426719854c819f35605cc5c9565555a2b357bee1d46e92928f2"
+  "version": "2.4.0",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.0/StockManagerPro-2.4.0-setup.exe",
+  "release_notes": "**`NavController.register_lazy(key, page_index, factory, on_activate)`** \u2014 new API. The factory runs on first navigation; a lightweight `QWidget` placeholder holds the stack slot until then. `register_placeholder(page_index)` + `realize(key)` + `get_lazy_instance(key)` complete the contract.; **`_MatrixPlaceholder`** \u2014 matrix category tabs are now placeholders until the user clicks their sidebar entry. On first click `NavController._go_matrix` swaps the placeholder for a real `MatrixTab` in the same stack slot, emits `navigated`, then kicks the first `refresh()` via `QTimer.singleShot(0, \u2026)` so the switch paints before the DB round-trip lands.; **10 static pages migrated to lazy**: `SalesPage`, `CustomersPanel`, `PurchaseOrdersPage`, `ReturnsPage`, `BarcodeGenPage`, `ReportsPage`, `SuppliersPage`, `AnalyticsPage`, `AuditPage`, `PriceListsPage`. Each has a closure-style factory that sets `self._xxx_page` before returning; the `AnalyticsPage` factory also wires `navigate_to.connect(nav_ctrl.go)` after construction. Eager pages (`InventoryPage`, `TransactionsPage`, `QuickScanTab`) stay immediate.",
+  "release_date": "2026-04-21",
+  "checksum_sha256": "2661d412e946ace731272f95c29ef22507b687564aed391f5e0b96b6b4b28623"
 }

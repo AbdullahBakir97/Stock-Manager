@@ -489,6 +489,7 @@ class MatrixWidget(QTableWidget):
                             "dtype_lbl": pt.name,
                             "min_stock": total_min,
                             "stock": total_stock,
+                            "is_aggregate": True,
                         }
                         price_src = any_item
                     else:
@@ -576,6 +577,7 @@ class MatrixWidget(QTableWidget):
                         sell_price=getattr(item, "sell_price", None),
                         pt_default_price=getattr(pt, "default_price", None),
                         cost_price=getattr(item, "cost_price", None),
+                        is_color_row=True,
                     )
 
         self.setUpdatesEnabled(True)
@@ -584,7 +586,7 @@ class MatrixWidget(QTableWidget):
                            meta: dict, min_stock: int, stock: int,
                            best: int, inventur, has_colors: bool = False,
                            sell_price=None, pt_default_price=None,
-                           cost_price=None):
+                           cost_price=None, is_color_row: bool = False):
         """Render the 7 data cells per part-type group.
 
         Layout: MIN-STOCK | DIFF | STOCK | ORDER | SELL | PRICE | TOTAL
@@ -640,12 +642,27 @@ class MatrixWidget(QTableWidget):
         inv.setToolTip(t("disp_tip_inv"))
         self.setItem(r, b + _SUB_ORDER, inv)
 
+        # Color rows hide per-unit prices too when "show color totals" is off —
+        # per-color prices are always identical to the parent's now, so they'd
+        # just be redundant noise.
+        hide_color_prices = False
+        if is_color_row:
+            try:
+                from app.core.config import ShopConfig
+                hide_color_prices = not ShopConfig.get().is_show_color_totals
+            except Exception:
+                pass
+
         # ── SELL price (sell_price with part-type default_price fallback) ──
         sell_val = sell_price
         sell_from_override = sell_val is not None
         if sell_val is None and pt_default_price is not None:
             sell_val = pt_default_price
-        if sell_val is None:
+        if hide_color_prices:
+            sell_txt = "—"
+            sell_col = tk.t4
+            sell_tip = ""
+        elif sell_val is None:
             sell_txt = "—"
             sell_col = tk.t4
             sell_tip = "Double-click to set sell price"
@@ -672,10 +689,14 @@ class MatrixWidget(QTableWidget):
         _set_item_font(sell_cell, _FONT_MONO, 11)
         sell_cell.setBackground(bg)
         sell_cell.setToolTip(sell_tip)
+        if hide_color_prices:
+            sell_cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         self.setItem(r, b + _SUB_SELL, sell_cell)
 
         # ── PRICE (cost_price) — hidden by default ─────────────────────────
-        if cost_price is None:
+        if hide_color_prices:
+            cp_txt, cp_col, cp_tip = "—", tk.t4, ""
+        elif cost_price is None:
             cp_txt, cp_col, cp_tip = "—", tk.t4, "Double-click to set cost price"
         else:
             try:
@@ -690,6 +711,8 @@ class MatrixWidget(QTableWidget):
         _set_item_font(cp_cell, _FONT_MONO, 11)
         cp_cell.setBackground(bg)
         cp_cell.setToolTip(cp_tip)
+        if hide_color_prices:
+            cp_cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         self.setItem(r, b + _SUB_PRICE, cp_cell)
 
         # ── TOTAL — always visible, metric flips with COST_VIS ────────────
@@ -716,7 +739,17 @@ class MatrixWidget(QTableWidget):
         except (TypeError, ValueError):
             total_val = None
 
-        if total_val is None:
+        hide_color_total = False
+        if is_color_row:
+            try:
+                from app.core.config import ShopConfig
+                hide_color_total = not ShopConfig.get().is_show_color_totals
+            except Exception:
+                pass
+
+        if hide_color_total:
+            tot_txt, tot_col, tot_tip = "—", tk.t4, ""
+        elif total_val is None:
             tot_txt, tot_col, tot_tip = "—", tk.t4, ""
         else:
             tot_txt = _fmt_money(total_val)
@@ -1363,14 +1396,37 @@ class MatrixWidget(QTableWidget):
                 self._refresh_cb()
 
         elif field == "stock":
-            item = _item_repo.get_by_id(item_id)
+            is_aggregate = meta.get("is_aggregate", False)
+            target_item_id = item_id
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                if siblings:
+                    color_names = [s.color for s in siblings]
+                    from PyQt6.QtWidgets import QInputDialog
+                    chosen, ok = QInputDialog.getItem(
+                        self,
+                        f"Choose Color — {model_name}",
+                        "This model has color variants.\nChoose which color to update:",
+                        color_names, 0, False,
+                    )
+                    if not ok:
+                        return
+                    for s in siblings:
+                        if s.color == chosen:
+                            target_item_id = s.id
+                            break
+
+            item = _item_repo.get_by_id(target_item_id)
             if not item:
                 return
             dlg = StockOpDialog(item, dtype_lbl, self)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 op, qty = dlg.result_data()
                 try:
-                    iid, q = item_id, qty
+                    iid, q = target_item_id, qty
                     if op == "IN":
                         _stock_svc.stock_in(iid, q)
                         UNDO.push(Command(
@@ -1413,35 +1469,52 @@ class MatrixWidget(QTableWidget):
                 self._refresh_cb()
 
         elif field == "price":
-            # Per (model, part_type) price override — edits inventory_items.sell_price
             from PyQt6.QtWidgets import QInputDialog
+            is_aggregate = meta.get("is_aggregate", False)
             item_cur = _item_repo.get_by_id(item_id)
             prev_price = None
             if item_cur is not None and item_cur.sell_price is not None:
                 prev_price = float(item_cur.sell_price)
-            # Always open at 0 — user types the new value straight away.
-            # Previous value is shown in the prompt body so nothing's lost.
             prev_txt = (
                 f"{prev_price:.2f}" if prev_price is not None
                 else f"(default {float(meta.get('pt_default_price') or 0.0):.2f})"
             )
+            title_suffix = " (all colors)" if is_aggregate else ""
             new_val, ok = QInputDialog.getDouble(
                 self,
-                f"Sell Price — {model_name} · {dtype_lbl}",
+                f"Sell Price — {model_name} · {dtype_lbl}{title_suffix}",
                 f"Current: {prev_txt}\nNew unit sell price "
-                f"(0 = clear override → use part-type default):",
+                f"(0 = clear override → use part-type default):"
+                + ("\n\nThis will apply to ALL color variants." if is_aggregate else ""),
                 0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return
             new_price = None if new_val <= 0 else float(new_val)
-            _item_repo.update_price(item_id, new_price)
-            iid, prev, curr = item_id, prev_price, new_price
-            UNDO.push(Command(
-                label=f"Sell {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
-                undo_fn=lambda: _item_repo.update_price(iid, prev),
-                redo_fn=lambda: _item_repo.update_price(iid, curr),
-            ))
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                prev_prices = {}
+                for s in siblings:
+                    prev_prices[s.id] = float(s.sell_price) if s.sell_price is not None else None
+                    _item_repo.update_price(s.id, new_price)
+                saved_prev = dict(prev_prices)
+                saved_new = new_price
+                UNDO.push(Command(
+                    label=f"Sell {model_name} · {dtype_lbl} all colors → {saved_new or '—'}",
+                    undo_fn=lambda: [_item_repo.update_price(sid, sp) for sid, sp in saved_prev.items()],
+                    redo_fn=lambda: [_item_repo.update_price(sid, saved_new) for sid in saved_prev],
+                ))
+            else:
+                _item_repo.update_price(item_id, new_price)
+                iid, prev, curr = item_id, prev_price, new_price
+                UNDO.push(Command(
+                    label=f"Sell {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                    undo_fn=lambda: _item_repo.update_price(iid, prev),
+                    redo_fn=lambda: _item_repo.update_price(iid, curr),
+                ))
 
             # ── Instant local update of TOTAL (only when not in cost mode)
             from app.services.cost_visibility import COST_VIS
@@ -1471,37 +1544,52 @@ class MatrixWidget(QTableWidget):
             self._refresh_cb()
 
         elif field == "cost_price":
-            # Per-item cost_price — edits inventory_items.cost_price.
-            # Only editable while the owner has toggled the hidden columns on
-            # (PIN-gated at the toolbar); if somehow reached with cols hidden,
-            # we no-op defensively.
             from app.services.cost_visibility import COST_VIS
             if not COST_VIS.visible:
                 return
             from PyQt6.QtWidgets import QInputDialog
+            is_aggregate = meta.get("is_aggregate", False)
             item_cur = _item_repo.get_by_id(item_id)
             prev_cost = None
             if item_cur is not None and getattr(item_cur, "cost_price", None) is not None:
                 prev_cost = float(item_cur.cost_price)
             prev_txt = f"{prev_cost:.2f}" if prev_cost is not None else "—"
-            # Always open at 0 so the owner just types the new amount.
+            title_suffix = " (all colors)" if is_aggregate else ""
             new_val, ok = QInputDialog.getDouble(
                 self,
-                f"Cost Price — {model_name} · {dtype_lbl}",
+                f"Cost Price — {model_name} · {dtype_lbl}{title_suffix}",
                 f"Current: {prev_txt}\nNew unit cost / purchase price "
-                f"(0 = clear):",
+                f"(0 = clear):"
+                + ("\n\nThis will apply to ALL color variants." if is_aggregate else ""),
                 0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return
             new_cost = None if new_val <= 0 else float(new_val)
-            _item_repo.update_cost_price(item_id, new_cost)
-            iid, prev, curr = item_id, prev_cost, new_cost
-            UNDO.push(Command(
-                label=f"Cost {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
-                undo_fn=lambda: _item_repo.update_cost_price(iid, prev),
-                redo_fn=lambda: _item_repo.update_cost_price(iid, curr),
-            ))
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                prev_costs = {}
+                for s in siblings:
+                    prev_costs[s.id] = float(s.cost_price) if getattr(s, "cost_price", None) is not None else None
+                    _item_repo.update_cost_price(s.id, new_cost)
+                saved_prev = dict(prev_costs)
+                saved_new = new_cost
+                UNDO.push(Command(
+                    label=f"Cost {model_name} · {dtype_lbl} all colors → {saved_new or '—'}",
+                    undo_fn=lambda: [_item_repo.update_cost_price(sid, sp) for sid, sp in saved_prev.items()],
+                    redo_fn=lambda: [_item_repo.update_cost_price(sid, saved_new) for sid in saved_prev],
+                ))
+            else:
+                _item_repo.update_cost_price(item_id, new_cost)
+                iid, prev, curr = item_id, prev_cost, new_cost
+                UNDO.push(Command(
+                    label=f"Cost {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                    undo_fn=lambda: _item_repo.update_cost_price(iid, prev),
+                    redo_fn=lambda: _item_repo.update_cost_price(iid, curr),
+                ))
 
             # ── Instant local updates — no DB round-trip wait ────────────
             # 1) Repaint THIS cell with the new cost text/colour

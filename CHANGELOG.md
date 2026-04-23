@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.4.3] - 2026-04-23
+
+
 ## [2.4.2] - 2026-04-21
 
 
@@ -277,6 +280,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - **Brand display cleanup** — Samsung/Xiaomi no longer show Apple-only part types (stale inventory rows cleaned on startup)
+
+---
+
+## [2.4.3] - 2026-04-23
+
+### Added
+- **Shop setting: "Show color totals in matrix"** — new checkbox in Admin → Shop Settings (Regional card, under "Show sell totals"). When off, the per-color sub-rows hide their SELL / COST / TOTAL cells (rendered as `—`, not editable), so valuation is only shown on the model summary row. Useful when all color variants share the same price — the per-color repeats are just noise. Persisted via `ShopConfig.show_color_totals` (reuses `app_config`, no migration). Typed accessor `ShopConfig.is_show_color_totals`. Default ON — existing layouts unchanged until toggled.
+- **Color picker on aggregate stock edits** — when a model has color variants, double-clicking STOCK on the model summary row now pops a "Choose Color" dialog (listing the variants of that model × part-type). Previously the edit silently landed on whichever sibling was returned first (usually White), because the parent row's meta held `any_item.id` — a real bug that let stock ops overwrite the wrong color. Uses `ItemRepository.get_colored_siblings`.
+
+### Changed
+- **Sell / cost price edits on aggregate rows propagate to all color variants.** Editing SELL or COST on the model summary row of a colored model now writes the new price to every sibling in one pass, with a single bundled undo entry (`Sell <model>·<part> all colors → X` / `Cost … all colors → X`). The prompt title gains a "(all colors)" suffix and a trailing note so it's obvious what's about to happen. Single-color (non-aggregate) edits keep the previous per-item behaviour. Rationale: in practice variants of the same model share pricing — editing one and not the rest was a common source of drift.
+
+### Fixed
+- **Aggregate stock edits no longer silently hit the wrong color.** See the color-picker note above.
 
 ---
 

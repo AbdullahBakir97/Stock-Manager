@@ -194,6 +194,15 @@ class ShopSettingsPanel(QWidget):
             "Show sell totals in matrix", self._show_sell_totals
         )
 
+        self._show_color_totals = QCheckBox()
+        self._show_color_totals.setToolTip(
+            "Show the TOTAL value for each color variant row.\n"
+            "Turn off to only show totals on the model summary row."
+        )
+        regional_card.form.addRow(
+            "Show color totals in matrix", self._show_color_totals
+        )
+
         # Theme preview swatch
         self._preview_frame = QFrame()
         self._preview_frame.setFixedHeight(48)
@@ -309,6 +318,7 @@ class ShopSettingsPanel(QWidget):
         self._original_ui_scale = cfg.ui_scale or "normal"
         # Show sell totals
         self._show_sell_totals.setChecked(cfg.is_show_sell_totals)
+        self._show_color_totals.setChecked(cfg.is_show_color_totals)
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
         # Auto-backup
@@ -367,6 +377,7 @@ class ShopSettingsPanel(QWidget):
         cfg.theme = self._theme.currentData()
         cfg.ui_scale = self._ui_scale.currentData()
         cfg.show_sell_totals = "1" if self._show_sell_totals.isChecked() else "0"
+        cfg.show_color_totals = "1" if self._show_color_totals.isChecked() else "0"
         cfg.admin_pin = self._pin.text()
         cfg.contact_info = self._contact.text().strip()
         # Auto-backup

@@ -4,7 +4,7 @@
 
 # Stock Manager Pro
 
-**Professional desktop inventory management for Windows** 
+**Professional desktop inventory management for Windows**  
 
 Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
 

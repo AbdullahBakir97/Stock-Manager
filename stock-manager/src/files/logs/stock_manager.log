@@ -18023,3 +18023,61 @@ UnboundLocalError: cannot access local variable 'QScrollArea' where it is not as
 [2026-04-23 12:37:48] [INFO ] [app.core.health] Running startup health checks...
 [2026-04-23 12:37:48] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
 [2026-04-23 12:38:15] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.2)
+[2026-04-27 12:08:07] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:08:07] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 12:08:07] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 12:08:07] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:08:11] [INFO ] [app.core.database] Initializing database
+[2026-04-27 12:08:11] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 12:08:11] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 12:08:11] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 12:08:16] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 12:08:16] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 12:08:42] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.3)
+[2026-04-27 12:09:15] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=1 excluded
+[2026-04-27 12:09:16] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=4 pt=1 included; rows_after=1
+[2026-04-27 12:09:17] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=1 pt=1 included; rows_after=1
+[2026-04-27 12:09:17] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=1 excluded
+[2026-04-27 12:09:18] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=1 excluded
+[2026-04-27 12:09:19] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=1 excluded
+[2026-04-27 12:09:39] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:09:39] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 12:09:39] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 12:09:39] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:09:40] [INFO ] [app.core.database] Initializing database
+[2026-04-27 12:09:40] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 12:09:40] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 12:09:40] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 12:09:44] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 12:09:44] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 12:10:10] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.3)
+[2026-04-27 12:10:12] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=9 pt=1 excluded
+[2026-04-27 12:10:14] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=9 pt=2 excluded
+[2026-04-27 12:10:32] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=9 pt=3 included; rows_after=1
+[2026-04-27 12:10:33] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=9 pt=3 excluded
+[2026-04-27 12:10:36] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=9 pt=4 excluded
+[2026-04-27 12:10:40] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=9 pt=5 included; rows_after=1
+[2026-04-27 12:10:40] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=9 pt=5 excluded
+[2026-04-27 12:13:53] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:13:53] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 12:13:53] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 12:13:53] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 12:13:54] [INFO ] [app.core.database] Initializing database
+[2026-04-27 12:13:54] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 12:13:54] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 12:13:54] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 12:13:58] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 12:13:58] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 12:14:22] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=2 excluded
+[2026-04-27 12:14:24] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=2 excluded
+[2026-04-27 12:14:24] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.3)
+[2026-04-27 12:14:25] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=2 excluded
+[2026-04-27 12:14:29] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=3 excluded
+[2026-04-27 12:14:31] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=3 excluded
+[2026-04-27 12:14:32] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=3 excluded
+[2026-04-27 12:14:38] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=4 excluded
+[2026-04-27 12:14:39] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=4 excluded
+[2026-04-27 12:14:41] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=4 excluded
+[2026-04-27 12:14:44] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=5 excluded
+[2026-04-27 12:14:44] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=5 excluded
+[2026-04-27 12:14:45] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=5 excluded

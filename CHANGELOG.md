@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.4.4] - 2026-04-27
+
+### Fixed
+- **Part Type Settings — unchecking a model now removes it from the matrix instead of leaving a "disabled" empty row.** Previously, unchecking a model in Admin → Part Types only set an `__EXCLUDED__` marker in `model_part_type_colors` and pruned zero-stock inventory rows; rows with stock/min_stock/inventur stayed in the DB and continued to render in the matrix as "—" cells, producing a confusing half-removed look.
+  - `ItemRepository.get_matrix_items` now joins against `model_part_type_colors` with a `NOT EXISTS` filter, so any (model, part_type) combo carrying the `__EXCLUDED__` marker is dropped from the result regardless of stock state. Existing data is preserved — re-checking the model in Part Type Settings restores the rows exactly as before.
+  - `MatrixTab._apply_refresh`, `_add_brand_section`, and `_reload_brand_container` now filter the `models` list to only those that have at least one item left in `item_map`. A model that has been excluded from every part type its brand previously had inventory in vanishes from the matrix entirely instead of rendering as an empty row.
+
 ## [2.4.2] - 2026-04-21
 
 

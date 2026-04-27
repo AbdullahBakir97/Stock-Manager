@@ -146,9 +146,19 @@ class ItemRepository(BaseRepository):
 
         Excludes colorless parent rows when colored siblings exist
         (the parent is only for barcode scanning, not for stock display).
+        Also excludes (model, part_type) combos that the user has explicitly
+        unchecked in Part Type Settings — those carry an ``__EXCLUDED__``
+        marker in ``model_part_type_colors`` and must vanish from the matrix
+        rather than just appear disabled.
         """
         sql = (self._SELECT +
-               " WHERE pt.category_id=? AND ii.model_id IS NOT NULL")
+               " WHERE pt.category_id=? AND ii.model_id IS NOT NULL"
+               " AND NOT EXISTS ("
+               "   SELECT 1 FROM model_part_type_colors mpc"
+               "   WHERE mpc.model_id = ii.model_id"
+               "     AND mpc.part_type_id = ii.part_type_id"
+               "     AND mpc.color_name = '__EXCLUDED__'"
+               " )")
         params: list = [category_id]
         if brand:
             sql += " AND pm.brand=?"

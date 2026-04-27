@@ -712,6 +712,12 @@ class MatrixTab(BaseTab):
             item_map = payload["item_map"]
             used_pt_keys = {key[1] for key in item_map.keys()}
             filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+            # Hide model rows with no items left for this category — happens
+            # when every (model, pt) combo for the model has been excluded
+            # in Part Type Settings. Otherwise the row would render as "—"
+            # cells (looks "disabled") instead of disappearing.
+            models_with_items = {key[0] for key in item_map.keys()}
+            filtered_models = [m for m in models if m.id in models_with_items]
             filtered_cat = CategoryConfig(
                 id=self._cat.id, key=self._cat.key,
                 name_en=self._cat.name_en, name_de=self._cat.name_de,
@@ -720,7 +726,7 @@ class MatrixTab(BaseTab):
                 part_types=filtered_pts or self._cat.part_types,
             )
             self._rebuild_cards(filtered_cat, item_map)
-            self._single_container.load(filtered_cat, models, item_map)
+            self._single_container.load(filtered_cat, filtered_models, item_map)
             self._container = self._single_container
             self._table = self._single_container.data_table
         else:
@@ -830,6 +836,10 @@ class MatrixTab(BaseTab):
             item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
         used_pt_keys = {key[1] for key in item_map.keys()}
         filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+        models_with_items = {key[0] for key in item_map.keys()}
+        filtered_models = [m for m in models if m.id in models_with_items]
+        if not filtered_models:
+            return
 
         filtered_cat = CategoryConfig(
             id=self._cat.id, key=self._cat.key,
@@ -854,7 +864,7 @@ class MatrixTab(BaseTab):
         # Matrix container — large minimum height, scrolls internally
         # so banner + column headers stay STICKY at top of each section
         container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
-        container.load(filtered_cat, models, item_map)
+        container.load(filtered_cat, filtered_models, item_map)
 
         # Set height: full content if small, or a generous minimum if large
         tbl = container.data_table
@@ -893,6 +903,8 @@ class MatrixTab(BaseTab):
             item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
         used_pt_keys = {key[1] for key in item_map.keys()}
         filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+        models_with_items = {key[0] for key in item_map.keys()}
+        filtered_models = [m for m in models if m.id in models_with_items]
         filtered_cat = CategoryConfig(
             id=self._cat.id, key=self._cat.key,
             name_en=self._cat.name_en, name_de=self._cat.name_de,
@@ -900,7 +912,7 @@ class MatrixTab(BaseTab):
             icon=self._cat.icon, is_active=self._cat.is_active,
             part_types=filtered_pts or self._cat.part_types,
         )
-        container.load(filtered_cat, models, item_map)
+        container.load(filtered_cat, filtered_models, item_map)
 
         # Recompute container height from new content
         tbl = container.data_table

@@ -159,28 +159,65 @@ def _make_barcode_text(item: InventoryItem) -> str:
     return text or "ITEM"
 
 
-def _barcode_for_db(code39_text: str) -> str:
-    """Convert Code39 barcode text to scanner-output format.
+def normalize_barcode(text: str) -> str:
+    """Strip a leading lowercase scanner-prefix character if present.
 
-    German keyboard scanners:
-    - Add lowercase 'f' prefix to every scan
-    - Convert '-' to 'ß'
-    So 'S-A04-SMO' becomes 'fSßA04ßSMO' which is what we store in DB.
+    German-keyboard barcode scanners often emit a single lowercase letter
+    before the actual payload (it acts as a "scanner mark" that lets apps
+    distinguish scanner input from keyboard input). The exact letter
+    varies by scanner config, firmware, and even by the renderer used to
+    print the barcode — historically it was ``f``, but real-world testing
+    on the K30F + YunPrint combo produced ``a`` instead. The payload after
+    the prefix is always uppercase + digits + ``ß``, so we can safely
+    strip any single leading lowercase letter as a normalisation step.
+
+    The DB stores barcodes in this canonical (prefix-less) form so lookups
+    survive scanner / renderer changes. Lookups normalise the scanned
+    input the same way before querying, so old ``f...`` entries, new
+    ``a...`` scans, and prefix-less manually-typed values all match.
+
+    Idempotent: ``normalize_barcode(normalize_barcode(x)) == normalize_barcode(x)``.
     """
-    return "f" + code39_text.replace("-", "ß")
+    if not text:
+        return text
+    # Only strip a single leading ASCII a-z that's followed by an uppercase
+    # letter or digit — the canonical payload starts with a brand letter
+    # (uppercase) or digit, never with another lowercase letter. This
+    # prevents stripping a meaningful leading char from non-scanner input.
+    if len(text) > 1 and text[0].islower() and text[0].isascii() and text[0].isalpha():
+        nxt = text[1]
+        if nxt.isupper() or nxt.isdigit():
+            return text[1:]
+    return text
+
+
+def _barcode_for_db(code39_text: str) -> str:
+    """Convert Code39 barcode text to the canonical DB form.
+
+    German keyboard scanners convert ``-`` to ``ß`` (the German sharp-s
+    occupies the dash key on a DE layout), so we store with ``ß`` to match
+    scanner output. We do NOT prepend a scanner-mark prefix — that's
+    stripped by ``normalize_barcode`` at lookup time, so the DB keeps the
+    payload-only canonical form regardless of which scanner-mark the
+    physical hardware is currently configured to emit.
+
+    Example: ``"S-A04-SMO"`` → ``"SßA04ßSMO"``.
+    """
+    return code39_text.replace("-", "ß")
 
 
 def _to_code39(scanner_text: str) -> str:
     """Convert scanner-output text back to Code39-encodable text.
 
-    Scanner adds lowercase 'f' prefix and converts '-' to 'ß'.
-    Code39 only supports uppercase A-Z, 0-9, and special chars.
-    Example: 'fCMDßTAKEOUTS' → 'CMD-TAKEOUTS'
+    Strips any leading lowercase scanner-mark prefix (via
+    ``normalize_barcode``), converts ``ß`` back to ``-``, and uppercases.
+    Code39 only supports uppercase A-Z, 0-9, and a small set of specials.
+
+    Example: ``"fCMDßTAKEOUTS"`` → ``"CMD-TAKEOUTS"``.
+    Example: ``"aCMDßTAKEOUTS"`` → ``"CMD-TAKEOUTS"`` (different scanner mark).
+    Example: ``"CMDßTAKEOUTS"``  → ``"CMD-TAKEOUTS"`` (DB canonical form).
     """
-    text = scanner_text
-    # Strip scanner prefix (lowercase 'f' at start)
-    if text.startswith("f") and len(text) > 1 and text[1].isupper():
-        text = text[1:]
+    text = normalize_barcode(scanner_text)
     # Convert ß back to -
     text = text.replace("ß", "-")
     # Uppercase for Code39

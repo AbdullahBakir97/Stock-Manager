@@ -1,7 +1,7 @@
 {
-  "version": "2.4.4",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.4/StockManagerPro-2.4.4-setup.exe",
-  "release_notes": "**Part Type Settings \u2014 unchecking a model now removes it from the matrix instead of leaving a \"disabled\" empty row.** Previously, unchecking a model in Admin \u2192 Part Types only set an `__EXCLUDED__` marker in `model_part_type_colors` and pruned zero-stock inventory rows; rows with stock/min_stock/inventur stayed in the DB and continued to render in the matrix as \"\u2014\" cells, producing a confusing half-removed look.; `ItemRepository.get_matrix_items` now joins against `model_part_type_colors` with a `NOT EXISTS` filter, so any (model, part_type) combo carrying the `__EXCLUDED__` marker is dropped from the result regardless of stock state. Existing data is preserved \u2014 re-checking the model in Part Type Settings restores the rows exactly as before.; `MatrixTab._apply_refresh`, `_add_brand_section`, and `_reload_brand_container` now filter the `models` list to only those that have at least one item left in `item_map`. A model that has been excluded from every part type its brand previously had inventory in vanishes from the matrix entirely instead of rendering as an empty row.",
-  "release_date": "2026-04-27",
-  "checksum_sha256": "58df1614e4b39e781293b8299fff92f44d4c8ed8f9d2b1bfd9a9073422616e96"
+  "version": "2.4.6",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.6/StockManagerPro-2.4.6-setup.exe",
+  "release_notes": "**Part Type Settings \u2014 Models & Colors table now shows every brand, not just one.** Previously, when selecting a part type (especially a brand-new one with no inventory yet), the table only displayed models from a single auto-detected brand: the brand with the most existing items, or \u2014 for a fresh part type \u2014 the brand that came first alphabetically. Every other brand was invisible, so users couldn't tick/untick across the full catalogue without dropping to the database.; Default scope is now **All brands**, with brand-header rows separating each brand's models in the table.; New **Brand:** dropdown (All brands \u00b7 Apple \u00b7 Samsung \u00b7 \u2026) at the top of the Models & Colors card lets the user narrow the scope when a single brand has too many models. Selection is preserved across part-type changes within the same session.",
+  "release_date": "2026-04-28",
+  "checksum_sha256": "d875c9e14904da5caa5982222b117a974c0fd419f9aa932bcc4db3e2913f76a4"
 }

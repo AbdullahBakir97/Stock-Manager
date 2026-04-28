@@ -7,8 +7,31 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.4] - 2026-04-27
+## [2.4.6] - 2026-04-28
 
+
+## [2.4.6] - 2026-04-28
+
+### Fixed
+- **Part Type Settings — Models & Colors table now shows every brand, not just one.** Previously, when selecting a part type (especially a brand-new one with no inventory yet), the table only displayed models from a single auto-detected brand: the brand with the most existing items, or — for a fresh part type — the brand that came first alphabetically. Every other brand was invisible, so users couldn't tick/untick across the full catalogue without dropping to the database.
+  - Default scope is now **All brands**, with brand-header rows separating each brand's models in the table.
+  - New **Brand:** dropdown (All brands · Apple · Samsung · …) at the top of the Models & Colors card lets the user narrow the scope when a single brand has too many models. Selection is preserved across part-type changes within the same session.
+  - Brand-header rows use the existing `model_id == -1` placeholder convention, so the include/exclude checkbox handler and double-click color-edit handler skip them automatically — no risk of accidentally toggling/editing a header.
+  - The auto-detect-by-most-items logic that picked a single brand has been removed entirely; the user is in control via the dropdown.
+
+## [2.4.5] - 2026-04-27
+
+### Added
+- **Export for YunPrint (K30F label printer support)** — new "Export for YunPrint" button on the Barcode Generator page. Generates an `.xlsx` workbook one-row-per-barcode that YunPrint/Dlabel can import via its **Database** dialog (Excel mode, "first line contains the field name"). Once a 50×20mm template is designed once with template fields bound to `Database`, every future batch is: Generate → Export for YunPrint → in YunPrint click Database → pick the file → Print all. One print job for the whole batch — no per-label clicking.
+  - **Same Code39 strings** already saved on items go straight into the `barcode` column, so labels printed by the K30F scan identically to the existing app barcodes — no regeneration, no migration.
+  - Columns exported: `barcode`, `model` (compact brand-prefixed form like "IP 11 Pro Max" / "SA S25 Ultra"), `part_type`, `model_full` (full original "iPhone 11 Pro Max"), `brand`, `label`. The user picks whichever fits their template.
+  - Brand short codes (`IP`/`SA`/`XI`/`HW`/...) live in `_BRAND_SHORT` in `barcode_gen_service.py` with a 2-letter fallback for unknown brands.
+  - Skips command/color scanner barcodes — those are scanner-only and don't belong on per-item stickers.
+  - After save, opens the containing folder in Explorer and shows a one-shot how-to dialog so the user knows the YunPrint import flow without leaving the app.
+  - Reuses the existing scope selector on the Barcode Generator page (All / Category / Model / Part Type) — same scope produces the YunPrint xlsx and the legacy A4 PDF.
+
+### Changed
+- **`requirements.txt`** — declares `openpyxl==3.1.5` explicitly. The dep was already imported by `export_service.py` and `import_service.py` but had been missing from the requirements file, so fresh venvs / PyInstaller builds were missing it. The new YunPrint export uses it too. No runtime change for environments where it was already installed transitively.
 
 ## [2.4.4] - 2026-04-27
 

@@ -196,8 +196,26 @@ class BarcodeGenPage(QWidget):
         self._btn_export.clicked.connect(self._export)
         self._btn_export.setEnabled(False)
 
+        # Export to a YunPrint Database .xlsx for the K30F (and other
+        # Dlabel/YunPrint label printers). The same Code39 codes already
+        # saved on items get embedded as one row per barcode; the user
+        # imports the file in YunPrint's Database dialog and prints the
+        # whole batch as a single job.
+        self._btn_export_yp = QPushButton("Export for YunPrint")
+        self._btn_export_yp.setObjectName("btn_secondary_sm")
+        self._btn_export_yp.setFixedHeight(24)
+        self._btn_export_yp.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._btn_export_yp.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_export_yp.setToolTip(
+            "Export an Excel file you can import via YunPrint → Database\n"
+            "for batch printing on the K30F label printer."
+        )
+        self._btn_export_yp.clicked.connect(self._export_yunprint)
+        self._btn_export_yp.setEnabled(False)
+
         action_row.addWidget(self._btn_assign, 1)
         action_row.addWidget(self._btn_export, 1)
+        action_row.addWidget(self._btn_export_yp, 1)
         left.addLayout(action_row)
 
         # Status
@@ -364,6 +382,7 @@ class BarcodeGenPage(QWidget):
             self._preview_label.setText(t("bcgen_no_items"))
             self._btn_assign.setEnabled(False)
             self._btn_export.setEnabled(False)
+            self._btn_export_yp.setEnabled(False)
             self._btn_print.setEnabled(False)
             self._kpi_generated.set_value(0, t("bcgen_title"))
             self._kpi_pages.set_value(0, t("bcgen_preview"))
@@ -388,6 +407,7 @@ class BarcodeGenPage(QWidget):
         self._render_preview()
         self._btn_assign.setEnabled(True)
         self._btn_export.setEnabled(True)
+        self._btn_export_yp.setEnabled(True)
         self._btn_print.setEnabled(True)
         self._kpi_pages.set_value(len(self._pdf_pages), t("bcgen_preview"))
         self._status.setText(
@@ -497,6 +517,53 @@ class BarcodeGenPage(QWidget):
             with open(path, "wb") as f:
                 f.write(self._pdf_bytes)
             self._status.setText(f"Saved: {path}")
+
+    def _export_yunprint(self):
+        """Save the current entries as a YunPrint Database .txt (tab-
+        delimited, UTF-8 BOM) and open the destination folder so the user
+        can drag the file into YunPrint's Database dialog."""
+        if not self._entries:
+            return
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        count = sum(1 for e in self._entries if not e.is_command and e.barcode_text)
+        if count == 0:
+            QMessageBox.information(
+                self, "Export for YunPrint",
+                "No item barcodes to export — only command/color barcodes are present.",
+            )
+            return
+        filename = f"yunprint-batch-{count}items-{date_str}.txt"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export for YunPrint", filename,
+            "YunPrint Database (*.txt)",
+        )
+        if not path:
+            return
+        try:
+            saved_path = _gen_svc.export_for_yunprint(self._entries, path)
+        except Exception as e:
+            QMessageBox.critical(self, "Export for YunPrint", str(e))
+            return
+        self._status.setText(f"YunPrint file saved: {saved_path}")
+        # Open the containing folder so the user can drag the file straight
+        # into YunPrint's Database → Select File dialog.
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+        QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(saved_path)))
+        QMessageBox.information(
+            self, "Export for YunPrint",
+            f"Saved {count} barcode rows to:\n{saved_path}\n\n"
+            "In YunPrint:\n"
+            "  1. Open your 50×20mm template.\n"
+            "  2. Click Database → set source to .txt → Select File → "
+            "choose this file.\n"
+            "  3. Make sure 'first line contains the field name' is checked.\n"
+            "  4. Confirm — the Sample data preview should show the rows.\n"
+            "  5. Click each template field, set Content to 'Database', and "
+            "pick the matching column (barcode / model / part_type).\n"
+            "  6. Print — one job, all labels.",
+        )
 
     def _print(self):
         if not self._pdf_bytes:

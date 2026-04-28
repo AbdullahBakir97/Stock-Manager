@@ -4,6 +4,7 @@ fonttools==4.62.1
 fpdf2==2.8.7
 importlib_metadata==9.0.0
 numpy==2.4.3
+openpyxl==3.1.5
 packaging==26.0
 pefile==2024.8.26
 pillow==12.1.1

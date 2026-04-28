@@ -18081,3 +18081,198 @@ UnboundLocalError: cannot access local variable 'QScrollArea' where it is not as
 [2026-04-27 12:14:44] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=1 pt=5 excluded
 [2026-04-27 12:14:44] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=4 pt=5 excluded
 [2026-04-27 12:14:45] [INFO ] [app.ui.dialogs.admin.part_types_panel] uncheck: model=2 pt=5 excluded
+[2026-04-27 14:16:54] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:16:54] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 14:16:54] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 14:16:54] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:16:55] [INFO ] [app.core.database] Initializing database
+[2026-04-27 14:16:55] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 14:16:55] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 14:16:55] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 14:16:59] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 14:16:59] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 14:17:25] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.5)
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4693
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5595
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6087
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4007
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4445
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4949
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5389
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5568
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4781
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5550
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5224
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5701
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4369
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4934
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4810
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5281
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:07] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4538
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5118
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4984
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5460
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4906
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5356
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:18:08] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5851
+[2026-04-27 14:18:08] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-27 14:18:08] [DEBUG] [fpdf.output] - pages: 1.6KiB
+[2026-04-27 14:18:08] [DEBUG] [fpdf.output] - images: 378.7KiB
+[2026-04-27 14:18:08] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-27 14:19:50] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:19:50] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 14:19:50] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 14:19:50] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:19:51] [INFO ] [app.core.database] Initializing database
+[2026-04-27 14:19:51] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 14:19:51] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 14:19:51] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 14:19:56] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 14:19:56] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 14:20:21] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.5)
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4693
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5595
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6087
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4007
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4445
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4949
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:43] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5389
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5568
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4781
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5550
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5224
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5701
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4369
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4934
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4810
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5281
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4538
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5118
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4984
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5460
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4906
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5356
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:20:44] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5851
+[2026-04-27 14:20:44] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-27 14:20:44] [DEBUG] [fpdf.output] - pages: 1.6KiB
+[2026-04-27 14:20:44] [DEBUG] [fpdf.output] - images: 378.7KiB
+[2026-04-27 14:20:44] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-27 14:57:40] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:57:40] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-27 14:57:40] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-27 14:57:40] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-27 14:57:42] [INFO ] [app.core.database] Initializing database
+[2026-04-27 14:57:42] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-27 14:57:42] [INFO ] [app.core.database] Database initialization complete
+[2026-04-27 14:57:42] [INFO ] [__main__] Main window displayed successfully
+[2026-04-27 14:57:45] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-27 14:57:45] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4693
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5595
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 6087
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4007
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4445
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4949
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5389
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5568
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4781
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5550
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5224
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5701
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4369
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4934
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4810
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5281
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4538
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5118
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4984
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5460
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 4906
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5356
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IHDR' 16 13
+[2026-04-27 14:58:05] [DEBUG] [PIL.PngImagePlugin] STREAM b'IDAT' 41 5851
+[2026-04-27 14:58:05] [DEBUG] [fpdf.output] Final size summary of the biggest document sections:
+[2026-04-27 14:58:05] [DEBUG] [fpdf.output] - pages: 1.6KiB
+[2026-04-27 14:58:05] [DEBUG] [fpdf.output] - images: 378.7KiB
+[2026-04-27 14:58:05] [DEBUG] [fpdf.output] - fonts: 201.0B
+[2026-04-27 14:58:13] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.5)
+[2026-04-28 12:07:02] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-28 12:07:02] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-28 12:07:02] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-28 12:07:02] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-28 12:07:04] [INFO ] [app.core.database] Initializing database
+[2026-04-28 12:07:04] [INFO ] [app.core.database] Current schema version: 16, target: 16
+[2026-04-28 12:07:04] [INFO ] [app.core.database] Database initialization complete
+[2026-04-28 12:07:04] [INFO ] [__main__] Main window displayed successfully
+[2026-04-28 12:07:11] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-28 12:07:11] [INFO ] [app.core.health] Health check passed: Healthy — v16, 26 tables, 798,720 bytes
+[2026-04-28 12:07:34] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.6)
+[2026-04-28 12:10:25] [INFO ] [app.ui.dialogs.admin.part_types_panel] check: model=1 pt=21 included; rows_after=11

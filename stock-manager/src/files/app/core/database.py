@@ -416,7 +416,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "16"
+_SCHEMA_VERSION = "17"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -821,6 +821,55 @@ def _migrate_v15_to_v16(conn: sqlite3.Connection) -> None:
     _log.info("V15 to V16 migration completed")
 
 
+def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
+    """V17: Drop the scanner-mark prefix from saved barcodes.
+
+    Pre-V17 the system hardcoded a leading ``f`` on every saved barcode
+    because that's the prefix the original developer's German-keyboard
+    scanner emitted. Real-world testing on the K30F + YunPrint combo
+    revealed scanners can emit a different lowercase letter (``a`` was
+    observed) depending on the renderer / firmware, breaking lookups
+    against the ``f``-prefixed DB rows. Going forward the DB stores
+    barcodes in their canonical (prefix-less) form and the lookup paths
+    strip whatever lowercase prefix the scanner happens to emit before
+    matching. This migration brings existing rows into that canonical form.
+
+    Touches:
+      - inventory_items.barcode
+      - app_config.value where key starts with scan_cmd_ or scan_clr_
+
+    Heuristic: a leading ASCII a-z followed by an uppercase letter or
+    digit is always a scanner-mark, never part of the payload (canonical
+    barcodes start with a brand letter or digit, never lowercase).
+    """
+    _log.info("Migrating database schema from V16 to V17 (strip scanner-mark prefix)")
+    items_updated = conn.execute(
+        """
+        UPDATE inventory_items
+           SET barcode = SUBSTR(barcode, 2)
+         WHERE barcode IS NOT NULL
+           AND LENGTH(barcode) > 1
+           AND SUBSTR(barcode, 1, 1) GLOB '[a-z]'
+           AND SUBSTR(barcode, 2, 1) GLOB '[A-Z0-9]'
+        """
+    ).rowcount
+    cfg_updated = conn.execute(
+        """
+        UPDATE app_config
+           SET value = SUBSTR(value, 2)
+         WHERE (key LIKE 'scan_cmd_%' OR key LIKE 'scan_clr_%')
+           AND value IS NOT NULL
+           AND LENGTH(value) > 1
+           AND SUBSTR(value, 1, 1) GLOB '[a-z]'
+           AND SUBSTR(value, 2, 1) GLOB '[A-Z0-9]'
+        """
+    ).rowcount
+    _log.info(
+        "V16 to V17 migration completed (items_stripped=%s, scan_cfg_stripped=%s)",
+        items_updated, cfg_updated,
+    )
+
+
 def _migrate_v3_to_v4(conn: sqlite3.Connection) -> None:
     """Consolidate products + stock_entries into inventory_items."""
     _log.info("Migrating database schema from V3 to V4 (consolidate products + stock_entries)")
@@ -1061,6 +1110,10 @@ def init_db() -> None:
             if current == "15":
                 _migrate_v15_to_v16(conn)
                 current = "16"
+
+            if current == "16":
+                _migrate_v16_to_v17(conn)
+                current = "17"
 
             # Always persist the final version after migrations
             conn.execute(

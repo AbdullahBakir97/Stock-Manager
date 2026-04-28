@@ -70,9 +70,16 @@ class ItemRepository(BaseRepository):
             return self._build(row) if row else None
 
     def get_by_barcode(self, barcode: str) -> Optional[InventoryItem]:
+        # Normalise the scanner-mark prefix off the input before looking up.
+        # The DB stores barcodes canonically (no prefix), so matching is
+        # independent of which lowercase letter the physical scanner emits
+        # for any given print run. See ``normalize_barcode`` in
+        # app/services/barcode_gen_service.py for rationale.
+        from app.services.barcode_gen_service import normalize_barcode
+        bc = normalize_barcode(barcode.strip()) if barcode else ""
         with self._conn() as conn:
             row = conn.execute(
-                self._SELECT + " WHERE ii.barcode=?", (barcode.strip(),)
+                self._SELECT + " WHERE ii.barcode=?", (bc,)
             ).fetchone()
             return self._build(row) if row else None
 

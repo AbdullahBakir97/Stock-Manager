@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.4.7] - 2026-04-28
+
+### Fixed
+- **YunPrint export format — switched from `.xlsx` to RFC-4180 CSV (`.txt`)** so YunPrint's Database dialog actually parses the file. The 2.4.5 implementation wrote an openpyxl `.xlsx` and instructed the user to import via Excel mode; live testing on the K30F revealed YunPrint's Excel parser silently rejects openpyxl-generated workbooks (Sample-data preview empty, field-binding dropdown empty), and the tab-delimited fallback was read as a single oversized column because YunPrint's `.txt` mode defaults to `Character Segmentation: Comma` and doesn't auto-detect tabs. Final format is comma-separated, UTF-8-BOM, written via Python's `csv.writer` with `QUOTE_MINIMAL` — YunPrint parses out the six columns (`barcode`, `model`, `part_type`, `model_full`, `brand`, `label`) cleanly and the user can bind each template field to a single column from the dropdown.
+  - File extension stays `.txt` (matches the YunPrint Database mode that actually works on the K30F + Dlabel driver combo).
+  - The how-to dialog shown after export now reflects the `.txt` Database mode flow rather than the broken Excel mode flow.
+  - `openpyxl` import is removed from `BarcodeGenService.export_for_yunprint`. The dep stays in `requirements.txt` because `export_service.py` and `import_service.py` still use it for general Excel I/O.
+
 ## [2.4.6] - 2026-04-28
 
 ### Fixed

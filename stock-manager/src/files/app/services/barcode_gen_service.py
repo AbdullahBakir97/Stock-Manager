@@ -668,14 +668,16 @@ class BarcodeGenService:
 
     def export_for_yunprint(self, entries: list[BarcodeEntry],
                             output_path: str) -> str:
-        """Write a YunPrint-compatible **.txt** (tab-delimited) data file
-        with one row per barcode.
+        """Write a YunPrint-compatible **.txt** (comma-separated, RFC4180-style
+        quoting) data file with one row per barcode.
 
-        YunPrint's "Database" dialog has both Excel and .txt modes. Real-world
-        testing showed the Excel mode silently fails to parse openpyxl-generated
-        ``.xlsx`` files (Sample-data preview empty, field-binding dropdown
-        empty). The .txt mode is much more forgiving — a plain tab-separated
-        file with a header row in line 1 and UTF-8 BOM is parsed cleanly.
+        YunPrint's "Database" .txt importer defaults to ``Character Segmentation:
+        Comma`` and expects standard CSV. We initially tried tab-delimited
+        because it avoids quoting headaches, but YunPrint then read each entire
+        row as a single column (the segmentation setting is sticky per-import
+        and not auto-detected from the file). Switching to commas + Python's
+        ``csv`` writer means YunPrint parses out individual columns out of the
+        box — no setting tweaks per import.
 
         Workflow: design the 50×20mm template once with template fields bound
         to ``Database``; for every future batch click Database → .txt → Select
@@ -700,43 +702,46 @@ class BarcodeGenService:
 
         Returns the path actually written (extension forced to .txt).
         """
-        # Force a .txt extension. If the caller passed an .xlsx path (e.g.
-        # legacy callers from before we switched formats), rewrite it so
-        # YunPrint doesn't try the broken Excel parser path.
+        import csv
         import os as _os
+
+        # Force a .txt extension so YunPrint's .txt importer matches.
         root, ext = _os.path.splitext(output_path)
         if ext.lower() != ".txt":
             output_path = root + ".txt"
 
         headers = ["barcode", "model", "part_type", "model_full", "brand", "label"]
-        rows: list[list[str]] = [headers]
-
-        for e in entries:
-            if e.is_command or not e.barcode_text:
-                continue
-
-            # display_label is "<Model Name> · <Part Type>" for inventory items
-            full_model = e.display_label.split(" · ")[0].strip() if e.display_label else ""
-            model_no_brand = _strip_brand_prefix(full_model)
-            short_model = f"{_brand_short(e.brand)} {model_no_brand}".strip()
-
-            rows.append([
-                e.barcode_text,
-                short_model,
-                e.part_type or "",
-                full_model,
-                e.brand or "",
-                e.display_label or "",
-            ])
 
         def _clean(cell: str) -> str:
-            # Tabs and newlines would break the row structure; spaces are fine.
-            return cell.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+            # Newlines would break the row structure even inside quoted fields
+            # for some lightweight CSV parsers. Strip them; commas/quotes are
+            # handled by csv.writer's default quoting.
+            return cell.replace("\r", " ").replace("\n", " ")
 
         # UTF-8 with BOM — YunPrint reads the BOM as an encoding hint, so
         # Unicode brand/part-type names ("·", "Ω", localized accents) survive.
+        # ``csv.QUOTE_MINIMAL`` only quotes fields that actually contain a
+        # comma, quote, or newline — keeps the file diff-friendly when items
+        # have plain ASCII names.
         with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
-            for row in rows:
-                f.write("\t".join(_clean(c) for c in row) + "\n")
+            w = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
+            w.writerow(headers)
+            for e in entries:
+                if e.is_command or not e.barcode_text:
+                    continue
+
+                # display_label is "<Model Name> · <Part Type>" for inventory items
+                full_model = e.display_label.split(" · ")[0].strip() if e.display_label else ""
+                model_no_brand = _strip_brand_prefix(full_model)
+                short_model = f"{_brand_short(e.brand)} {model_no_brand}".strip()
+
+                w.writerow([
+                    _clean(e.barcode_text),
+                    _clean(short_model),
+                    _clean(e.part_type or ""),
+                    _clean(full_model),
+                    _clean(e.brand or ""),
+                    _clean(e.display_label or ""),
+                ])
 
         return output_path

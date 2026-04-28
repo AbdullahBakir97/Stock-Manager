@@ -32,6 +32,46 @@ def _pdf_safe(text: str) -> str:
             )
 
 
+# Two-letter brand codes used by ``export_for_yunprint`` to keep the on-label
+# text compact (50×20mm leaves no room for "iPhone" / "Galaxy" prefixes).
+_BRAND_SHORT = {
+    "apple":    "IP",   # phones are iPhones
+    "samsung":  "SA",
+    "xiaomi":   "XI",
+    "redmi":    "RD",
+    "huawei":   "HW",
+    "honor":    "HO",
+    "oppo":     "OP",
+    "vivo":     "VI",
+    "realme":   "RM",
+    "oneplus":  "1+",
+    "google":   "GO",
+    "nokia":    "NO",
+    "motorola": "MO",
+    "sony":     "SO",
+    "lg":       "LG",
+}
+
+
+def _brand_short(brand: str) -> str:
+    """Compact brand code for label display. Falls back to first 2 letters."""
+    if not brand:
+        return ""
+    key = brand.strip().lower()
+    return _BRAND_SHORT.get(key, brand.strip()[:2].upper())
+
+
+def _strip_brand_prefix(model_name: str) -> str:
+    """Drop common brand prefixes so model names render compactly."""
+    if not model_name:
+        return ""
+    text = model_name.strip()
+    for prefix in ("iPhone ", "Galaxy ", "Redmi ", "POCO ", "Pixel ", "Mi "):
+        if text.startswith(prefix):
+            return text[len(prefix):].strip()
+    return text
+
+
 @dataclass
 class BarcodeEntry:
     item_id: Optional[int]     # None for command barcodes
@@ -625,3 +665,78 @@ class BarcodeGenService:
         updates = [(e.item_id, e.db_text or e.barcode_text) for e in entries
                     if e.item_id is not None and not e.is_command]
         return _item_repo.bulk_update_barcodes(updates)
+
+    def export_for_yunprint(self, entries: list[BarcodeEntry],
+                            output_path: str) -> str:
+        """Write a YunPrint-compatible **.txt** (tab-delimited) data file
+        with one row per barcode.
+
+        YunPrint's "Database" dialog has both Excel and .txt modes. Real-world
+        testing showed the Excel mode silently fails to parse openpyxl-generated
+        ``.xlsx`` files (Sample-data preview empty, field-binding dropdown
+        empty). The .txt mode is much more forgiving — a plain tab-separated
+        file with a header row in line 1 and UTF-8 BOM is parsed cleanly.
+
+        Workflow: design the 50×20mm template once with template fields bound
+        to ``Database``; for every future batch click Database → .txt → Select
+        File → pick the file produced here → Confirm → Print all.
+
+        Columns (lowercase + snake_case so YunPrint lists them cleanly):
+          - ``barcode``     — Code39 string (same value already saved on the
+                              inventory_item, so printed labels scan identically
+                              to existing app barcodes).
+          - ``model``       — short brand-prefixed model, e.g. "IP 11 Pro Max",
+                              "SA S25 Ultra". Compact enough for the right
+                              field on a 50×20mm sticker.
+          - ``part_type``   — full part type name, e.g. "D.D Soft Oled".
+          - ``model_full``  — full model with original brand prefix
+                              ("iPhone 11 Pro Max"). Pick this in YunPrint
+                              instead of ``model`` if the sticker is bigger.
+          - ``brand``       — raw brand ("Apple", "Samsung").
+          - ``label``       — combined display string ("iPhone 11 Pro Max · LCD").
+
+        Skips command/color barcode entries — those are scanner-only and
+        don't belong on per-item stickers.
+
+        Returns the path actually written (extension forced to .txt).
+        """
+        # Force a .txt extension. If the caller passed an .xlsx path (e.g.
+        # legacy callers from before we switched formats), rewrite it so
+        # YunPrint doesn't try the broken Excel parser path.
+        import os as _os
+        root, ext = _os.path.splitext(output_path)
+        if ext.lower() != ".txt":
+            output_path = root + ".txt"
+
+        headers = ["barcode", "model", "part_type", "model_full", "brand", "label"]
+        rows: list[list[str]] = [headers]
+
+        for e in entries:
+            if e.is_command or not e.barcode_text:
+                continue
+
+            # display_label is "<Model Name> · <Part Type>" for inventory items
+            full_model = e.display_label.split(" · ")[0].strip() if e.display_label else ""
+            model_no_brand = _strip_brand_prefix(full_model)
+            short_model = f"{_brand_short(e.brand)} {model_no_brand}".strip()
+
+            rows.append([
+                e.barcode_text,
+                short_model,
+                e.part_type or "",
+                full_model,
+                e.brand or "",
+                e.display_label or "",
+            ])
+
+        def _clean(cell: str) -> str:
+            # Tabs and newlines would break the row structure; spaces are fine.
+            return cell.replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+        # UTF-8 with BOM — YunPrint reads the BOM as an encoding hint, so
+        # Unicode brand/part-type names ("·", "Ω", localized accents) survive.
+        with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
+            for row in rows:
+                f.write("\t".join(_clean(c) for c in row) + "\n")
+
+        return output_path

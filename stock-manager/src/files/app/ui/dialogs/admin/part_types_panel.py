@@ -332,6 +332,19 @@ class PartTypesPanel(QWidget):
         self._mc_hdr.setObjectName("admin_form_card_title")
         mc_hdr_row.addWidget(self._mc_hdr)
         mc_hdr_row.addStretch()
+
+        # Brand filter — defaults to "All brands". Without this, a brand-new
+        # part type (no items yet) used to fall back to the first brand
+        # alphabetically and leave every other brand invisible.
+        self._mc_brand_lbl = QLabel("Brand:")
+        self._mc_brand_lbl.setObjectName("admin_form_card_desc")
+        mc_hdr_row.addWidget(self._mc_brand_lbl)
+        self._mc_brand_combo = QComboBox()
+        self._mc_brand_combo.setMinimumWidth(180)
+        self._mc_brand_combo.setMinimumHeight(28)
+        self._mc_brand_combo.currentIndexChanged.connect(self._on_mc_brand_change)
+        mc_hdr_row.addWidget(self._mc_brand_combo)
+
         mc_lay.addLayout(mc_hdr_row)
 
         self._mc_hint = QLabel("Select a part type to manage per-model colors")
@@ -794,14 +807,45 @@ class PartTypesPanel(QWidget):
 
     # ── Per-model colors ─────────────────────────────────────────────────────
 
-    def _refresh_model_colors(self, pt: PartTypeConfig | None) -> None:
-        """Show the phone models for this part type's brand, with their
-        inclusion state and per-model color overrides.
+    def _populate_mc_brand_combo(self, all_brands: list[str]) -> None:
+        """Refresh the Brand filter combo with the given brand list.
 
-        Brand is auto-detected: we look at which brand has the most items
-        (or exclusion markers) for this part type and scope the list to
-        that brand. Models without items yet also appear so the user can
-        decide to include/exclude them (demo-data models, etc.).
+        Preserves the current selection when possible; defaults to "All
+        brands" on first population.
+        """
+        prev = self._mc_brand_combo.currentData() if self._mc_brand_combo.count() else None
+        self._mc_brand_combo.blockSignals(True)
+        self._mc_brand_combo.clear()
+        self._mc_brand_combo.addItem("All brands", None)
+        for b in all_brands:
+            self._mc_brand_combo.addItem(b, b)
+        # Restore previous selection, else default to All brands (index 0)
+        if prev is not None:
+            idx = self._mc_brand_combo.findData(prev)
+            self._mc_brand_combo.setCurrentIndex(idx if idx >= 0 else 0)
+        else:
+            self._mc_brand_combo.setCurrentIndex(0)
+        self._mc_brand_combo.blockSignals(False)
+
+    def _on_mc_brand_change(self, _index: int) -> None:
+        """Re-render the per-model colors table when the brand filter changes."""
+        if getattr(self, "_mc_building", False):
+            return
+        self._refresh_model_colors(self._current_pt())
+
+    def _refresh_model_colors(self, pt: PartTypeConfig | None) -> None:
+        """Show phone models for this part type with their inclusion state
+        and per-model color overrides.
+
+        Scope is driven by the Brand filter combo at the top of the card:
+          - "All brands" (default): every model from every brand, grouped by
+            brand-header rows so the user can quickly tick/untick across the
+            entire catalogue. This matches what users expect when adding a
+            brand-new part type that doesn't have inventory yet.
+          - A specific brand: only that brand's models, no headers.
+
+        Models without items yet still appear so the user can decide to
+        include/exclude them (e.g. newly added phone models).
         """
         # Guard flag — _on_mc_check_changed ignores events while this is True
         self._mc_building = True
@@ -816,52 +860,31 @@ class PartTypesPanel(QWidget):
             self._mc_building = False
             return
 
-        # ── Auto-detect the brand this part type belongs to ──
-        # Pick the brand with the most inventory items (or exclusion markers)
-        # in this part type. This matches the matrix view's implicit scoping.
         from app.core.database import get_connection
         with get_connection() as conn:
-            row = conn.execute(
-                """
-                SELECT pm.brand, COUNT(*) AS n FROM (
-                    SELECT model_id FROM inventory_items WHERE part_type_id = ?
-                    UNION
-                    SELECT model_id FROM model_part_type_colors
-                      WHERE part_type_id = ? AND color_name = '__EXCLUDED__'
-                ) AS rel
-                JOIN phone_models pm ON pm.id = rel.model_id
-                GROUP BY pm.brand
-                ORDER BY n DESC
-                LIMIT 1
-                """,
-                (pt.id, pt.id),
-            ).fetchone()
-            detected_brand = row["brand"] if row else None
+            # Refresh the brand filter list every time — new phone models
+            # added in another tab should appear immediately.
+            all_brands = [r["brand"] for r in conn.execute(
+                "SELECT DISTINCT brand FROM phone_models "
+                "WHERE brand IS NOT NULL AND brand != '' "
+                "ORDER BY brand COLLATE NOCASE"
+            ).fetchall()]
+            self._populate_mc_brand_combo(all_brands)
 
-            if detected_brand is None:
-                # No data yet for this part type — fall back to the first
-                # brand alphabetically so the user still sees models to tick
-                row = conn.execute(
-                    "SELECT brand FROM phone_models "
-                    "ORDER BY brand COLLATE NOCASE LIMIT 1"
-                ).fetchone()
-                detected_brand = row["brand"] if row else None
+            selected_brand = self._mc_brand_combo.currentData()  # None = All
 
-            if detected_brand is None:
-                self._mc_hdr.setText(f"MODELS & COLORS — {pt.name}")
-                self._mc_hint.setText(
-                    "No phone models in database — add them in Admin → Models"
-                )
-                self._mc_hint.show()
-                self._mc_building = False
-                return
-
-            models = conn.execute(
-                "SELECT id, brand, name FROM phone_models "
-                "WHERE brand = ? "
-                "ORDER BY sort_order, name COLLATE NOCASE",
-                (detected_brand,),
-            ).fetchall()
+            if selected_brand is None:
+                models = conn.execute(
+                    "SELECT id, brand, name FROM phone_models "
+                    "ORDER BY brand COLLATE NOCASE, sort_order, name COLLATE NOCASE"
+                ).fetchall()
+            else:
+                models = conn.execute(
+                    "SELECT id, brand, name FROM phone_models "
+                    "WHERE brand = ? "
+                    "ORDER BY sort_order, name COLLATE NOCASE",
+                    (selected_brand,),
+                ).fetchall()
 
             # Which models already have inventory items in THIS part type?
             # These are the ones currently "active" in the matrix view.
@@ -872,14 +895,17 @@ class PartTypesPanel(QWidget):
             ).fetchall()
             active_model_ids: set[int] = {r["model_id"] for r in active_rows}
 
+        scope_label = selected_brand if selected_brand else "All brands"
         self._mc_hdr.setText(
-            f"MODELS & COLORS — {detected_brand} · {pt.name}  "
+            f"MODELS & COLORS — {scope_label} · {pt.name}  "
             f"(uncheck to exclude, double-click to edit colors)"
         )
 
         if not models:
             self._mc_hint.setText(
-                f"No {detected_brand} models — add them in Admin → Models"
+                "No phone models in database — add them in Admin → Models"
+                if selected_brand is None
+                else f"No {selected_brand} models — add them in Admin → Models"
             )
             self._mc_hint.show()
             self._mc_building = False
@@ -890,9 +916,45 @@ class PartTypesPanel(QWidget):
         global_colors = [c["color_name"] for c in _cat_repo.get_pt_colors(pt.id)]
         tk = THEME.tokens
 
+        # In "All brands" mode, insert a non-selectable brand-header row
+        # before the first model of each brand. The toggle handler already
+        # skips rows whose stored model_id is -1.
+        prev_brand_for_header: str | None = None
+        show_brand_headers = (selected_brand is None)
+
         for model in models:
             mid = model["id"]
             mname = model["name"]
+            mbrand = model["brand"] or ""
+
+            if show_brand_headers and mbrand != prev_brand_for_header:
+                hdr_row = self._mc_table.rowCount()
+                self._mc_table.insertRow(hdr_row)
+                self._mc_model_ids.append(-1)        # placeholder — toggle handler ignores
+                self._mc_model_names.append(mbrand)
+
+                # Span the brand label across the model + colors columns;
+                # leave column 0 (checkbox column) empty but disabled.
+                empty_it = QTableWidgetItem("")
+                empty_it.setFlags(Qt.ItemFlag.NoItemFlags)
+                empty_it.setBackground(QColor(tk.card2))
+                self._mc_table.setItem(hdr_row, 0, empty_it)
+
+                brand_it = QTableWidgetItem(mbrand.upper())
+                brand_it.setFlags(Qt.ItemFlag.ItemIsEnabled)
+                brand_it.setForeground(QColor(tk.green))
+                brand_it.setBackground(QColor(tk.card2))
+                f = brand_it.font()
+                f.setBold(True)
+                brand_it.setFont(f)
+                self._mc_table.setItem(hdr_row, 1, brand_it)
+
+                spacer_it = QTableWidgetItem("")
+                spacer_it.setFlags(Qt.ItemFlag.NoItemFlags)
+                spacer_it.setBackground(QColor(tk.card2))
+                self._mc_table.setItem(hdr_row, 2, spacer_it)
+                self._mc_table.setRowHeight(hdr_row, 28)
+                prev_brand_for_header = mbrand
 
             override = _cat_repo.get_model_pt_colors(mid, pt.id)
             is_excluded_marked = override == ["__EXCLUDED__"]

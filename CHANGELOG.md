@@ -7,8 +7,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.7] - 2026-04-28
+## [2.4.8] - 2026-04-28
 
+
+## [2.4.8] - 2026-04-28
+
+### Fixed
+- **Barcode lookup now survives scanner-mark prefix differences** — pre-V17 the system hardcoded a leading lowercase ``f`` on every saved barcode (e.g. ``fAß11PMßJKIN``) because that's what the original developer's German-keyboard scanner emitted as a "scanner mark" before each scan. Real-world testing on the K30F + YunPrint combo revealed the scanner emits a *different* lowercase letter (``a``) when reading YunPrint-rendered Code 39 instead of python-barcode-rendered Code 39, so DB lookups against ``f...`` rows missed every scan from a YunPrint-printed label. Going forward the DB stores barcodes in their canonical (prefix-less) form and lookups strip whatever lowercase letter the scanner happens to emit, so old PDF prints, new YunPrint prints, and any future renderer all match the same DB row.
+  - New `normalize_barcode()` helper in `barcode_gen_service.py` — strips a single leading ASCII a-z when followed by an uppercase letter or digit (canonical payloads always start with brand letter / digit, never another lowercase letter, so the rule is unambiguous). Idempotent.
+  - `_barcode_for_db()` no longer prepends ``f`` — returns the canonical (prefix-less) form.
+  - `_to_code39()` uses `normalize_barcode()` so it accepts ``f...``, ``a...``, or no-prefix input identically.
+  - `ItemRepository.get_by_barcode()` normalises input before the DB query.
+  - `ScanConfig.is_command()`, `command_type()`, `is_color_barcode()`, `color_name()` all normalise both sides of the comparison so command/color barcodes also stop caring which scanner mark the hardware emits today.
+- **Schema migration V16 → V17 — strip scanner-mark prefix from existing rows.** Updates `inventory_items.barcode` and `app_config.value` (for `scan_cmd_*` and `scan_clr_*` keys) to drop a leading lowercase letter when followed by an uppercase or digit. Runs once on first launch after upgrade. Heuristic-safe — only touches rows that match the scanner-mark pattern and leaves anything else untouched.
 
 ## [2.4.7] - 2026-04-28
 

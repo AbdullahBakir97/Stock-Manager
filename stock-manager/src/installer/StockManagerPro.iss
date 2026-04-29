@@ -16,7 +16,7 @@
 
 #define AppName      "Stock Manager Pro"
 #ifndef AppVersion
-  #define AppVersion "2.4.10"
+  #define AppVersion "2.5.0"
 #endif
 #define AppPublisher "StockPro Software"
 #define AppURL       "https://github.com/AbdullahBakir97/Stock-Manager"

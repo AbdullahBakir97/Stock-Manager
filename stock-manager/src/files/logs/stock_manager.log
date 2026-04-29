@@ -39773,3 +39773,266 @@ UnboundLocalError: cannot access local variable 'QScrollArea' where it is not as
 [2026-04-29 02:23:32] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
 [2026-04-29 02:24:00] [DEBUG] [app.services.update_service] UpdateService: up to date (2.5.11)
 [2026-04-29 02:41:05] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 02:53:24] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 02:56:13] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 02:56:13] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 02:56:13] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 02:56:13] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 02:56:15] [INFO ] [app.core.database] Initializing database
+[2026-04-29 02:56:15] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 02:56:15] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 02:56:15] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 02:56:21] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 02:56:21] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 02:56:45] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.9)
+[2026-04-29 02:57:07] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:10] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:13] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:14] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:18] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:19] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:19] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:32] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 02:57:32] [CRITICAL] [__main__] Unhandled exception
+Traceback (most recent call last):
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 203, in go
+    self._go_matrix(key[4:])
+    ~~~~~~~~~~~~~~~^^^^^^^^^
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\controllers\nav_controller.py", line 228, in _go_matrix
+    real_tab = self._tab_factory(cat_key)
+  File "C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\app\ui\tabs\matrix_tab.py", line 175, in __init__
+    self._cost_toggle_btn = QToolButton()
+                            ^^^^^^^^^^^
+UnboundLocalError: cannot access local variable 'QToolButton' where it is not associated with a value
+[2026-04-29 08:06:23] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 08:06:23] [INFO ] [app.core.database] Initializing database
+[2026-04-29 08:06:23] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 08:06:23] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:21:49] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:21:49] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 09:21:49] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 09:21:49] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:21:50] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:21:50] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:21:50] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:21:51] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 09:21:57] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 09:21:57] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 09:22:23] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 09:31:14] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:31:14] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:31:14] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:31:14] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:32:14] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:32:14] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:32:14] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:32:14] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:33:24] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:33:24] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:33:24] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:33:24] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:35:27] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:35:27] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:35:27] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:35:27] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:44:10] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:44:10] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:44:10] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:44:10] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:46:25] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:46:25] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:46:26] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:46:26] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 09:47:29] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 09:47:29] [INFO ] [app.core.database] Initializing database
+[2026-04-29 09:47:29] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 09:47:29] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 10:13:53] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 10:13:53] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 10:13:53] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 10:13:53] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 10:13:54] [INFO ] [app.core.database] Initializing database
+[2026-04-29 10:13:54] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 10:13:54] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 10:13:55] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 10:14:01] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 10:14:01] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 10:14:26] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 10:16:41] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 10:16:41] [INFO ] [app.core.database] Initializing database
+[2026-04-29 10:16:41] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 10:16:41] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 10:17:26] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 10:17:26] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 10:17:26] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 10:17:26] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 10:17:28] [INFO ] [app.core.database] Initializing database
+[2026-04-29 10:17:28] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 10:17:28] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 10:17:28] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 10:17:34] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 10:17:34] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 10:18:13] [DEBUG] [app.services.update_service] UpdateService: check failed (The read operation timed out)
+[2026-04-29 10:18:27] [INFO ] [app.services.stock_service] Stock In: item_id=111, qty=3, before=0, after=3, note=
+[2026-04-29 10:18:44] [INFO ] [app.services.stock_service] Stock In: item_id=66, qty=4, before=0, after=4, note=
+[2026-04-29 10:18:53] [INFO ] [app.services.stock_service] Stock In: item_id=36, qty=5, before=0, after=5, note=
+[2026-04-29 10:18:57] [INFO ] [app.services.stock_service] Stock In: item_id=31, qty=6, before=0, after=6, note=
+[2026-04-29 10:19:02] [INFO ] [app.services.stock_service] Stock In: item_id=26, qty=2, before=0, after=2, note=
+[2026-04-29 10:19:34] [ERROR] [app.services.stock_service] Stock In failed: item_id=26, qty=0, reason=invalid_quantity
+[2026-04-29 10:19:38] [ERROR] [app.services.stock_service] Stock Out failed: item_id=26, qty=0, reason=invalid_quantity
+[2026-04-29 10:19:41] [INFO ] [app.services.stock_service] Stock Adjust: item_id=26, before=2, after=0, delta=-2, note=
+[2026-04-29 11:25:49] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 11:25:49] [INFO ] [app.core.database] Initializing database
+[2026-04-29 11:25:49] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 11:25:49] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 11:27:51] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 11:27:51] [INFO ] [app.core.database] Initializing database
+[2026-04-29 11:27:51] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 11:27:51] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 11:32:04] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 11:32:04] [INFO ] [app.core.database] Initializing database
+[2026-04-29 11:32:04] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 11:32:04] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 11:57:47] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 11:57:47] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 11:57:47] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 11:57:47] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 11:57:49] [INFO ] [app.core.database] Initializing database
+[2026-04-29 11:57:49] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 11:57:49] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 11:57:49] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 11:57:55] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 11:57:55] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 11:58:19] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 13:29:05] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 13:29:05] [INFO ] [app.core.database] Initializing database
+[2026-04-29 13:29:05] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 13:29:05] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 13:32:38] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 13:32:38] [INFO ] [app.core.database] Initializing database
+[2026-04-29 13:32:38] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 13:32:38] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 13:37:44] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 13:37:44] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 13:37:44] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 13:37:44] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 13:37:45] [INFO ] [app.core.database] Initializing database
+[2026-04-29 13:37:45] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 13:37:45] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 13:37:46] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 13:37:52] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 13:37:52] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 13:38:16] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 13:47:44] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 13:47:44] [INFO ] [app.core.database] Initializing database
+[2026-04-29 13:47:44] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 13:47:44] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:11:50] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:11:50] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:11:50] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:11:50] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:17:19] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:17:19] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 14:17:19] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 14:17:19] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:17:21] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:17:21] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:17:21] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:17:21] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 14:17:27] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 14:17:27] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 14:17:51] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 14:17:52] [INFO ] [app.services.stock_service] Stock In: item_id=690441, qty=5, before=0, after=5, note=
+[2026-04-29 14:18:00] [INFO ] [app.services.stock_service] Stock In: item_id=690440, qty=5, before=0, after=5, note=
+[2026-04-29 14:21:51] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:21:51] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 14:21:51] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 14:21:51] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:21:52] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:21:52] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:21:52] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:21:52] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 14:21:58] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 14:21:58] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 14:22:11] [INFO ] [app.services.stock_service] Stock In: item_id=690527, qty=5, before=0, after=5, note=
+[2026-04-29 14:22:23] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)

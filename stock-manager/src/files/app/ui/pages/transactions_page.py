@@ -35,6 +35,63 @@ class TransactionsPage(QWidget):
         self._debounce.setInterval(300)
         self._debounce.timeout.connect(self._apply_filters)
 
+        # Auto-refresh: poll every 30 s while the page is visible so a
+        # user who leaves the app open all day still sees recent stock
+        # operations land without manually clicking the refresh button.
+        # Stops on hideEvent so we don't burn DB cycles when navigated
+        # away. Resets the table offset so we always reload from the top
+        # — paginated "Load more" content is dropped on auto-refresh
+        # (the fresh first page is more useful than stale tail rows).
+        self._auto_refresh = QTimer(self)
+        self._auto_refresh.setInterval(30_000)  # 30 seconds
+        self._auto_refresh.timeout.connect(self._auto_refresh_tick)
+
+    def _auto_refresh_tick(self) -> None:
+        """Re-run the filter query on the worker pool, but ONLY if the
+        user is on the first page and at the top of the list — we don't
+        want to yank a user who's scrolled down to inspect older
+        transactions back to the top.
+
+        Cheap because:
+          - the pool's debounce key collapses concurrent requests; if a
+            user-triggered refresh is already in flight, the auto-tick
+            replaces it with the same params.
+          - the underlying ``fetch_filtered`` returns at most ``_PAGE_SIZE``
+            rows (usually 50).
+        """
+        if not self.isVisible():
+            return  # paranoia — ``hideEvent`` should have stopped the timer
+        # Skip the tick if the user has clicked "Load more" — they're
+        # browsing older entries and a silent reload would lose them.
+        if self._offset > 0:
+            return
+        # Skip if the user has scrolled away from the top — same
+        # principle: don't disrupt active inspection.
+        try:
+            sb = self._table.verticalScrollBar()
+            if sb and sb.value() > 24:  # ~half a row
+                return
+        except Exception:
+            pass
+        self._apply_filters()
+
+    def showEvent(self, event):
+        # Start the auto-refresh poll the moment the page becomes visible
+        # and fire one immediate tick so the page doesn't show stale
+        # data on first activation after a long background period.
+        super().showEvent(event)
+        if not self._auto_refresh.isActive():
+            self._auto_refresh.start()
+        # The tick handler is async, so the showEvent itself doesn't
+        # block while it fetches.
+        self._auto_refresh_tick()
+
+    def hideEvent(self, event):
+        # Stop polling while the user is on a different page — saves
+        # the DB round-trip every 30 s for as long as they're elsewhere.
+        super().hideEvent(event)
+        self._auto_refresh.stop()
+
     # ── UI ───────────────────────────────────────────────────────────────────
 
     def _build_ui(self) -> None:

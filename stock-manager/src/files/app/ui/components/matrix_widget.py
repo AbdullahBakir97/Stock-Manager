@@ -854,6 +854,49 @@ class MatrixWidget(QTableWidget):
         # Trigger a viewport repaint so the new brushes show up immediately.
         self.viewport().update()
 
+    def selection_stats(self) -> dict:
+        """Aggregate stats for currently selected numeric cells.
+
+        Walks ``selectedItems`` and pulls the displayed ``stock`` /
+        ``min_stock`` value out of each cell's ``meta`` dict. Returns
+        ``{count, sum, avg, min, max}`` for the live display in the
+        matrix-tab toolbar — gives the user an Excel-style ``Σ`` readout
+        without typing a SUM formula.
+
+        ``count`` is the number of cells with a usable numeric value (so
+        non-numeric cells like model names don't pad the average).
+        Returns zero-filled dict when the selection is empty.
+        """
+        values: list[int] = []
+        for cell in self.selectedItems():
+            meta = cell.data(Qt.ItemDataRole.UserRole)
+            field = meta.get("field") if isinstance(meta, dict) else None
+            if field in ("stock", "min_stock", "stamm_zahl", "best_bung",
+                         "inventur", "price", "cost_price", "total"):
+                txt = (cell.text() or "").replace(",", "").replace(" ", "")
+                # Strip currency symbols if present
+                for sym in ("€", "$", "£", "+", "-"):
+                    if sym == "-" and txt.startswith("-"):
+                        # Keep negative sign — but our values are usually
+                        # positive; the "+1" / "-7" diff cells aren't in
+                        # the field list above so they don't reach here.
+                        continue
+                    txt = txt.replace(sym, "")
+                try:
+                    values.append(float(txt))
+                except ValueError:
+                    pass
+        if not values:
+            return {"count": 0, "sum": 0.0, "avg": 0.0, "min": 0.0, "max": 0.0}
+        s = sum(values)
+        return {
+            "count": len(values),
+            "sum": s,
+            "avg": s / len(values),
+            "min": min(values),
+            "max": max(values),
+        }
+
     def retranslate(self) -> None:
         if not self._cat:
             return
@@ -1940,6 +1983,215 @@ class FrozenMatrixContainer(QWidget):
     def _on_h_scroll(self, value):
         """Sync the banner scroll position with the data table."""
         self._banner_scroll.horizontalScrollBar().setValue(value)
+
+    # ── Row filter (Excel-like) ─────────────────────────────────────────
+
+    def filter_rows(self, query: str = "", mode: str = "all") -> int:
+        """Hide / show rows in BOTH the frozen model column AND the data
+        table in lockstep, so vertical alignment is preserved.
+
+        Text search is "smart" and **AND-of-words**: the query is split
+        on whitespace and every word must appear somewhere in the row's
+        haystack. So "samsung galaxy s22 ultra" works even though the
+        haystack is "samsung galaxy note s22 ultra" (each word is found
+        independently — order doesn't matter).
+
+        Haystack: as we walk the rows top-to-bottom we track the most
+        recent brand-header row above the cursor (or, when there are no
+        internal brand headers, the container's ``_section_brand``
+        attribute set by ``MatrixTab._add_brand_section``). Brand-line
+        aliases (Apple→iphone/ipad, Samsung→galaxy/note, Xiaomi→
+        redmi/poco/mi/pocophone, Huawei→mate/p/nova/y, Honor→magic,
+        Google→pixel, OnePlus→nord) extend the haystack so users can
+        type the line they say out loud. Case-insensitive.
+
+        Stock-state ``mode`` is checked against the data table's per-cell
+        ``meta`` dicts:
+          * ``"all"``     — no stock-state filter
+          * ``"low"``     — at least one cell with ``0 < stock <= min_stock``
+          * ``"out"``     — at least one cell with ``stock == 0`` and ``min_stock > 0``
+          * ``"reorder"`` — at least one cell with ``stock < min_stock``
+
+        Brand-header rows + series separators stay visible only when
+        they have visible content on either side (otherwise lonely
+        headers / orphan separators leave broken-looking gaps).
+
+        Returns the count of model / colour rows visible after filtering.
+        """
+        # Split on whitespace; each word must be found independently.
+        # Empty query → no text predicate (everything matches text-wise).
+        q_words = [w for w in (query or "").lower().split() if w]
+        # Suppress per-row repaints while we flip ``setRowHidden`` flags
+        # — flushes ONE final repaint at the end instead of N during the
+        # walk, which makes fast typing feel completely smooth even on
+        # the 376-row Samsung container.
+        dt_widget = self._table
+        mt_widget = self._model_table
+        dt_widget.setUpdatesEnabled(False)
+        mt_widget.setUpdatesEnabled(False)
+        dt = self._table
+        mt = self._model_table
+        brand_rows = set(getattr(dt, "_brand_row_indices", ()))
+        sep_rows = set(getattr(dt, "_sep_row_indices", ()))
+        offset = getattr(dt, "_row_offset", 0)
+        n = dt.rowCount()
+        mt_n = mt.rowCount()
+
+        # Pass 1: walk all rows top-to-bottom, track the current brand
+        # context, decide visibility for each non-structural row.
+        # Brand headers themselves are decided in pass 2 (visible iff
+        # any model under them is visible).
+        # ``_section_brand`` is the fallback brand context used when this
+        # container has no internal brand-header rows (the common case
+        # in multi-brand mode where each container holds ONE brand and
+        # the brand label lives in an external QLabel above the table,
+        # OR single-brand mode where one specific brand was chosen).
+        # Brand-line aliases expand the context with common product-line
+        # names so the user can type the line they say out loud
+        # ("iphone" / "galaxy" / "redmi") instead of having to remember
+        # the corporate brand ("apple" / "samsung" / "xiaomi").
+        _BRAND_LINE_ALIASES = {
+            "apple":    "iphone ipad ipod mac",
+            "samsung":  "galaxy note",
+            "xiaomi":   "redmi poco mi pocophone",
+            "huawei":   "mate p nova y",
+            "honor":    "magic",
+            "google":   "pixel",
+            "oneplus":  "nord",
+        }
+        section = (getattr(self, "_section_brand", "") or "").strip().lower()
+        current_brand = (
+            f"{section} {_BRAND_LINE_ALIASES.get(section, '')}"
+            if section else ""
+        ).strip()
+        # row index -> True if this MODEL row is visible after the filter
+        model_visible: dict[int, bool] = {}
+        # brand row index -> list of model rows that belong to that brand
+        brand_to_models: dict[int, list[int]] = {}
+        # row index -> the brand-row index that's the closest header above
+        last_brand_row = -1
+
+        for r in range(n):
+            if r in brand_rows:
+                cell = dt.item(r, 0)
+                # Brand-header text is "  Apple" / "  Samsung" — strip
+                current_brand = (cell.text() if cell else "").strip().lower()
+                last_brand_row = r
+                brand_to_models.setdefault(r, [])
+                continue
+            if r in sep_rows or r < offset:
+                continue
+
+            # Compose searchable text: brand + model column. The brand
+            # comes from the most recent header; if there is no header
+            # yet (single-brand mode with no boundaries) we fall back to
+            # just the cell text — the brand is implicit.
+            cell = dt.item(r, 0)
+            cell_text = (cell.text() if cell else "").lower().strip()
+            haystack = f"{current_brand} {cell_text}".strip() if current_brand \
+                else cell_text
+
+            text_match = True
+            if q_words:
+                # AND-of-words: every word must appear somewhere in the
+                # haystack. Allows natural typing like "samsung galaxy
+                # s22 ultra" to match even when the order in the
+                # haystack differs.
+                text_match = all(w in haystack for w in q_words)
+
+            state_match = (mode == "all")
+            if not state_match:
+                for c in range(dt.columnCount()):
+                    mc = dt.item(r, c)
+                    if mc is None:
+                        continue
+                    meta = mc.data(Qt.ItemDataRole.UserRole)
+                    if not isinstance(meta, dict) or "stock" not in meta:
+                        continue
+                    stock = meta.get("stock") or 0
+                    min_stock = meta.get("min_stock") or 0
+                    if mode == "out" and stock == 0 and min_stock > 0:
+                        state_match = True; break
+                    if mode == "low" and 0 < stock <= min_stock:
+                        state_match = True; break
+                    if mode == "reorder" and stock < min_stock:
+                        state_match = True; break
+
+            visible = text_match and state_match
+            model_visible[r] = visible
+            if last_brand_row >= 0:
+                brand_to_models[last_brand_row].append(r)
+
+        # Pass 2: apply visibility. Brand headers visible iff at least
+        # one of their models is visible (otherwise hide them — empty
+        # "Samsung" header with no rows looks broken). Separator
+        # visibility depends on neighbors: a separator only earns its
+        # 3px gap if there's a visible model row both before AND after
+        # it within the same brand section. Otherwise it stacks into
+        # ugly grey stripes when filtering hides most models.
+        visible_count = 0
+        brand_visible: dict[int, bool] = {}
+        for br, model_rows in brand_to_models.items():
+            brand_visible[br] = any(model_visible.get(m, False) for m in model_rows)
+
+        # Pre-compute which separator rows survive the filter. Rule
+        # (tuned to avoid the "stack of 3px stripes" artifact when most
+        # rows are hidden): show AT MOST ONE separator between any two
+        # visible model rows. A gap of multiple separators (e.g. visible
+        # iPhone 11 Pro → hidden 12 series → visible 13 Pro max crosses
+        # both the 11→12 and 12→13 boundaries) collapses to no separator
+        # — we're already skipping enough content that an extra divider
+        # would just be visual noise. A single separator (e.g. 11 series
+        # ends, 12 series begins, both have visible models on either
+        # side) does show because it earns its 3px gap.
+        sep_show: dict[int, bool] = {sr: False for sr in sep_rows}
+        seen_visible_in_brand = False
+        pending_seps: list[int] = []
+        for r in range(offset, n):
+            if r in brand_rows:
+                seen_visible_in_brand = False
+                pending_seps.clear()
+                continue
+            if r in sep_rows:
+                if seen_visible_in_brand:
+                    pending_seps.append(r)
+                continue
+            # Model / colour row
+            if model_visible.get(r, False):
+                if seen_visible_in_brand and len(pending_seps) == 1:
+                    # Exactly one separator between the previous visible
+                    # model and this one — keep it as a clean series
+                    # divider. Multi-separator gaps stay hidden.
+                    sep_show[pending_seps[0]] = True
+                seen_visible_in_brand = True
+                pending_seps.clear()
+
+        try:
+            for r in range(n):
+                if r < offset:
+                    show = True
+                elif r in brand_rows:
+                    show = brand_visible.get(r, True)
+                elif r in sep_rows:
+                    show = sep_show.get(r, False)
+                else:
+                    show = model_visible.get(r, True)
+                    if show:
+                        visible_count += 1
+                dt.setRowHidden(r, not show)
+                if r < mt_n:
+                    mt.setRowHidden(r, not show)
+        finally:
+            # Always re-enable updates so a partial-walk failure doesn't
+            # leave the matrix frozen with no repaints.
+            dt_widget.setUpdatesEnabled(True)
+            mt_widget.setUpdatesEnabled(True)
+        return visible_count
+
+    def selection_stats(self) -> dict:
+        """Forward to the data table — selection lives there since the
+        frozen model column has selection disabled."""
+        return self._table.selection_stats()
 
     def _sync_model_column(self):
         """Copy column 0 from the main table to the frozen model table."""

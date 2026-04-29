@@ -7,8 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.10] - 2026-04-29
+## [2.5.0] - 2026-04-29
 
+
+## [2.5.0] - 2026-04-29
+
+### Added — Bulk split labels-print export
+- **"Export for YunPrint" now supports splitting** the output into multiple files in one click. After Generate, the Export button opens a small dialog asking how to split:
+  - **Single file** (legacy behaviour) — one combined `.txt`
+  - **Split by Part Type** (default — most common request) — one file per JK / D.D / ORG-Service-Pack / Battery / etc., so each goes to its own sticker template / roll
+  - **Split by Brand** — one file per Apple / Samsung / Xiaomi
+  - **Split by Brand + Part Type** — finest granularity
+  - **Split by Model** — one file per phone model
+- **Professional naming convention**: every file follows `labels-print-<group>-<YYYY-MM-DD>.txt`, with group names sanitised so brand / part-type names with spaces, dots, slashes, or parens become safe filenames on every OS (e.g. `(D.D) Soft-OLED` → `D_D_Soft-OLED`). Generic `labels-print-` prefix (not vendor-specific) so the same files work with any label printer that imports CSV — YunPrint, Brady, NiceLabel, etc. Multiple batches across multiple days can coexist in one folder and Explorer's name-sort gives a clean chronological listing.
+- **Verified end-to-end** on a 1071-entry Apple+Samsung+Xiaomi catalogue: split-by-part-type produced 7 files (`OLED` 488 rows, `JK_incell_FHD` 23 rows, etc.), split-by-brand produced 3 files (Apple 95, Samsung 752, Xiaomi 224), split-by-brand-part-type produced 9 files. Empty groups skipped silently — no zero-row files cluttering the folder.
+- New `BarcodeGenService.export_for_yunprint_split(entries, output_dir, split_by)` returns `[(path, count), …]` so the UI can show a per-file summary in the success dialog. The legacy `export_for_yunprint` is now a thin wrapper around the same internal `_write_yunprint_csv` helper, so single-file output stays byte-identical to before — no risk of regression on existing workflows.
+- Export button on Barcode Generator page opens a split-mode chooser (radio buttons, default Part Type), then the appropriate file/directory picker. Status bar shows `"X rows in N file(s)"` on success and the post-export dialog lists the first 10 generated files plus `"… and N more"` for larger batches; folder opens in Explorer via `QDesktopServices.openUrl` so the user can drag the .txt straight into the YunPrint app.
 
 ## [2.4.10] - 2026-04-29
 

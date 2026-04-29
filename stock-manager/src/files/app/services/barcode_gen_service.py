@@ -887,6 +887,149 @@ class BarcodeGenService:
                     if e.item_id is not None and not e.is_command]
         return _item_repo.bulk_update_barcodes(updates)
 
+    @staticmethod
+    def _yunprint_filename_token(text: str) -> str:
+        """Sanitise a string for use in a filename.
+
+        Spaces / dots / slashes / parens / colons / semicolons → underscore.
+        Drops characters Windows + macOS + Linux all reject. Collapses
+        runs of underscores so we don't end up with ``Apple____iPhone___``.
+        """
+        if not text:
+            return ""
+        out = []
+        last_us = False
+        for ch in text.strip():
+            if ch.isalnum() or ch in ("-", "+"):
+                out.append(ch)
+                last_us = False
+            else:
+                if not last_us:
+                    out.append("_")
+                    last_us = True
+        cleaned = "".join(out).strip("_")
+        return cleaned or "x"
+
+    def _write_yunprint_csv(self, entries: list[BarcodeEntry],
+                            output_path: str) -> tuple[str, int]:
+        """Write the CSV body to ``output_path`` and return ``(path, count)``.
+
+        Internal helper shared by ``export_for_yunprint`` (single file)
+        and ``export_for_yunprint_split`` (multiple files in a folder).
+        Counts only the rows actually written — command / color /
+        empty-barcode entries are skipped silently.
+        """
+        import csv as _csv
+        import os as _os
+        root, ext = _os.path.splitext(output_path)
+        if ext.lower() != ".txt":
+            output_path = root + ".txt"
+
+        headers = ["barcode", "model", "part_type", "color",
+                   "model_full", "brand", "label"]
+
+        def _clean(cell: str) -> str:
+            return cell.replace("\r", " ").replace("\n", " ")
+
+        written = 0
+        with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
+            w = _csv.writer(f, quoting=_csv.QUOTE_MINIMAL)
+            w.writerow(headers)
+            for e in entries:
+                if e.is_command or not e.barcode_text:
+                    continue
+                full_model = (
+                    e.display_label.split(" · ")[0].strip()
+                    if e.display_label else ""
+                )
+                model_no_brand = _strip_brand_prefix(full_model)
+                short_model = f"{_brand_short(e.brand)} {model_no_brand}".strip()
+                w.writerow([
+                    _clean(e.barcode_text),
+                    _clean(short_model),
+                    _clean(e.part_type or ""),
+                    _clean(e.color or ""),
+                    _clean(full_model),
+                    _clean(e.brand or ""),
+                    _clean(e.display_label or ""),
+                ])
+                written += 1
+        return output_path, written
+
+    def export_for_yunprint_split(self, entries: list[BarcodeEntry],
+                                   output_dir: str,
+                                   split_by: str = "part_type") -> list[tuple[str, int]]:
+        """Write one ``.txt`` per group (brand / part_type / brand+part_type
+        / model) into ``output_dir``. Returns ``[(path, row_count), ...]``
+        for every file actually written (groups with zero rows are skipped).
+
+        Naming convention — all files share the ``labels-print-…`` prefix
+        and a ``YYYY-MM-DD`` suffix so they sort cleanly in Explorer
+        and the user can drop multiple batches into the same folder
+        without collisions. Group identifiers are sanitised via
+        ``_yunprint_filename_token`` so brand names with spaces or
+        accents become valid filenames on every OS:
+
+          * ``split_by="brand"``           → ``labels-print-Apple-2026-04-29.txt``
+          * ``split_by="part_type"``       → ``labels-print-(JK)_incell_FHD-2026-04-29.txt``
+          * ``split_by="brand_part_type"`` → ``labels-print-Apple-(JK)_incell_FHD-2026-04-29.txt``
+          * ``split_by="model"``           → ``labels-print-Apple-iPhone_15_Pro-2026-04-29.txt``
+
+        Use case: shop assistant prints a different sticker template for
+        each part type (different sticker rolls, different label sizes).
+        Splitting by ``part_type`` or ``brand_part_type`` lets them
+        generate every batch in one click — no per-template re-export.
+        """
+        import os as _os
+        from datetime import datetime
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        _os.makedirs(output_dir, exist_ok=True)
+
+        # ── Group entries by the chosen dimension ──
+        # ``key_fn`` returns the human-readable name for the group;
+        # we sanitise once when building the filename. ``order_key`` is
+        # used to sort group filenames so they appear alphabetically in
+        # Explorer regardless of the order ``entries`` happened to come in.
+        if split_by == "brand":
+            key_fn = lambda e: e.brand or "Unknown"
+        elif split_by == "part_type":
+            key_fn = lambda e: e.part_type or "Unknown"
+        elif split_by == "brand_part_type":
+            key_fn = lambda e: (
+                f"{e.brand or 'Unknown'}-{e.part_type or 'Unknown'}"
+            )
+        elif split_by == "model":
+            # Use display-name's model portion (everything before " · ")
+            # so we get "iPhone 15 Pro" instead of just the abbreviated
+            # model column. Combined with brand for cross-brand uniqueness.
+            def key_fn(e):
+                full_model = (
+                    e.display_label.split(" · ")[0].strip()
+                    if e.display_label else ""
+                ) or "Unknown"
+                return f"{e.brand or 'Unknown'}-{full_model}"
+        else:
+            raise ValueError(
+                f"split_by must be one of "
+                f"'brand'/'part_type'/'brand_part_type'/'model'; got {split_by!r}"
+            )
+
+        groups: dict[str, list[BarcodeEntry]] = {}
+        for e in entries:
+            if e.is_command or not e.barcode_text:
+                continue
+            groups.setdefault(key_fn(e), []).append(e)
+
+        results: list[tuple[str, int]] = []
+        for group_name in sorted(groups.keys()):
+            token = self._yunprint_filename_token(group_name)
+            filename = f"labels-print-{token}-{date_str}.txt"
+            path = _os.path.join(output_dir, filename)
+            written_path, count = self._write_yunprint_csv(groups[group_name], path)
+            if count > 0:
+                results.append((written_path, count))
+        return results
+
     def export_for_yunprint(self, entries: list[BarcodeEntry],
                             output_path: str) -> str:
         """Write a YunPrint-compatible **.txt** (comma-separated, RFC4180-style
@@ -923,48 +1066,5 @@ class BarcodeGenService:
 
         Returns the path actually written (extension forced to .txt).
         """
-        import csv
-        import os as _os
-
-        # Force a .txt extension so YunPrint's .txt importer matches.
-        root, ext = _os.path.splitext(output_path)
-        if ext.lower() != ".txt":
-            output_path = root + ".txt"
-
-        headers = ["barcode", "model", "part_type", "color",
-                   "model_full", "brand", "label"]
-
-        def _clean(cell: str) -> str:
-            # Newlines would break the row structure even inside quoted fields
-            # for some lightweight CSV parsers. Strip them; commas/quotes are
-            # handled by csv.writer's default quoting.
-            return cell.replace("\r", " ").replace("\n", " ")
-
-        # UTF-8 with BOM — YunPrint reads the BOM as an encoding hint, so
-        # Unicode brand/part-type names ("·", "Ω", localized accents) survive.
-        # ``csv.QUOTE_MINIMAL`` only quotes fields that actually contain a
-        # comma, quote, or newline — keeps the file diff-friendly when items
-        # have plain ASCII names.
-        with open(output_path, "w", encoding="utf-8-sig", newline="") as f:
-            w = csv.writer(f, quoting=csv.QUOTE_MINIMAL)
-            w.writerow(headers)
-            for e in entries:
-                if e.is_command or not e.barcode_text:
-                    continue
-
-                # display_label is "<Model Name> · <Part Type>" for inventory items
-                full_model = e.display_label.split(" · ")[0].strip() if e.display_label else ""
-                model_no_brand = _strip_brand_prefix(full_model)
-                short_model = f"{_brand_short(e.brand)} {model_no_brand}".strip()
-
-                w.writerow([
-                    _clean(e.barcode_text),
-                    _clean(short_model),
-                    _clean(e.part_type or ""),
-                    _clean(e.color or ""),
-                    _clean(full_model),
-                    _clean(e.brand or ""),
-                    _clean(e.display_label or ""),
-                ])
-
-        return output_path
+        path, _ = self._write_yunprint_csv(entries, output_path)
+        return path

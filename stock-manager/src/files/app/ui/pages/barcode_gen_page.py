@@ -766,13 +766,21 @@ class BarcodeGenPage(QWidget):
             self._status.setText(f"Saved: {path}")
 
     def _export_yunprint(self):
-        """Save the current entries as a YunPrint Database .txt (tab-
-        delimited, UTF-8 BOM) and open the destination folder so the user
-        can drag the file into YunPrint's Database dialog."""
+        """Open a small dialog asking how to split the export, then write
+        either ONE .txt file (single mode) or one .txt per group (split
+        by brand / part type / brand+part type / model). All files share
+        the ``yunprint-…-YYYY-MM-DD.txt`` naming convention so they can
+        coexist in the same folder without collisions — the user can
+        drop multiple batches across multiple days into one folder and
+        Explorer's name sort produces a clean chronological listing.
+
+        Use case for splitting: shop assistants who print each part-type
+        with a different sticker template / different roll. Splitting by
+        ``part_type`` lets them generate every batch in a single click —
+        no per-template re-export, no manual filtering by part type.
+        """
         if not self._entries:
             return
-        from datetime import datetime
-        date_str = datetime.now().strftime("%Y-%m-%d")
         count = sum(1 for e in self._entries if not e.is_command and e.barcode_text)
         if count == 0:
             QMessageBox.information(
@@ -780,37 +788,160 @@ class BarcodeGenPage(QWidget):
                 "No item barcodes to export — only command/color barcodes are present.",
             )
             return
-        filename = f"yunprint-batch-{count}items-{date_str}.txt"
-        path, _ = QFileDialog.getSaveFileName(
-            self, "Export for YunPrint", filename,
-            "YunPrint Database (*.txt)",
-        )
-        if not path:
-            return
+
+        # Pick split mode + destination
+        choice = self._ask_yunprint_split_mode(count)
+        if choice is None:
+            return  # user cancelled
+        split_by, target_path = choice
+
         try:
-            saved_path = _gen_svc.export_for_yunprint(self._entries, path)
+            if split_by == "single":
+                saved_path = _gen_svc.export_for_yunprint(self._entries, target_path)
+                files = [(saved_path, count)]
+                folder = os.path.dirname(saved_path)
+            else:
+                files = _gen_svc.export_for_yunprint_split(
+                    self._entries, target_path, split_by=split_by,
+                )
+                folder = target_path
+                if not files:
+                    QMessageBox.information(
+                        self, "Export for YunPrint",
+                        "Nothing to export — every entry is empty or filtered out.",
+                    )
+                    return
         except Exception as e:
             QMessageBox.critical(self, "Export for YunPrint", str(e))
             return
-        self._status.setText(f"YunPrint file saved: {saved_path}")
-        # Open the containing folder so the user can drag the file straight
+
+        total_rows = sum(c for _p, c in files)
+        if len(files) == 1:
+            summary = f"Saved {total_rows} barcode rows to:\n{files[0][0]}"
+        else:
+            preview = "\n".join(
+                f"  • {os.path.basename(p)}  ({c} rows)" for p, c in files[:10]
+            )
+            extra = f"\n  … and {len(files) - 10} more files" if len(files) > 10 else ""
+            summary = (
+                f"Saved {total_rows} barcode rows in {len(files)} files "
+                f"to:\n{folder}\n\n{preview}{extra}"
+            )
+
+        self._status.setText(
+            f"YunPrint export: {total_rows} rows in {len(files)} file(s)"
+        )
+        # Open the containing folder so the user can drag files straight
         # into YunPrint's Database → Select File dialog.
         from PyQt6.QtCore import QUrl
         from PyQt6.QtGui import QDesktopServices
-        QDesktopServices.openUrl(QUrl.fromLocalFile(os.path.dirname(saved_path)))
+        QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
         QMessageBox.information(
             self, "Export for YunPrint",
-            f"Saved {count} barcode rows to:\n{saved_path}\n\n"
+            f"{summary}\n\n"
             "In YunPrint:\n"
             "  1. Open your 50×20mm template.\n"
             "  2. Click Database → set source to .txt → Select File → "
-            "choose this file.\n"
+            "choose ONE of the files.\n"
             "  3. Make sure 'first line contains the field name' is checked.\n"
-            "  4. Confirm — the Sample data preview should show the rows.\n"
-            "  5. Click each template field, set Content to 'Database', and "
-            "pick the matching column (barcode / model / part_type).\n"
-            "  6. Print — one job, all labels.",
+            "  4. Confirm → bind template fields to columns "
+            "(barcode / model / part_type) → Print.\n"
+            "  5. Repeat with the next file for the next batch.",
         )
+
+    def _ask_yunprint_split_mode(self, count: int):
+        """Modal mini-dialog: pick split mode, then pick file/folder.
+
+        Returns ``(split_by, target_path)`` on accept, or ``None`` on cancel.
+        ``split_by`` is one of ``"single"`` / ``"brand"`` / ``"part_type"`` /
+        ``"brand_part_type"`` / ``"model"``. ``target_path`` is a file path
+        when ``split_by == "single"``, else a folder path.
+        """
+        from datetime import datetime
+        from PyQt6.QtWidgets import (
+            QDialog, QVBoxLayout, QHBoxLayout, QLabel, QRadioButton,
+            QButtonGroup, QPushButton, QFileDialog,
+        )
+        from app.core.theme import THEME
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle("Export for YunPrint")
+        dlg.setMinimumWidth(420)
+        THEME.apply(dlg)
+
+        lay = QVBoxLayout(dlg)
+        lay.setContentsMargins(20, 18, 20, 16)
+        lay.setSpacing(12)
+
+        hdr = QLabel(f"Export {count} barcodes")
+        hdr.setObjectName("dlg_header")
+        lay.addWidget(hdr)
+
+        sub = QLabel(
+            "Pick how to split the output. All files share the\n"
+            "'labels-print-<group>-<date>.txt' naming convention so\n"
+            "multiple batches can coexist in the same folder."
+        )
+        sub.setStyleSheet(
+            f"color:{THEME.tokens.t3}; font-size:10pt; "
+            f"background:transparent;"
+        )
+        sub.setWordWrap(True)
+        lay.addWidget(sub)
+
+        # ── Split mode radios ──
+        rb_group = QButtonGroup(dlg)
+        modes = [
+            ("single", "Single file (one combined .txt)"),
+            ("part_type", "Split by Part Type — one file per JK / D.D / ORG / Battery / …"),
+            ("brand", "Split by Brand — one file per Apple / Samsung / Xiaomi / …"),
+            ("brand_part_type", "Split by Brand + Part Type — finest granularity"),
+            ("model", "Split by Model — one file per phone model"),
+        ]
+        radios: dict[str, QRadioButton] = {}
+        for key, label in modes:
+            rb = QRadioButton(label)
+            rb_group.addButton(rb)
+            radios[key] = rb
+            lay.addWidget(rb)
+        radios["part_type"].setChecked(True)  # most useful default
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        cancel = QPushButton("Cancel")
+        cancel.setObjectName("btn_ghost")
+        cancel.clicked.connect(dlg.reject)
+        ok = QPushButton("Choose location…")
+        ok.setObjectName("btn_primary")
+        ok.setDefault(True)
+        ok.clicked.connect(dlg.accept)
+        btn_row.addWidget(cancel)
+        btn_row.addWidget(ok)
+        lay.addLayout(btn_row)
+
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+
+        chosen = next((k for k, rb in radios.items() if rb.isChecked()), "single")
+
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        if chosen == "single":
+            filename = f"labels-print-batch-{count}items-{date_str}.txt"
+            target, _ = QFileDialog.getSaveFileName(
+                self, "Save labels-print file", filename,
+                "Label printer database (*.txt)",
+            )
+            if not target:
+                return None
+            return ("single", target)
+
+        # Split modes — pick a folder
+        target = QFileDialog.getExistingDirectory(
+            self, "Pick a folder for the split YunPrint files",
+        )
+        if not target:
+            return None
+        return (chosen, target)
 
     def _print(self):
         # Same lazy-render gate as _export — first click triggers Stage 2.

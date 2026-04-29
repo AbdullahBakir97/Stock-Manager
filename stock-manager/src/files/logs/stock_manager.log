@@ -40036,3 +40036,44 @@ UnboundLocalError: cannot access local variable 'QToolButton' where it is not as
 [2026-04-29 14:21:58] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
 [2026-04-29 14:22:11] [INFO ] [app.services.stock_service] Stock In: item_id=690527, qty=5, before=0, after=5, note=
 [2026-04-29 14:22:23] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 14:42:11] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:42:11] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 14:42:11] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 14:42:11] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:42:15] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:42:15] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:42:15] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:42:15] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 14:42:21] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 14:42:21] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 14:42:46] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 14:46:20] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:46:20] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:46:20] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:46:20] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:48:12] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:48:12] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:48:12] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:48:12] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:48:46] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:48:46] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 14:48:46] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 14:48:46] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:48:47] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:48:47] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:48:47] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:48:47] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 14:48:52] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 14:48:52] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 14:49:18] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)
+[2026-04-29 14:53:33] [DEBUG] [app.core.database] DB path (development): C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:53:33] [INFO ] [__main__] Stock Manager Pro starting (frozen=False)
+[2026-04-29 14:53:33] [INFO ] [__main__] Python version: 3.14.3 (tags/v3.14.3:323c59a, Feb  3 2026, 16:04:56) [MSC v.1944 64 bit (AMD64)]
+[2026-04-29 14:53:33] [INFO ] [__main__] Database path: C:\Users\acer\Desktop\Abdull\projects\stock-manager\src\stock-manager\src\files\stock_manager.db
+[2026-04-29 14:53:35] [INFO ] [app.core.database] Initializing database
+[2026-04-29 14:53:35] [INFO ] [app.core.database] Current schema version: 18, target: 18
+[2026-04-29 14:53:35] [INFO ] [app.core.database] Database initialization complete
+[2026-04-29 14:53:35] [INFO ] [__main__] Main window displayed successfully
+[2026-04-29 14:53:42] [INFO ] [app.core.health] Running startup health checks...
+[2026-04-29 14:53:42] [INFO ] [app.core.health] Health check passed: Healthy — v18, 27 tables, 991,232 bytes
+[2026-04-29 14:54:05] [DEBUG] [app.services.update_service] UpdateService: up to date (2.4.10)

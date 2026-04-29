@@ -7,8 +7,80 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.8] - 2026-04-28
+## [2.4.9] - 2026-04-29
 
+
+## [2.4.9] - 2026-04-29
+
+Big release bundling barcode-generator overhaul, performance round 1+2, comprehensive theme-system fix, and a new scan-action popup. Each section below is self-contained — read the bits relevant to what you're touching.
+
+### Added — Scan-action popup
+- **Header-bar barcode scan now opens a `ScanActionDialog` for known items** instead of navigating to the inventory page and selecting the row. The popup shows item identity (display name, barcode in monospace, stock/min/price stat cards) plus a colour-coded status badge (`IN STOCK` / `LOW STOCK` / `OUT OF STOCK`) so a shop assistant can read the state from across the room. Three primary action buttons close the dialog with the matching signal — **Stock In** (green), **Stock Out** (red), **Adjust** (orange, exact-value entry) — wired to the same `stock_ops.ctx_stock_op` controller every other entry point uses, so the qty-entry / undo-push / summary-refresh chain stays consistent. Secondary row: **Edit** (opens the existing edit dialog) and **Cancel**. Default focus on **Stock In** — most common op when scanning incoming inventory from a delivery.
+- **Unknown-barcode flow preserved** — still asks "Add new product?" with the scanned barcode pre-filled. Only known-item scans switch to the popup.
+
+### Added — Barcode Generator
+- **Per-color direct-scan barcodes** (`BRAND-MODEL-PT-COLOR`, e.g. `SA-S22U-DSP-BK`) alongside the legacy two-step "scan model -> scan colour" flow. Both coexist; user picks per-batch via the new "Include per-color barcodes (direct scan)" checkbox. `BarcodeEntry` carries a `color` field; `ScanSession.process_barcode` short-circuits the wait-for-colour state when a colour barcode resolves directly to a coloured row.
+- **Brand filter combo + live "X items match" count** on the Barcode Generator page. Brand narrows every scope (All / Category / Model / Part Type). Count is a single `COUNT(*)` (`ItemRepository.count_items_for_scope`) recomputed on every filter change.
+- **"Regenerate (overwrite existing)" checkbox** — recomputes saved codes from current model + part-type names. Useful after renaming a part type ("ORG-Service-Pack-SM" -> "ORG Service Pack" leaves saved codes stuck on the old name; tick this and Generate to refresh). Implies "Include items with existing barcodes" — auto-ticks and locks the dependency.
+- **Model picker auto-narrows to the selected brand** — by-model scope no longer scrolls through 100 mixed-brand models when a brand is chosen.
+
+### Changed — Barcode Generator
+- **Async generation pipeline split into Stage 1 / Stage 2**:
+  - Stage 1 (DB fetch + entries, ~300 ms) runs on Generate; lights up Assign & Save and Export for YunPrint immediately.
+  - Stage 2 (PDF assembly via fpdf2 + PyMuPDF preview rasterisation, 20-30 s on a 2000-item batch) only runs on first Export PDF / Print click.
+  - YunPrint export workflow (`Generate -> Export for YunPrint -> drop into YunPrint Database`) is now ~1 s end-to-end instead of ~30 s. The PDF was rendered eagerly even when the user only wanted the .txt.
+- **Professional encoding across all brands**. Legacy `X-NOTE1-SMOR-SV12` -> new `XI-NOTE14P+-OSP-SV`:
+  - Brand: 2-letter codes via `_BRAND_SHORT` (Apple->IP, Samsung->SA, Xiaomi->XI, Redmi->RD, Huawei->HW, Honor->HO, OPPO->OP, Vivo->VI, Realme->RM, OnePlus->1+, Google->GO, Nokia->NO, Motorola->MO, Sony->SO, LG->LG). Two-letter fallback for unknown brands.
+  - Model: `_abbreviate` max_len 5 -> 8; word map gains `PRO+`->`P+`, `LITE`/`FOLD`/`FLIP`/`EDGE`/`NEO`. "Note 14 Pro+" -> `NOTE14P+` instead of truncated `NOTE1`. Strips additional brand-line prefixes (`POCO `, `MI `, `PIXEL `, `HONOR `, `NOTHING `).
+  - Part type: new `_part_type_code` extracts parenthesised tags as prefix (`(JK)`->`JK`, `(D.D)`->`DD`) and uses word initials for the rest (`ORG Service Pack`->`OSP`, `(JK) incell FHD`->`JKIF`). Single-word PTs get first 4 letters so "Battery"->`BATT`.
+  - Collision suffix: `f"{base}-{suffix}"` separator (`...-SV-2` instead of glued `...-SV2` that read as "Silver-2").
+  - **Affects new barcodes only**. Existing items keep saved codes unless the new Regenerate checkbox is ticked.
+- **YunPrint export format**: `.txt` with RFC-4180 CSV (UTF-8 BOM, `csv.writer` `QUOTE_MINIMAL`). YunPrint's Excel importer silently rejected openpyxl `.xlsx`; tab-TSV was read as one oversized column because YunPrint's segmentation defaults to comma.
+
+### Performance — Database
+- **4 hot-path indexes via V17 -> V18 migration**: `phone_models(brand)`, `part_type_colors(part_type_id)`, `model_part_type_colors(model_id, part_type_id)` composite, `inventory_transactions(item_id, timestamp DESC)` covering. `ANALYZE` after migration so the planner picks them up immediately. Indexes also baked into the DDL for fresh installs.
+- **`_ensure_all_entries` smart-skip via fingerprint** (`_matrix_fingerprint`): hashes (count, max(updated_at)) over the 5 contributing tables, cached in `app_config.matrix_fingerprint`. Idempotent calls drop **221 ms -> 0.08 ms (2700x)**. Saves ~200 ms on every startup and admin-save where nothing actually changed.
+- **`_ensure_all_entries` batched DELETEs**: pre-fetch stale-colour candidates once, queue IDs, flush as one `DELETE ... WHERE id IN (?, ...)` chunked at 500 IDs. Cleanup pass at the end uses `executemany` instead of N round-trips.
+- **`bulk_update_barcodes` -> `executemany`**: one round-trip per batch instead of one per row (~50x on 100-item batches).
+- **PRAGMA tuning**: `cache_size` 20 MB -> 32 MB, new `mmap_size = 128 MB` so SQLite memory-maps the DB on read-heavy paths.
+- **`InventoryItem` -> `@dataclass(slots=True)`**: ~40 % per-instance memory drop, marginally faster attribute access. Real win on the inventory page where 2871 items are materialised every refresh.
+- **`reorder` methods** (`ModelRepository.reorder`, `CategoryRepository.reorder` / `reorder_part_types`) switched to `executemany` — was per-row UPDATE inside a Python loop.
+
+### Performance — Repositories
+- **Process-wide caches** for the read-mostly methods called dozens of times per session:
+  - `ModelRepository.get_brands()`: 300 us -> **0.4 us cached (750x)**. Invalidated by `add` / `delete` / `rename` / `reorder`.
+  - `CategoryRepository.get_all_active()`: ~5 ms -> **0.3 us cached (15000x)**. Invalidated by 10 mutation methods (categories + part types + colours). The single biggest win on page-switch latency since every category combo hits this.
+  - Both caches use a `threading.Lock` (worker threads read concurrently with UI-thread mutations) and return defensive copies so callers can't poison the cache.
+
+### Performance — UI
+- **Barcode generation runs on the worker pool** instead of the UI thread. The legacy `_generate` chain (DB fetch -> image render -> PDF assemble -> preview rasterise) all blocked the UI thread; a 2000-item category froze the app for 30-60 s. Now the user keeps using the app while it runs.
+- **Matrix widget zoom path**:
+  - Stop concatenating QSS (`mtx.setStyleSheet(self.styleSheet() + body_qss)` made the rule blob grow on every zoom). Replace, don't append.
+  - Cap data-cell font-metrics measurement to a 100-row sample (was every row x every column = ~7000 calls per zoom).
+  - Skip no-op `setRowHeight` calls (every Qt setRowHeight triggers a layout invalidation even when the height didn't change).
+- **Matrix tab models filter**: items unchecked in Part Type Settings are removed from the matrix entirely instead of leaving "disabled" empty rows. `ItemRepository.get_matrix_items` filters out `(model, pt)` combos with the `__EXCLUDED__` marker; matrix tab also drops models that have no remaining items in any displayed part type.
+
+### Fixed — Theme System
+- **`ThemeManager` promoted to `QObject` with a `changed` signal**. The legacy `set_theme` only re-applied QSS to `_targets[0]`, leaving every other registered widget (dialogs, popups, settings panels) silently ignored. Now applies to the full `_targets` list AND emits `changed` so widgets that captured `tk.tX` colours at construction can re-read from `THEME.tokens` and refresh.
+- **`MainWindow._refresh_theme`** connected once to `THEME.changed`. Walks the widget tree from the main window root, calls `apply_theme()` on every descendant that defines one (lazy-loaded pages too — `findChildren(QWidget)` reaches them through their stack-widget parent), targeted polish on sidebar / header / footer (which use dynamic-property selectors that need explicit re-polish). Replaces the legacy manual fan-out in `_toggle_mode` so every code path that switches themes (toggle button, admin Settings dialog, programmatic API) goes through the same single refresh.
+- **`THEME.warm_cache()` scheduled on idle** after `window.show()` — pre-generates QSS for all four themes (`pro_dark` / `pro_light` / `dark` / `light`) so the first toggle dispatches in **< 1 ms** instead of paying ~80 ms to build the QSS string.
+- **`apply_theme()` added to widgets that bake `tk.X` colours at construction**, discovered automatically by the widget-tree walk:
+  - `LanguageSwitcher._TriggerButton` — pill background / border / label colours.
+  - `MatrixWidget` — brand-header rows + separator rows tracked at load, repainted in place via `setBackground` (~1 ms vs ~100 ms full rebuild).
+  - `MatrixTab` — full re-render against the cached worker payload (`self._last_payload`). Rebuilds KPI cards, brand-section header QLabels in the all-brands view, every data cell. No DB hit. Eye icon (cost-mode toggle) re-applies `_apply_cost_toggle_style` with current `COST_VIS.visible` state.
+  - All-brands view's brand-section header `QLabel` (built by `_add_brand_section`) gets a closure-based `apply_theme` attribute that rebuilds its inline stylesheet against current tokens.
+  - `ProductDetailBar` — 17 inline styles refactored into a single `_apply_styles()` method called from both `_build()` and `apply_theme()`. Local headers + separators saved as `self.*` so the refresh path can reach them.
+  - `SummaryCard` — every standalone instance is now self-refreshing (was previously refreshable only via `DashboardWidget`'s private `_cards` dict, so KPI tiles owned by Audit / Reports / etc. stayed stuck).
+  - `AuditListView` — title / subtitle labels saved as `self.*` and refreshed via a centralised `_apply_header_styles`.
+  - `PivotTable` (Valuation Pivot) — re-runs `_render()` against cached `self._data`, covering all four sub-classes' 46 inline-style call sites in one pass.
+
+### Fixed — Other
+- **Barcode lookup survives scanner-mark prefix differences**. Pre-V17 the system hardcoded a leading `f` on every saved barcode; real-world testing on the K30F + YunPrint combo emitted `a` instead. Now the DB stores barcodes canonically (no prefix) and lookup paths strip whatever lowercase prefix the scanner emits before matching, via `normalize_barcode()`. V16 -> V17 migration strips legacy prefixes from `inventory_items.barcode` and `app_config.value` (for `scan_cmd_*` / `scan_clr_*` keys).
+- **Part-type panel Models & Colours table shows every brand by default**, not just the alphabetically-first one. New Brand: dropdown above the table; brand-header rows separate each brand's models in "All brands" mode. Auto-detect-by-most-items SQL removed.
+- **`requirements.txt`** declares `openpyxl==3.1.5` explicitly (already imported by `export_service.py` / `import_service.py` but missing from the file, so fresh installs / PyInstaller builds were missing it).
+
+### Removed
+- Legacy manual `unpolish/polish` fan-out in `_toggle_mode` (eight separate loops). Replaced by the single signal-driven walk in `_refresh_theme`.
 
 ## [2.4.8] - 2026-04-28
 

@@ -10,9 +10,9 @@ Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
-[![SQLite](https://img.shields.io/badge/SQLite-Schema_V17-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
+[![SQLite](https://img.shields.io/badge/SQLite-Schema_V18-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.4.8-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+[![Version](https://img.shields.io/badge/Version-2.4.9-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Architecture](#-architecture) · [Project Structure](#-project-structure) · [Contributing](#-contributing)

@@ -7,8 +7,47 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.4.9] - 2026-04-29
+## [2.4.10] - 2026-04-29
 
+
+## [2.4.10] - 2026-04-29
+
+### Added — Matrix tab Excel-like filter + Σ stats
+- **Multi-word AND search** in the matrix toolbar — type natural sentences like `samsung galaxy s22 ultra` or `redmi note 14 pro` and every word must appear somewhere in the row's haystack (order doesn't matter, case-insensitive). 150 ms debounce so typing doesn't re-walk the table on every keystroke. **Enter** applies immediately (skip the wait); **Esc** clears the search.
+- **Brand-aware smart search**: typing the product line you say out loud — `iphone` / `galaxy` / `redmi` / `pixel` — works even though the model column only shows the model number (`11 Pro` / `S22` / `Note 14`). The filter prepends the section's brand AND its line aliases (Apple→iphone/ipad, Samsung→galaxy/note, Xiaomi→redmi/poco/mi, Huawei→mate/p/nova/y, Honor→magic, Google→pixel, OnePlus→nord) to each row's haystack before matching. Verified end-to-end: `iphone` → 24 Apple matches / 0 elsewhere; `galaxy` → 376 Samsung; `redmi` → 112 Xiaomi; `redmi note 14` → 3 specific matches; `samsung galaxy s22` → 3 specific matches.
+- **Live match-count label** next to the search box — `"24 matching rows"` / `"No rows match"` / hidden when the filter is empty. Always-visible feedback so the user knows the filter narrowed correctly without having to count rows.
+- **Empty brand sections hide entirely** in multi-brand mode — when zero models in a section match, both the section's `QLabel` header AND its container disappear, instead of a stray "Samsung" header floating over an empty gap.
+- **Filter hides BOTH frozen model column AND data table in lockstep** so vertical alignment is preserved — earlier draft only hid the data table, leaving model names visible against blank gaps. Implementation lives on `FrozenMatrixContainer.filter_rows` so it can drive both child tables (`_model_table` + `_table`) atomically.
+- **Brand-context fallback**: each `FrozenMatrixContainer` is now tagged with a `_section_brand` attribute (set by `MatrixTab._add_brand_section` / `_reload_brand_container` for multi-brand views, and by the single-brand path on the brand combo selection). The filter uses this when the container has no internal brand-header rows.
+- **Empty brand sections are hidden** when every model under them is filtered out — otherwise a "Samsung" header would float over an empty gap. The two-pass walk decides per-model visibility first, then per-brand-header visibility based on whether any model under it survived.
+- **Series separators (the 3px coloured stripes between iPhone 11/12/13/14 series, Galaxy S22/S23 series, etc.) hide along with the models on either side**. Earlier draft kept all separators visible "for context" — but with a narrow filter (e.g. `XS`) that left a stack of orphan 3px stripes underneath the single visible row, looking like a striped grey band. Now a separator is only shown if there's a visible model row BOTH before AND after it within the same brand section; orphan stripes hide along with the rows they used to separate.
+- **Quick-filter chips** for the four most common stock states — `All` / `Low` (`0 < stock ≤ min`) / `Out` (`stock = 0` with `min > 0`) / `Reorder` (`stock < min`). Single-select; the active chip carries the accent fill. Filters compose with the search box (text AND state).
+- **Σ Selection statistics** readout in the toolbar — `Σ count=… sum=… avg=… min=… max=…` updates live as the user drags out a multi-cell selection. Walks the selection's numeric cells (stock / min / sell / cost / total fields), ignores text cells like model names so the average isn't polluted. Hidden for single-cell selection.
+- Both the filter and selection stats survive a refresh — `_attach_selection_handlers()` and `_apply_row_filter()` run after every `_apply_refresh`, so a brand-combo change or admin save doesn't lose the user's current filter.
+- Implementation: filter only sets row-hidden flags (no widget rebuild — ~1 ms even on a 200-row table); `MatrixWidget.selection_stats()` walks `selectedItems` and pulls displayed values from each cell's `meta` dict.
+
+### Added — Transactions page auto-refresh
+- **Transactions history now polls itself every 30 seconds** while the page is visible, so a user who leaves the app open all day still sees recent stock operations land without manually clicking the refresh button. Stops when the user navigates away (saves the DB round-trip every 30 s for as long as they're on a different page) and fires once immediately on `showEvent` so the first paint after a long background period isn't stale.
+- **Doesn't disrupt browsing**: the tick is a no-op if `self._offset > 0` (the user clicked "Load more" to view older transactions) OR the vertical scrollbar is more than half a row off the top — both signal active inspection that a silent reload would pull the user away from. Idle users at the top get fresh data; busy users at row 200 keep their place.
+- Implementation: `QTimer` parented to the page, started/stopped in `showEvent` / `hideEvent`. Tick calls the existing `_apply_filters` which already runs through the worker pool (debounced by key, async) so the auto-refresh costs nothing on the UI thread.
+
+### Added — Power-user keyboard shortcuts
+- **Ctrl+F** — focus the search box from anywhere on the matrix tab. Standard "find" muscle memory.
+- **Ctrl+0** / **Ctrl+L** / **Ctrl+O** / **Ctrl+R** — switch to the All / Low / Out / Reorder chip.
+- **Esc** in the search box clears the filter (back to no-text).
+- **Enter** in the search box applies the filter immediately (skips the 150 ms debounce).
+
+### Fixed
+- **Matrix scroll position fully preserved across stock edits — no movement at all.** The earlier draft re-centered the edited model's row via `scrollToItem(..., PositionAtCenter)`; the user wanted absolute zero movement. Removed the `_scroll_to_saved_model` helper entirely and now rely solely on the legacy pixel-exact `_post_apply_refresh` restore (saves the scrollbar's pixel offset before refresh, schedules retried `setValue(target)` via `QTimer` so the layout-timing race against rebuilt rows is handled gracefully). Result: stock edit completes, viewport stays at the exact same Y offset.
+- **Removed the pre-filter `clearSelection()` + `setCurrentCell(-1, -1)` calls** I had added for crash hardening — they were the proximate cause of the original "jump to top" bug because Qt scrolls the viewport when the current cell is reset. Only the lightweight `_hover_row` Python attribute reset survives now (no Qt-side effect, no scroll jump).
+- **Stack-of-stripes when filter narrows results** — when the user filtered to non-adjacent series (e.g. `Reorder` showing iPhone 11 Pro and 13 Pro max with the entire 12 series hidden between them), my earlier draft showed BOTH the 11→12 boundary AND the 12→13 boundary as separate 3 px stripes back-to-back. Now collapses to **at most ONE separator** between any two consecutive visible models — multi-separator gaps stay hidden because crossing multiple skipped series is itself the visual cue, no need to add divider noise on top.
+- **`UnboundLocalError: cannot access local variable 'QToolButton'`** on Matrix tab construction — caused by an inner `from PyQt6.QtWidgets import QToolButton` inside `MatrixTab.__init__` that, due to Python's function-scope rule, made every `QToolButton` reference in the function local even though the use at line 175 came earlier. Moved `QButtonGroup` / `QTimer` to the module-top imports and dropped the redundant inner imports.
+- **Crash on filter** caused by stale current-cell selection landing on a now-hidden row — Qt's `currentCellChanged` signal fires when the current row is hidden, which can cascade into hover-delegate paths that don't expect to be repainted at that moment. `_apply_row_filter` now clears every container's selection AND resets the hover-row index BEFORE running `filter_rows`, then triggers a viewport repaint to flush any stale hover ghost. Defensive `RuntimeError` guards everywhere so the timer-driven walk survives a tab navigation that destroys widgets mid-iteration.
+- Quick-filter chips, Σ stats label, and match-count label all re-style themselves on theme toggle via `MatrixTab.apply_theme`.
+
+### Performance
+- **`setUpdatesEnabled(False)` wrapper** around the row-hide loop in `FrozenMatrixContainer.filter_rows` — flushes ONE final repaint at the end instead of N during the walk. Verified: 100 filter operations across 3 brand containers (500+ total rows) complete in 858 ms total = ~9 ms per operation. Fast typing in the search box feels instant; no per-keystroke flicker even on the 376-row Samsung container.
+- Stress test: 50 random fuzz iterations (random query strings + random chip switches) → **zero exceptions, zero crashes**.
 
 ## [2.4.9] - 2026-04-29
 

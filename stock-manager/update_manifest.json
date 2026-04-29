@@ -1,7 +1,7 @@
 {
-  "version": "2.4.10",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.4.10/StockManagerPro-2.4.10-setup.exe",
-  "release_notes": "**Multi-word AND search** in the matrix toolbar \u2014 type natural sentences like `samsung galaxy s22 ultra` or `redmi note 14 pro` and every word must appear somewhere in the row's haystack (order doesn't matter, case-insensitive). 150 ms debounce so typing doesn't re-walk the table on every keystroke. **Enter** applies immediately (skip the wait); **Esc** clears the search.; **Brand-aware smart search**: typing the product line you say out loud \u2014 `iphone` / `galaxy` / `redmi` / `pixel` \u2014 works even though the model column only shows the model number (`11 Pro` / `S22` / `Note 14`). The filter prepends the section's brand AND its line aliases (Apple\u2192iphone/ipad, Samsung\u2192galaxy/note, Xiaomi\u2192redmi/poco/mi, Huawei\u2192mate/p/nova/y, Honor\u2192magic, Google\u2192pixel, OnePlus\u2192nord) to each row's haystack before matching. Verified end-to-end: `iphone` \u2192 24 Apple matches / 0 elsewhere; `galaxy` \u2192 376 Samsung; `redmi` \u2192 112 Xiaomi; `redmi note 14` \u2192 3 specific matches; `samsung galaxy s22` \u2192 3 specific matches.; **Live match-count label** next to the search box \u2014 `\"24 matching rows\"` / `\"No rows match\"` / hidden when the filter is empty. Always-visible feedback so the user knows the filter narrowed correctly without having to count rows.",
+  "version": "2.5.0",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.0/StockManagerPro-2.5.0-setup.exe",
+  "release_notes": "**\"Export for YunPrint\" now supports splitting** the output into multiple files in one click. After Generate, the Export button opens a small dialog asking how to split:; **Single file** (legacy behaviour) \u2014 one combined `.txt`; **Split by Part Type** (default \u2014 most common request) \u2014 one file per JK / D.D / ORG-Service-Pack / Battery / etc., so each goes to its own sticker template / roll",
   "release_date": "2026-04-29",
-  "checksum_sha256": "6995046615337f7bf9933312f961b1c9a570fdbeff9a8f3762ea2d43b373f269"
+  "checksum_sha256": "47ef742a8bd609ec9a5f68654952367a13b50db99d1459c9ac6ee00055356046"
 }

@@ -15,7 +15,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from PyQt6.QtWidgets import QWidget
 from PyQt6.QtGui import QPainter, QLinearGradient, QColor, QBrush
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import Qt, QTimer, QObject, pyqtSignal
 
 
 # ── Color utilities ────────────────────────────────────────────────────────────
@@ -1616,8 +1616,29 @@ QLabel#admin_info_value {{
 """
 
 
-class ThemeManager:
+class ThemeManager(QObject):
+    """Singleton coordinating Qt stylesheet application across the app.
+
+    Emits ``changed`` after a theme toggle so components that captured
+    ``tk.tX`` colors at construction time (inline ``setStyleSheet`` calls
+    in widget ``__init__``) can re-read from ``THEME.tokens`` and refresh
+    themselves. Widgets connect via:
+
+        from app.core.theme import THEME
+        THEME.changed.connect(self.apply_theme)
+
+    Without this, a theme toggle re-paints the QSS-driven properties (the
+    huge selector-based stylesheet at module level) but every f-string
+    inline style remains stuck on the colors of the theme that was active
+    when the widget was built.
+    """
+
+    # Emitted after a theme switch — connected widgets re-read THEME.tokens
+    # and rebuild any inline styles they cached at construction time.
+    changed = pyqtSignal()
+
     def __init__(self):
+        super().__init__()
         self._dark = True
         self._key = "pro_dark"  # Default to Pro Dark
         self._t = PRO_DARK
@@ -1637,31 +1658,59 @@ class ThemeManager:
         """Switch to a named theme preset.
 
         The internal state (tokens, is_dark) updates immediately so any code
-        that reads THEME.tokens right after this call sees the new theme.
+        that reads ``THEME.tokens`` right after this call sees the new theme.
 
-        The actual Qt stylesheet application is deferred to the next event-loop
-        tick via QTimer.singleShot(0).  This ensures that if set_theme() is
-        called from inside an event handler (e.g. mousePressEvent on the toggle
-        button) the handler returns first — keeping the UI responsive and letting
-        the animation start before Qt re-styles the whole widget tree.
+        Stylesheet application is deferred to the next event-loop tick via
+        ``QTimer.singleShot(0)``. This ensures that if set_theme() is
+        called from inside an event handler (e.g. mousePressEvent on the
+        toggle button) the handler returns first — keeping the UI
+        responsive and letting the animation start before Qt re-styles
+        the whole widget tree.
+
+        On the deferred tick we:
+          1. Apply the cached QSS to **every** registered target (the
+             root window plus any extra top-level dialogs that called
+             ``apply()`` / ``register()``). The legacy code only applied
+             to ``_targets[0]`` which left dialogs / popups stuck on the
+             previous theme.
+          2. Emit ``changed`` so widgets that hold cached ``tk.tX`` color
+             tokens can re-read from ``self.tokens`` and rebuild any
+             inline styles they set during construction.
         """
         if key not in THEMES or key == self._key:
             return
         self._key = key
         self._t = THEMES[key]
         self._dark = self._t.is_dark
-        if self._targets:
-            root = self._targets[0]
-            ss   = self.stylesheet()   # reads from cache — no work done here
-            QTimer.singleShot(0, lambda: self._apply_ss(root, ss))
+        ss = self.stylesheet()   # reads from cache — no work done here
+        QTimer.singleShot(0, lambda: self._apply_to_all(ss))
+
+    def _apply_to_all(self, ss: str) -> None:
+        """Apply QSS to every registered target then emit ``changed``."""
+        # Iterate over a snapshot — connected slots may add/remove targets.
+        for w in list(self._targets):
+            try:
+                w.setStyleSheet(ss)
+                w.update()
+            except RuntimeError:
+                # Widget was deleted — drop it from the registry.
+                if w in self._targets:
+                    self._targets.remove(w)
+        # Notify connected widgets so they can refresh inline styles + repaint.
+        try:
+            self.changed.emit()
+        except Exception:
+            pass
 
     def _apply_ss(self, root: QWidget, ss: str) -> None:
-        """Internal: apply QSS to the root widget (called on next event tick)."""
+        """Legacy single-target apply — kept for backwards compatibility
+        with any external caller. New callers should use ``_apply_to_all``
+        which handles the registered list.
+        """
         try:
             root.setStyleSheet(ss)
             root.update()
         except RuntimeError:
-            # Root widget was deleted
             self._targets.clear()
 
     def toggle(self) -> None:

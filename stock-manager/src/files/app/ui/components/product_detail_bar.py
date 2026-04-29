@@ -39,15 +39,6 @@ class ProductDetailBar(QFrame):
         self._build()
 
     def _build(self):
-        tk = THEME.tokens
-
-        self.setStyleSheet(
-            f"QFrame#detail_bar {{"
-            f"  background:{tk.card}; border:1px solid {tk.border};"
-            f"  border-radius:10px;"
-            f"}}"
-        )
-
         root = QHBoxLayout(self)
         root.setContentsMargins(14, 8, 14, 8)
         root.setSpacing(16)
@@ -58,16 +49,10 @@ class ProductDetailBar(QFrame):
 
         # Row 1: Name
         self._name_lbl = QLabel()
-        self._name_lbl.setStyleSheet(
-            f"font-size:13px; font-weight:700; color:{tk.t1};"
-        )
         id_col.addWidget(self._name_lbl)
 
         # Row 2: BC: xxxx
         self._bc_lbl = QLabel()
-        self._bc_lbl.setStyleSheet(
-            f"font-size:9px; font-family:'JetBrains Mono',monospace; color:{tk.t3};"
-        )
         id_col.addWidget(self._bc_lbl)
 
         # Row 3: [color dot] color · date
@@ -81,12 +66,10 @@ class ProductDetailBar(QFrame):
         meta_row.addWidget(self._color_dot)
 
         self._color_name = QLabel()
-        self._color_name.setStyleSheet(f"font-size:9px; color:{tk.t2}; font-weight:600;")
         self._color_name.hide()
         meta_row.addWidget(self._color_name)
 
         self._meta_lbl = QLabel()
-        self._meta_lbl.setStyleSheet(f"font-size:9px; color:{tk.t3};")
         meta_row.addWidget(self._meta_lbl)
         meta_row.addStretch()
 
@@ -94,7 +77,8 @@ class ProductDetailBar(QFrame):
         root.addLayout(id_col)
 
         # ── Separator ──
-        root.addWidget(self._sep())
+        self._sep1 = self._sep()
+        root.addWidget(self._sep1)
 
         # ── Stock section ──
         stock_col = QVBoxLayout()
@@ -102,9 +86,6 @@ class ProductDetailBar(QFrame):
         stock_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._stock_val = QLabel("—")
-        self._stock_val.setStyleSheet(
-            f"font-size:18px; font-weight:800; color:{tk.green};"
-        )
         self._stock_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
         stock_col.addWidget(self._stock_val)
 
@@ -115,55 +96,57 @@ class ProductDetailBar(QFrame):
         root.addLayout(stock_col)
 
         # ── Separator ──
-        root.addWidget(self._sep())
+        self._sep2 = self._sep()
+        root.addWidget(self._sep2)
 
         # ── Price section ──
         price_col = QVBoxLayout()
         price_col.setSpacing(1)
         price_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        price_hdr = QLabel(t("col_price"))
-        price_hdr.setStyleSheet(f"font-size:9px; color:{tk.t3}; text-transform:uppercase;")
-        price_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        price_col.addWidget(price_hdr)
+        # Saved as ``self._price_hdr`` so ``apply_theme`` can re-style it
+        # on theme switch (was a local var; kept its old colour after toggle).
+        self._price_hdr = QLabel(t("col_price"))
+        self._price_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        price_col.addWidget(self._price_hdr)
 
         self._price_val = QLabel("—")
-        self._price_val.setStyleSheet(f"font-size:14px; font-weight:700; color:{tk.t1};")
         self._price_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
         price_col.addWidget(self._price_val)
         root.addLayout(price_col)
 
         # ── Separator ──
-        root.addWidget(self._sep())
+        self._sep3 = self._sep()
+        root.addWidget(self._sep3)
 
         # ── Min / Diff section ──
         diff_col = QVBoxLayout()
         diff_col.setSpacing(1)
         diff_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        diff_hdr = QLabel(t("col_min") + " / " + t("col_best_bung"))
-        diff_hdr.setStyleSheet(f"font-size:9px; color:{tk.t3};")
-        diff_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        diff_col.addWidget(diff_hdr)
+        # Saved as ``self._diff_hdr`` for the same reason as ``_price_hdr``.
+        self._diff_hdr = QLabel(t("col_min") + " / " + t("col_best_bung"))
+        self._diff_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        diff_col.addWidget(self._diff_hdr)
 
         self._diff_val = QLabel("—")
-        self._diff_val.setStyleSheet(f"font-size:12px; font-weight:600; color:{tk.t2};")
         self._diff_val.setAlignment(Qt.AlignmentFlag.AlignCenter)
         diff_col.addWidget(self._diff_val)
         root.addLayout(diff_col)
 
         # ── Separator ──
-        root.addWidget(self._sep())
+        self._sep4 = self._sep()
+        root.addWidget(self._sep4)
 
         # ── Trend sparkline ──
         trend_col = QVBoxLayout()
         trend_col.setSpacing(1)
         trend_col.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
-        trend_hdr = QLabel(t("detail_stock_trend"))
-        trend_hdr.setStyleSheet(f"font-size:9px; color:{tk.t3};")
-        trend_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        trend_col.addWidget(trend_hdr)
+        # Saved as ``self._trend_hdr`` for ``apply_theme``.
+        self._trend_hdr = QLabel(t("detail_stock_trend"))
+        self._trend_hdr.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        trend_col.addWidget(self._trend_hdr)
 
         self._sparkline = _StockSparkline()
         self._sparkline.setFixedSize(110, 38)
@@ -174,58 +157,27 @@ class ProductDetailBar(QFrame):
 
         # ── Quick action buttons ──
         _btn_h = 26
-        _btn_font = "font-size:10px;"
-        btn_ss_in = (
-            f"background:{_rgba(tk.green, '15')}; color:{tk.green};"
-            f"border:1px solid {_rgba(tk.green, '30')}; border-radius:5px;"
-            f"font-weight:700; {_btn_font} padding:2px 6px;"
-        )
-        btn_ss_out = (
-            f"background:{_rgba(tk.red, '15')}; color:{tk.red};"
-            f"border:1px solid {_rgba(tk.red, '30')}; border-radius:5px;"
-            f"font-weight:700; {_btn_font} padding:2px 6px;"
-        )
-        btn_ss_adj = (
-            f"background:{_rgba(tk.orange, '15')}; color:{tk.orange};"
-            f"border:1px solid {_rgba(tk.orange, '30')}; border-radius:5px;"
-            f"font-weight:600; {_btn_font} padding:2px 6px;"
-        )
-        btn_ss_edit = (
-            f"background:{_rgba(tk.blue, '15')}; color:{tk.blue};"
-            f"border:1px solid {_rgba(tk.blue, '30')}; border-radius:5px;"
-            f"font-weight:600; {_btn_font} padding:2px 6px;"
-        )
-        btn_ss_del = (
-            f"background:{_rgba(tk.red, '10')}; color:{tk.red};"
-            f"border:1px solid {_rgba(tk.red, '20')}; border-radius:5px;"
-            f"font-weight:600; {_btn_font} padding:2px 4px;"
-        )
-
         self._btn_in = QPushButton(t("btn_stock_in"))
         self._btn_in.setFixedHeight(_btn_h)
         self._btn_in.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_in.setStyleSheet(btn_ss_in)
         self._btn_in.clicked.connect(self.request_in)
         root.addWidget(self._btn_in)
 
         self._btn_out = QPushButton(t("btn_stock_out"))
         self._btn_out.setFixedHeight(_btn_h)
         self._btn_out.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_out.setStyleSheet(btn_ss_out)
         self._btn_out.clicked.connect(self.request_out)
         root.addWidget(self._btn_out)
 
         self._btn_adj = QPushButton(t("btn_adjust"))
         self._btn_adj.setFixedHeight(_btn_h)
         self._btn_adj.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_adj.setStyleSheet(btn_ss_adj)
         self._btn_adj.clicked.connect(self.request_adj)
         root.addWidget(self._btn_adj)
 
         self._btn_edit = QPushButton(t("btn_edit"))
         self._btn_edit.setFixedHeight(_btn_h)
         self._btn_edit.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_edit.setStyleSheet(btn_ss_edit)
         self._btn_edit.setIcon(get_button_icon("edit"))
         self._btn_edit.setIconSize(QSize(14, 14))
         self._btn_edit.clicked.connect(self.request_edit)
@@ -234,20 +186,113 @@ class ProductDetailBar(QFrame):
         self._btn_del = QPushButton()
         self._btn_del.setFixedSize(26, _btn_h)
         self._btn_del.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._btn_del.setStyleSheet(btn_ss_del)
         self._btn_del.setIcon(get_button_icon("delete"))
         self._btn_del.setIconSize(QSize(14, 14))
         self._btn_del.setToolTip(t("ctx_delete"))
         self._btn_del.clicked.connect(self.request_del)
         root.addWidget(self._btn_del)
 
-    def _sep(self) -> QFrame:
-        """Create a thin vertical separator."""
+        # Apply theme-dependent inline styles in one place — also called
+        # by ``apply_theme()`` on every theme switch so the bar repaints
+        # without rebuilding the widget tree.
+        self._apply_styles()
+
+    def _apply_styles(self) -> None:
+        """Apply every theme-dependent inline style to the tracked widgets.
+
+        Called once from ``_build()`` and again from ``apply_theme()`` on
+        every ``THEME.changed`` emission. Centralising the style logic
+        means a single edit covers both the initial paint and the
+        post-toggle repaint — and we can't accidentally diverge them.
+        """
         tk = THEME.tokens
+        self.setStyleSheet(
+            f"QFrame#detail_bar {{"
+            f"  background:{tk.card}; border:1px solid {tk.border};"
+            f"  border-radius:10px;"
+            f"}}"
+        )
+        self._name_lbl.setStyleSheet(
+            f"font-size:13px; font-weight:700; color:{tk.t1};"
+        )
+        self._bc_lbl.setStyleSheet(
+            f"font-size:9px; font-family:'JetBrains Mono',monospace; color:{tk.t3};"
+        )
+        self._color_name.setStyleSheet(
+            f"font-size:9px; color:{tk.t2}; font-weight:600;"
+        )
+        self._meta_lbl.setStyleSheet(f"font-size:9px; color:{tk.t3};")
+        # _stock_val gets its colour overridden by ``set_product`` based
+        # on stock state, but we set a sensible default here.
+        self._stock_val.setStyleSheet(
+            f"font-size:18px; font-weight:800; color:{tk.green};"
+        )
+        self._price_hdr.setStyleSheet(
+            f"font-size:9px; color:{tk.t3}; text-transform:uppercase;"
+        )
+        self._price_val.setStyleSheet(
+            f"font-size:14px; font-weight:700; color:{tk.t1};"
+        )
+        self._diff_hdr.setStyleSheet(f"font-size:9px; color:{tk.t3};")
+        self._diff_val.setStyleSheet(
+            f"font-size:12px; font-weight:600; color:{tk.t2};"
+        )
+        self._trend_hdr.setStyleSheet(f"font-size:9px; color:{tk.t3};")
+
+        # Separators — re-style each tracked vertical line
+        for sep in (self._sep1, self._sep2, self._sep3, self._sep4):
+            sep.setStyleSheet(f"background:{tk.border}; border:none;")
+
+        # Action buttons (action-coloured pills)
+        _btn_font = "font-size:10px;"
+        self._btn_in.setStyleSheet(
+            f"background:{_rgba(tk.green, '15')}; color:{tk.green};"
+            f"border:1px solid {_rgba(tk.green, '30')}; border-radius:5px;"
+            f"font-weight:700; {_btn_font} padding:2px 6px;"
+        )
+        self._btn_out.setStyleSheet(
+            f"background:{_rgba(tk.red, '15')}; color:{tk.red};"
+            f"border:1px solid {_rgba(tk.red, '30')}; border-radius:5px;"
+            f"font-weight:700; {_btn_font} padding:2px 6px;"
+        )
+        self._btn_adj.setStyleSheet(
+            f"background:{_rgba(tk.orange, '15')}; color:{tk.orange};"
+            f"border:1px solid {_rgba(tk.orange, '30')}; border-radius:5px;"
+            f"font-weight:600; {_btn_font} padding:2px 6px;"
+        )
+        self._btn_edit.setStyleSheet(
+            f"background:{_rgba(tk.blue, '15')}; color:{tk.blue};"
+            f"border:1px solid {_rgba(tk.blue, '30')}; border-radius:5px;"
+            f"font-weight:600; {_btn_font} padding:2px 6px;"
+        )
+        self._btn_del.setStyleSheet(
+            f"background:{_rgba(tk.red, '10')}; color:{tk.red};"
+            f"border:1px solid {_rgba(tk.red, '20')}; border-radius:5px;"
+            f"font-weight:600; {_btn_font} padding:2px 4px;"
+        )
+
+    def apply_theme(self) -> None:
+        """Refresh every inline style on theme switch.
+
+        Discovered by ``MainWindow._refresh_theme``'s ``findChildren(QWidget)``
+        walk. Re-running ``_apply_styles`` re-pulls fresh ``THEME.tokens``
+        and rebuilds every inline ``setStyleSheet`` string. If a product
+        is currently selected, ``set_product`` is also called again to
+        re-render the stock-state-dependent badge / value colours.
+        """
+        try:
+            self._apply_styles()
+            if getattr(self, "_item", None):
+                self.set_product(self._item)
+        except Exception:
+            pass
+
+    def _sep(self) -> QFrame:
+        """Create a thin vertical separator. Style applied by
+        ``_apply_styles`` so theme toggles repaint it too."""
         sep = QFrame()
         sep.setFrameShape(QFrame.Shape.VLine)
         sep.setFixedWidth(1)
-        sep.setStyleSheet(f"background:{tk.border}; border:none;")
         return sep
 
     # ── Public API ──────────────────────────────────────────────────────────

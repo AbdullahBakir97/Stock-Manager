@@ -1,9 +1,25 @@
 """app/repositories/model_repo.py — Phone model queries."""
 from __future__ import annotations
 import re
+import threading
 from typing import Optional
 from app.repositories.base import BaseRepository
 from app.models.phone_model import PhoneModel
+
+
+# Process-wide cache for ``get_brands()`` — invalidated only by
+# add/delete/reorder of phone models. Read concurrently from worker
+# threads (matrix refresh, barcode generator) so the lock keeps mutation
+# torn-state hazards out of the picture.
+_brands_cache: Optional[list[str]] = None
+_brands_lock = threading.Lock()
+
+
+def _invalidate_model_caches() -> None:
+    """Drop every cached read derived from ``phone_models``."""
+    global _brands_cache
+    with _brands_lock:
+        _brands_cache = None
 
 
 def _natural_sort_key(name: str):
@@ -46,13 +62,27 @@ class ModelRepository(BaseRepository):
             return models
 
     def get_brands(self) -> list[str]:
+        # Hot path — called by every matrix refresh, barcode-generator
+        # filter populate, and the brand combo on multiple pages. The
+        # underlying query is fast (~0.3ms) but it's called dozens of
+        # times per session, so caching the list eliminates the round-
+        # trips entirely. Cache is process-wide and invalidated by
+        # ``_invalidate_model_caches`` whenever a model is added,
+        # deleted, or reordered.
+        global _brands_cache
+        cached = _brands_cache
+        if cached is not None:
+            return list(cached)  # defensive copy — callers may mutate
         with self._conn() as conn:
-            return [
+            brands = [
                 r["brand"]
                 for r in conn.execute(
                     "SELECT DISTINCT brand FROM phone_models ORDER BY brand"
                 ).fetchall()
             ]
+        with _brands_lock:
+            _brands_cache = brands
+        return list(brands)
 
     def get_by_id(self, model_id: int) -> Optional[PhoneModel]:
         with self._conn() as conn:
@@ -75,7 +105,8 @@ class ModelRepository(BaseRepository):
             mid = cur.lastrowid
             # Re-sort all models of this brand naturally
             self._resort_brand(conn, brand)
-            return mid
+        _invalidate_model_caches()
+        return mid
 
     def _resort_brand(self, conn, brand: str) -> None:
         """Re-sort all models of a brand using natural sort order."""
@@ -124,7 +155,8 @@ class ModelRepository(BaseRepository):
             if row and row[0] > 0:
                 return False
             conn.execute("DELETE FROM phone_models WHERE id=?", (model_id,))
-            return True
+        _invalidate_model_caches()
+        return True
 
     def rename(self, model_id: int, new_name: str) -> None:
         with self._conn() as conn:
@@ -132,6 +164,7 @@ class ModelRepository(BaseRepository):
                 "UPDATE phone_models SET name=? WHERE id=?",
                 (new_name.strip(), model_id),
             )
+        _invalidate_model_caches()
 
     def reorder(self, brand: str, ordered_ids: list[int]) -> None:
         """Update sort_order for models of a brand based on provided id order.
@@ -139,11 +172,13 @@ class ModelRepository(BaseRepository):
         bases = {"Apple": 1, "Samsung": 100, "Xiaomi": 300}
         base = bases.get(brand, 400)
         with self._conn() as conn:
-            for i, mid in enumerate(ordered_ids):
-                conn.execute(
-                    "UPDATE phone_models SET sort_order=? WHERE id=? AND brand=?",
-                    (base + i, mid, brand),
-                )
+            # Single executemany instead of per-row UPDATE — was N round-trips
+            # per reorder click; one round-trip now.
+            conn.executemany(
+                "UPDATE phone_models SET sort_order=? WHERE id=? AND brand=?",
+                [(base + i, mid, brand) for i, mid in enumerate(ordered_ids)],
+            )
+        _invalidate_model_caches()
 
     def _build(self, row) -> PhoneModel:
         return PhoneModel(

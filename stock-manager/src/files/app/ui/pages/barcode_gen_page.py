@@ -115,6 +115,18 @@ class BarcodeGenPage(QWidget):
             rb.toggled.connect(self._on_scope_change)
             left.addWidget(rb)
 
+        # Brand filter — always visible, narrows every scope mode. "All
+        # brands" disables the filter; picking a specific brand limits the
+        # generated batch to that brand's models, regardless of which
+        # scope radio is active.
+        brand_lbl = QLabel("Brand")
+        brand_lbl.setStyleSheet(f"font-size:11px; color:{tk.t3};")
+        left.addWidget(brand_lbl)
+        self._brand_combo = QComboBox()
+        self._brand_combo.setMinimumHeight(28)
+        self._brand_combo.currentIndexChanged.connect(self._on_filter_change)
+        left.addWidget(self._brand_combo)
+
         # Category combo
         self._cat_combo = QComboBox()
         self._cat_combo.setMinimumHeight(28)
@@ -124,13 +136,25 @@ class BarcodeGenPage(QWidget):
         self._model_list = QListWidget()
         self._model_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self._model_list.setMaximumHeight(120)
+        self._model_list.itemSelectionChanged.connect(self._on_filter_change)
         left.addWidget(self._model_list)
 
         # Part type list
         self._pt_list = QListWidget()
         self._pt_list.setSelectionMode(QAbstractItemView.SelectionMode.MultiSelection)
         self._pt_list.setMaximumHeight(120)
+        self._pt_list.itemSelectionChanged.connect(self._on_filter_change)
         left.addWidget(self._pt_list)
+
+        # Live "matching items" count — updated as the user adjusts any
+        # filter. Tells the user up-front how many barcodes a Generate
+        # click will produce so they can spot a too-broad scope before
+        # waiting for the worker to finish.
+        self._count_label = QLabel("— items match")
+        self._count_label.setStyleSheet(
+            f"font-size:11px; font-weight:600; color:{tk.t3}; padding:4px 0;"
+        )
+        left.addWidget(self._count_label)
 
         # Separator
         sep = QFrame()
@@ -163,7 +187,47 @@ class BarcodeGenPage(QWidget):
         left.addWidget(self._chk_commands)
 
         self._chk_existing = QCheckBox(t("bcgen_include_existing"))
+        self._chk_existing.toggled.connect(self._on_filter_change)
         left.addWidget(self._chk_existing)
+
+        # Regenerate (overwrite) — replaces a saved barcode with a fresh
+        # one computed from the CURRENT model + part-type names. Use
+        # this after renaming a part type or model so the saved codes
+        # reflect the new names instead of being stuck on the legacy
+        # encoding. Implies include_existing (we have to fetch rows that
+        # currently have barcodes in order to overwrite them).
+        self._chk_regenerate = QCheckBox("Regenerate (overwrite existing)")
+        self._chk_regenerate.setToolTip(
+            "When ON: every selected item gets a FRESHLY computed barcode\n"
+            "based on its current brand / model / part-type / colour names,\n"
+            "and Assign & Save will overwrite whatever was saved before.\n\n"
+            "Useful after renaming a part type or model — e.g. if you\n"
+            "changed 'ORG-Service-Pack-SM' to 'ORG Service Pack', the\n"
+            "saved barcodes still spell out the old name until you\n"
+            "regenerate.\n\n"
+            "Implies 'Include items with existing barcodes' — they have\n"
+            "to be in the batch to get overwritten."
+        )
+        self._chk_regenerate.toggled.connect(self._on_regenerate_toggled)
+        left.addWidget(self._chk_regenerate)
+
+        # Per-color barcodes — one extra barcode per colour variant
+        # (BRAND-MODEL-PT-COLOR) so a single scan resolves directly to
+        # that exact colour. The colourless parent barcode is still
+        # generated alongside, so the two-step "scan model → scan colour"
+        # flow keeps working for users who prefer it.
+        self._chk_per_color = QCheckBox("Include per-color barcodes (direct scan)")
+        self._chk_per_color.setChecked(True)
+        self._chk_per_color.toggled.connect(self._on_filter_change)
+        self._chk_per_color.setToolTip(
+            "When ON: items with colour variants get one barcode per colour\n"
+            "in addition to the colourless parent. A single scan of a\n"
+            "colour barcode adds that exact variant directly — no need\n"
+            "to scan a separate colour code afterwards.\n\n"
+            "When OFF: only colourless parents get barcodes (legacy\n"
+            "behaviour); colours are resolved via the two-step flow."
+        )
+        left.addWidget(self._chk_per_color)
 
         left.addStretch()
 
@@ -305,26 +369,54 @@ class BarcodeGenPage(QWidget):
     # ── Combos / Scope ──────────────────────────────────────────────────────
 
     def _populate_combos(self):
+        # Brand combo — populated from distinct brands across all phone_models
+        self._brand_combo.blockSignals(True)
+        self._brand_combo.clear()
+        self._brand_combo.addItem("All brands", None)
+        try:
+            for b in _model_repo.get_brands():
+                if b:
+                    self._brand_combo.addItem(b, b)
+        except Exception:
+            pass
+        self._brand_combo.blockSignals(False)
+
+        self._cat_combo.blockSignals(True)
         self._cat_combo.clear()
         self._cat_combo.addItem(t("disp_all_brands"), None)
         for cat in _cat_repo.get_all_active():
             self._cat_combo.addItem(cat.name_en, cat.id)
+        self._cat_combo.blockSignals(False)
         self._cat_combo.currentIndexChanged.connect(self._on_cat_change)
         self._refresh_model_list()
         self._refresh_pt_list()
+        self._refresh_count()
 
     def _on_cat_change(self):
         self._refresh_pt_list()
+        self._on_filter_change()
 
     def _refresh_model_list(self):
+        """Populate the model list, narrowed by the active brand filter so
+        the user only sees relevant models when picking by-model scope."""
+        self._model_list.blockSignals(True)
         self._model_list.clear()
-        for m in _model_repo.get_all():
+        brand = self._brand_combo.currentData() if hasattr(self, "_brand_combo") else None
+        try:
+            models = _model_repo.get_all(brand=brand) if brand else _model_repo.get_all()
+        except TypeError:
+            # Older repo signature without brand kwarg — fall back to client-side filter
+            models = [m for m in _model_repo.get_all()
+                      if not brand or m.brand == brand]
+        for m in models:
             from PyQt6.QtWidgets import QListWidgetItem
             it = QListWidgetItem(f"{m.brand} {m.name}")
             it.setData(Qt.ItemDataRole.UserRole, m.id)
             self._model_list.addItem(it)
+        self._model_list.blockSignals(False)
 
     def _refresh_pt_list(self):
+        self._pt_list.blockSignals(True)
         self._pt_list.clear()
         cat_id = self._cat_combo.currentData()
         cats = _cat_repo.get_all_active() if cat_id is None else [_cat_repo.get_by_id(cat_id)]
@@ -336,6 +428,7 @@ class BarcodeGenPage(QWidget):
                 it = QListWidgetItem(f"{cat.name_en} · {pt.name}")
                 it.setData(Qt.ItemDataRole.UserRole, pt.id)
                 self._pt_list.addItem(it)
+        self._pt_list.blockSignals(False)
 
     def _on_scope_change(self):
         is_cat = self._rb_cat.isChecked()
@@ -344,9 +437,55 @@ class BarcodeGenPage(QWidget):
         self._cat_combo.setVisible(is_cat or is_pt)
         self._model_list.setVisible(is_model)
         self._pt_list.setVisible(is_pt)
+        self._on_filter_change()
+
+    def _on_filter_change(self):
+        """Any filter widget changed — refresh the model list (brand may
+        have changed) and the live count label."""
+        # Brand changed → repopulate model list narrowed by brand.
+        # We can't always tell which widget triggered, so just re-do both.
+        if self.sender() is getattr(self, "_brand_combo", None):
+            self._refresh_model_list()
+        self._refresh_count()
+
+    def _on_regenerate_toggled(self, checked: bool):
+        """Regenerate implies include-existing — auto-tick the dependency
+        so the user doesn't have to think about both. We also force the
+        dependency check to stay set while regenerate is on, since
+        unchecking it would silently drop every existing row from the
+        batch (regenerate without rows to regenerate = no-op)."""
+        if checked:
+            self._chk_existing.blockSignals(True)
+            self._chk_existing.setChecked(True)
+            self._chk_existing.setEnabled(False)
+            self._chk_existing.blockSignals(False)
+        else:
+            self._chk_existing.setEnabled(True)
+        self._refresh_count()
+
+    def _refresh_count(self):
+        """Update the 'X items match' label using the same predicate the
+        generator will apply. Cheap COUNT(*) — no full row materialisation."""
+        try:
+            params = self._get_scope_params()
+            include_existing = self._chk_existing.isChecked() if hasattr(self, "_chk_existing") else False
+            include_per_color = self._chk_per_color.isChecked() if hasattr(self, "_chk_per_color") else True
+            n = _item_repo.count_items_for_scope(
+                include_existing=include_existing,
+                include_per_color=include_per_color,
+                **params,
+            )
+        except Exception:
+            n = 0
+        suffix = "" if include_existing else " (without barcode)"
+        self._count_label.setText(f"{n} items match{suffix}")
 
     def _get_scope_params(self) -> dict:
         params: dict = {}
+        # Brand applies to every scope — independent of the radio choice.
+        brand = self._brand_combo.currentData() if hasattr(self, "_brand_combo") else None
+        if brand:
+            params["brand"] = brand
         if self._rb_cat.isChecked():
             cat_id = self._cat_combo.currentData()
             if cat_id:
@@ -369,50 +508,153 @@ class BarcodeGenPage(QWidget):
     # ── Generate / Assign / Export ──────────────────────────────────────────
 
     def _generate(self):
+        """Kick off generation in two stages.
+
+        **Stage 1 (always)** — DB fetch + barcode-text computation. Cheap
+        (~200-400ms for a full category). Runs on the worker pool but
+        completes fast. Lights up Assign & Save and Export for YunPrint
+        immediately because those don't need the PDF.
+
+        **Stage 2 (on demand)** — PDF assembly + PyMuPDF preview
+        rasterisation. Expensive (~20-30s for a 2000-item batch on the
+        K30F label workflow). Triggered lazily the first time the user
+        clicks Preview / Export PDF / Print, NOT eagerly during Generate.
+
+        The user's primary workflow (Generate → Export for YunPrint → drop
+        into YunPrint Database) used to wait ~30s for a PDF that was
+        never used. Now that path is just the Stage-1 cost (~300ms).
+        Stage 2 still runs through the worker pool when triggered, so
+        even when needed it doesn't freeze the UI.
+        """
         params = self._get_scope_params()
         include_existing = self._chk_existing.isChecked()
-        self._entries = _gen_svc.generate_for_scope(
-            scope="custom",
-            include_existing=include_existing,
-            **params,
+        include_per_color = self._chk_per_color.isChecked()
+        regenerate = self._chk_regenerate.isChecked()
+        # PDF render parameters captured now so Stage 2 (potentially much
+        # later, after the user toggled options) uses the same settings
+        # the user saw at Generate time.
+        self._pending_pdf_params = {
+            "fmt": "code39" if self._rb_code39.isChecked() else "code128",
+            "include_cmds": self._chk_commands.isChecked(),
+        }
+
+        # Disable buttons + clear stale state while Stage 1 runs.
+        self._entries = []
+        self._pdf_bytes = b""
+        self._pdf_pages = []
+        self._btn_generate.setEnabled(False)
+        self._btn_assign.setEnabled(False)
+        self._btn_export.setEnabled(False)
+        self._btn_export_yp.setEnabled(False)
+        self._btn_print.setEnabled(False)
+        self._status.setText("Generating barcodes…")
+        self._preview_label.setText(
+            "Generated. Click 'Export PDF' or 'Print' to render the PDF."
         )
 
-        if not self._entries:
-            self._status.setText(t("bcgen_no_items"))
-            self._preview_label.setText(t("bcgen_no_items"))
-            self._btn_assign.setEnabled(False)
-            self._btn_export.setEnabled(False)
-            self._btn_export_yp.setEnabled(False)
-            self._btn_print.setEnabled(False)
-            self._kpi_generated.set_value(0, t("bcgen_title"))
-            self._kpi_pages.set_value(0, t("bcgen_preview"))
-            return
+        from app.ui.workers.worker_pool import POOL
 
-        self._kpi_generated.set_value(len(self._entries), t("bcgen_title"))
-        self._status.setText(f"{len(self._entries)} barcodes generated...")
-
-        fmt = "code39" if self._rb_code39.isChecked() else "code128"
-        include_cmds = self._chk_commands.isChecked()
-
-        try:
-            self._pdf_bytes = _gen_svc.create_pdf(
-                self._entries,
-                include_commands=include_cmds,
-                barcode_format=fmt,
+        def _stage1_worker():
+            return _gen_svc.generate_for_scope(
+                scope="custom",
+                include_existing=include_existing,
+                include_per_color=include_per_color,
+                regenerate=regenerate,
+                **params,
             )
-        except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
-            return
 
-        self._render_preview()
-        self._btn_assign.setEnabled(True)
-        self._btn_export.setEnabled(True)
-        self._btn_export_yp.setEnabled(True)
-        self._btn_print.setEnabled(True)
-        self._kpi_pages.set_value(len(self._pdf_pages), t("bcgen_preview"))
-        self._status.setText(
-            f"{len(self._entries)} barcodes · {len(self._pdf_pages)} page(s)"
-        )
+        def _on_stage1(entries):
+            self._btn_generate.setEnabled(True)
+            self._entries = entries
+
+            if not entries:
+                self._status.setText(t("bcgen_no_items"))
+                self._preview_label.setText(t("bcgen_no_items"))
+                self._kpi_generated.set_value(0, t("bcgen_title"))
+                self._kpi_pages.set_value(0, t("bcgen_preview"))
+                return
+
+            self._kpi_generated.set_value(len(entries), t("bcgen_title"))
+            # Light up the actions that DON'T need the PDF immediately —
+            # Assign & Save just writes barcodes back to inventory_items,
+            # Export for YunPrint writes the .txt CSV. Both are fast.
+            self._btn_assign.setEnabled(True)
+            self._btn_export_yp.setEnabled(True)
+            # PDF-dependent buttons stay disabled until Stage 2 finishes.
+            # They become "render-on-click" — the handlers below trigger
+            # Stage 2 when first pressed.
+            self._btn_export.setEnabled(True)
+            self._btn_print.setEnabled(True)
+            self._status.setText(
+                f"{len(entries)} barcodes ready · "
+                "PDF renders on demand (Export / Print)"
+            )
+
+        def _on_error(msg: str):
+            self._btn_generate.setEnabled(True)
+            self._status.setText("Generation failed.")
+            QMessageBox.critical(self, "Error", str(msg))
+
+        POOL.submit("barcode_gen", _stage1_worker, _on_stage1, _on_error)
+
+    def _ensure_pdf_ready(self, on_ready) -> bool:
+        """Stage 2 of barcode generation — render the PDF on demand.
+
+        Returns True if the PDF is already rendered (caller can proceed
+        synchronously with ``on_ready()`` skipped — we already invoked it
+        in that case). Returns False if a render was kicked off; the
+        ``on_ready`` callback fires on the UI thread once the PDF is
+        ready. Callers are responsible for disabling their button while
+        the render is in flight.
+
+        Implementation note: piggy-backs on the same ``POOL.submit`` key
+        as Stage 1, so a stale Stage-1 result that arrives mid-render is
+        silently dropped by the epoch guard.
+        """
+        if self._pdf_bytes:
+            on_ready()
+            return True
+        if not self._entries:
+            return True  # nothing to render
+        params = getattr(self, "_pending_pdf_params", None) or {
+            "fmt": "code39", "include_cmds": True,
+        }
+        entries = self._entries
+
+        self._status.setText("Rendering PDF…")
+        from app.ui.workers.worker_pool import POOL
+
+        def _stage2_worker():
+            try:
+                pdf_bytes = _gen_svc.create_pdf(
+                    entries,
+                    include_commands=params["include_cmds"],
+                    barcode_format=params["fmt"],
+                )
+                return {"pdf": pdf_bytes}
+            except Exception as e:
+                return {"pdf": b"", "error": str(e)}
+
+        def _on_stage2(payload):
+            err = payload.get("error")
+            if err:
+                self._status.setText("PDF render failed.")
+                QMessageBox.critical(self, "Error", err)
+                return
+            self._pdf_bytes = payload.get("pdf", b"")
+            self._render_preview()
+            self._kpi_pages.set_value(len(self._pdf_pages), t("bcgen_preview"))
+            self._status.setText(
+                f"{len(self._entries)} barcodes · {len(self._pdf_pages)} page(s)"
+            )
+            on_ready()
+
+        def _on_err(msg):
+            self._status.setText("PDF render failed.")
+            QMessageBox.critical(self, "Error", str(msg))
+
+        POOL.submit("barcode_gen_pdf", _stage2_worker, _on_stage2, _on_err)
+        return False
 
     def _render_preview(self):
         """Render PDF pages to QPixmap for preview."""
@@ -497,7 +739,12 @@ class BarcodeGenPage(QWidget):
                                 t("bcgen_assigned_n", n=count))
 
     def _export(self):
+        # Lazy PDF render: if Stage 2 hasn't run yet, kick it off and
+        # have it call _export again once the PDF is ready.
         if not self._pdf_bytes:
+            if not self._entries:
+                return
+            self._ensure_pdf_ready(self._export)
             return
         from datetime import datetime
         date_str = datetime.now().strftime("%Y-%m-%d")
@@ -566,7 +813,11 @@ class BarcodeGenPage(QWidget):
         )
 
     def _print(self):
+        # Same lazy-render gate as _export — first click triggers Stage 2.
         if not self._pdf_bytes:
+            if not self._entries:
+                return
+            self._ensure_pdf_ready(self._print)
             return
         tf = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
         tf.write(self._pdf_bytes)

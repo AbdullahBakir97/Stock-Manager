@@ -123,16 +123,21 @@ class AuditListView(QWidget):
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(16, 16, 16, 0)
 
-        title = QLabel(t("aud_title"))
-        title.setStyleSheet(f"font-size: 20px; font-weight: bold; color: {THEME.tokens.t1};")
-        subtitle = QLabel(t("aud_subtitle"))
-        subtitle.setStyleSheet(f"font-size: 12px; color: {THEME.tokens.t2};")
+        # Saved as ``self._title_lbl`` / ``self._subtitle_lbl`` so the
+        # tab-level ``apply_theme`` (added below) can re-style them on
+        # theme switch — they were locals and lost their colours after
+        # toggle to a different theme.
+        self._title_lbl = QLabel(t("aud_title"))
+        self._subtitle_lbl = QLabel(t("aud_subtitle"))
 
         header_left = QVBoxLayout()
         header_left.setContentsMargins(0, 0, 0, 0)
         header_left.setSpacing(4)
-        header_left.addWidget(title)
-        header_left.addWidget(subtitle)
+        header_left.addWidget(self._title_lbl)
+        header_left.addWidget(self._subtitle_lbl)
+        # Initial style application — also called by ``apply_theme`` on
+        # every theme switch.
+        self._apply_header_styles()
 
         header_layout.addLayout(header_left)
         header_layout.addStretch()
@@ -212,6 +217,31 @@ class AuditListView(QWidget):
         self.empty_state.hide()
 
         self.setLayout(layout)
+
+    def _apply_header_styles(self) -> None:
+        """Apply the inline title / subtitle styles from current tokens.
+
+        Centralised so the initial paint and the theme-toggle repaint
+        share a single source of truth — adding new styled labels means
+        editing one method instead of two.
+        """
+        tk = THEME.tokens
+        self._title_lbl.setStyleSheet(
+            f"font-size: 20px; font-weight: bold; color: {tk.t1};"
+        )
+        self._subtitle_lbl.setStyleSheet(
+            f"font-size: 12px; color: {tk.t2};"
+        )
+
+    def apply_theme(self) -> None:
+        """Refresh inline-styled labels on theme switch. ``SummaryCard``
+        children handle their own refresh via their own ``apply_theme``,
+        discovered by ``MainWindow._refresh_theme``'s widget-tree walk —
+        this method only needs to cover the page-level header labels."""
+        try:
+            self._apply_header_styles()
+        except Exception:
+            pass
 
     def _load_data(self) -> None:
         """Fetch audits + summary off the UI thread, apply on return."""

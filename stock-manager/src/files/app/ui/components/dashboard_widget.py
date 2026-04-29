@@ -140,6 +140,14 @@ class SummaryCard(QFrame):
             }}
         """)
 
+    def apply_theme(self) -> None:
+        """Discovered by ``MainWindow._refresh_theme``'s widget-tree walk.
+        Makes every standalone ``SummaryCard`` instance self-refreshing on
+        theme toggle, including the ones owned by pages that don't have
+        their own ``apply_theme`` (e.g. ``AuditPage`` with its TOTAL AUDITS
+        / IN PROGRESS / COMPLETED / TOTAL DISCREPANCIES tiles)."""
+        self._apply_style()
+
 
 # ── Dashboard Widget ──────────────────────────────────────────────────────────
 

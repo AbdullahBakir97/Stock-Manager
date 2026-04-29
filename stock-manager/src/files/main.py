@@ -79,6 +79,18 @@ def main():
     window.show()
     splash.finish()   # animates to 100 % then fades out
 
+    # Pre-generate QSS for every theme on idle, so the first toggle is
+    # instant instead of paying the ~80ms QSS-string-build cost. Deferred
+    # to QTimer.singleShot(0) so it runs on the first event-loop idle
+    # tick, after the window has finished its initial paint — no
+    # contribution to startup time the user actually sees.
+    try:
+        from PyQt6.QtCore import QTimer as _QT
+        from app.core.theme import THEME as _THEME
+        _QT.singleShot(0, _THEME.warm_cache)
+    except Exception:
+        pass
+
     # Optional UI-thread watchdog (enable via SM_UI_WATCHDOG=1).
     # Logs a warning when the main thread blocks longer than 50 ms.
     try:

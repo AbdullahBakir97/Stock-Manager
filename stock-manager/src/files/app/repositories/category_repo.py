@@ -1,18 +1,48 @@
 """app/repositories/category_repo.py — Category and PartType queries."""
 from __future__ import annotations
+import threading
 from typing import Optional
 from app.repositories.base import BaseRepository
 from app.models.category import CategoryConfig, PartTypeConfig
 
 
+# Process-wide cache for ``get_all_active()`` — the hydrated category +
+# part-type tree is a hot read on every page that has a category combo
+# (Inventory, Barcode Generator, Stock Ops, Reports, …) and the
+# underlying query joins three tables. Invalidated by every category or
+# part-type mutation. Same lock pattern as model_repo's ``_brands_cache``.
+_active_cache: Optional[list[CategoryConfig]] = None
+_active_lock = threading.Lock()
+
+
+def _invalidate_category_caches() -> None:
+    """Drop every cached read derived from ``categories`` / ``part_types``."""
+    global _active_cache
+    with _active_lock:
+        _active_cache = None
+
+
 class CategoryRepository(BaseRepository):
 
     def get_all_active(self) -> list[CategoryConfig]:
+        # Caches the full active-category tree (categories + their
+        # part_types + colors). Invalidated by ``_invalidate_category_caches``
+        # whenever an admin save touches the schema. Returns a defensive
+        # copy of the outer list so callers can mutate without poisoning
+        # the cache; the inner CategoryConfig objects are immutable from
+        # the caller's perspective.
+        global _active_cache
+        cached = _active_cache
+        if cached is not None:
+            return list(cached)
         with self._conn() as conn:
             cats = conn.execute(
                 "SELECT * FROM categories WHERE is_active=1 ORDER BY sort_order"
             ).fetchall()
-            return [self._build(conn, r) for r in cats]
+            built = [self._build(conn, r) for r in cats]
+        with _active_lock:
+            _active_cache = built
+        return list(built)
 
     def get_all(self) -> list[CategoryConfig]:
         with self._conn() as conn:
@@ -52,7 +82,9 @@ class CategoryRepository(BaseRepository):
                    VALUES (?,?,?,?,?,?)""",
                 (key, name_en, name_de, name_ar, max_order + 1, icon),
             )
-            return cur.lastrowid
+            new_id = cur.lastrowid
+        _invalidate_category_caches()
+        return new_id
 
     def add_part_type(self, category_id: int, key: str, name: str,
                       accent_color: str = "#4A9EFF",
@@ -68,7 +100,9 @@ class CategoryRepository(BaseRepository):
                    VALUES (?,?,?,?,?,?)""",
                 (category_id, key, name, accent_color, max_order + 1, default_price),
             )
-            return cur.lastrowid
+            new_id = cur.lastrowid
+        _invalidate_category_caches()
+        return new_id
 
     def update_category(self, category_id: int, name_en: str, name_de: str,
                         name_ar: str, icon: str, is_active: bool) -> None:
@@ -78,6 +112,7 @@ class CategoryRepository(BaseRepository):
                    icon=?, is_active=? WHERE id=?""",
                 (name_en, name_de, name_ar, icon, int(is_active), category_id),
             )
+        _invalidate_category_caches()
 
     def set_active(self, category_id: int, active: bool) -> None:
         with self._conn() as conn:
@@ -85,6 +120,7 @@ class CategoryRepository(BaseRepository):
                 "UPDATE categories SET is_active=? WHERE id=?",
                 (int(active), category_id),
             )
+        _invalidate_category_caches()
 
     def delete_category(self, category_id: int) -> bool:
         """Delete category and its part types. Returns False if any stock > 0 exists."""
@@ -98,15 +134,18 @@ class CategoryRepository(BaseRepository):
             if row and row[0] > 0:
                 return False
             conn.execute("DELETE FROM categories WHERE id=?", (category_id,))
-            return True
+        _invalidate_category_caches()
+        return True
 
     def reorder(self, ordered_ids: list[int]) -> None:
         """Update sort_order for categories based on provided id order."""
         with self._conn() as conn:
-            for i, cat_id in enumerate(ordered_ids, start=1):
-                conn.execute(
-                    "UPDATE categories SET sort_order=? WHERE id=?", (i, cat_id)
-                )
+            # Single executemany — replaces N round-trips with one.
+            conn.executemany(
+                "UPDATE categories SET sort_order=? WHERE id=?",
+                [(i, cat_id) for i, cat_id in enumerate(ordered_ids, start=1)],
+            )
+        _invalidate_category_caches()
 
     def update_part_type(self, part_type_id: int, key: str,
                          name: str, accent_color: str,
@@ -117,6 +156,7 @@ class CategoryRepository(BaseRepository):
                 "WHERE id=?",
                 (key, name, accent_color, default_price, part_type_id),
             )
+        _invalidate_category_caches()
 
     def update_part_type_price(self, part_type_id: int, default_price: float | None) -> None:
         """Update just the default_price on a part type."""
@@ -125,6 +165,7 @@ class CategoryRepository(BaseRepository):
                 "UPDATE part_types SET default_price=? WHERE id=?",
                 (default_price, part_type_id),
             )
+        _invalidate_category_caches()
 
     def delete_part_type(self, part_type_id: int) -> bool:
         """Delete part type. Returns False if any stock > 0 exists."""
@@ -136,15 +177,17 @@ class CategoryRepository(BaseRepository):
             if row and row[0] > 0:
                 return False
             conn.execute("DELETE FROM part_types WHERE id=?", (part_type_id,))
-            return True
+        _invalidate_category_caches()
+        return True
 
     def reorder_part_types(self, ordered_ids: list[int]) -> None:
         """Update sort_order for part types based on provided id order."""
         with self._conn() as conn:
-            for i, pt_id in enumerate(ordered_ids, start=1):
-                conn.execute(
-                    "UPDATE part_types SET sort_order=? WHERE id=?", (i, pt_id)
-                )
+            conn.executemany(
+                "UPDATE part_types SET sort_order=? WHERE id=?",
+                [(i, pt_id) for i, pt_id in enumerate(ordered_ids, start=1)],
+            )
+        _invalidate_category_caches()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -170,12 +213,15 @@ class CategoryRepository(BaseRepository):
                 "INSERT OR IGNORE INTO part_type_colors (part_type_id, color_name, color_code, sort_order) VALUES (?,?,?,?)",
                 (part_type_id, color_name, color_code, max_order + 1),
             )
-            return cur.lastrowid or 0
+            new_id = cur.lastrowid or 0
+        _invalidate_category_caches()
+        return new_id
 
     def remove_pt_color(self, color_id: int) -> None:
         """Remove a color from a part type."""
         with self._conn() as conn:
             conn.execute("DELETE FROM part_type_colors WHERE id=?", (color_id,))
+        _invalidate_category_caches()
 
     # ── Per-model product-color overrides ───────────────────────────────────
 

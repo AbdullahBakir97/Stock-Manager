@@ -4,7 +4,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 
-@dataclass
+# slots=True drops the per-instance __dict__ — attribute access is slightly
+# faster and (more importantly here) memory per instance drops by ~40%.
+# At 2871 items per page load + repeated rebuilds this is a real win
+# during refresh / scroll.
+@dataclass(slots=True)
 class InventoryItem:
     id: int
     brand: str

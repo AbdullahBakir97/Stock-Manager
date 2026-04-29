@@ -324,6 +324,16 @@ class _TriggerButton(QFrame):
             f"}}"
             f"QLabel {{ color: {col}; }}"
         )
+        self._hovered = hovered
+
+    def apply_theme(self) -> None:
+        """Refresh inline styles using the current ``THEME.tokens``.
+
+        Discovered by ``MainWindow._refresh_theme``'s widget-tree walk.
+        Without this method, the trigger button stayed stuck on the
+        colours captured the first time ``_apply_style`` was called.
+        """
+        self._apply_style(hovered=getattr(self, "_hovered", False))
 
     def enterEvent(self, event) -> None:
         self._apply_style(hovered=True)

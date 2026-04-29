@@ -72,6 +72,41 @@ def _strip_brand_prefix(model_name: str) -> str:
     return text
 
 
+# Two-letter color codes appended to per-color barcodes so a single scan
+# resolves directly to the colored variant (no two-step "scan model → scan
+# colour" dance). Same fallback strategy as ``_BRAND_SHORT``: known names
+# get their hand-picked code; unknown names fall back to ``name[:2].upper()``.
+_COLOR_SHORT = {
+    "Black":  "BK",
+    "White":  "WT",
+    "Blue":   "BL",
+    "Red":    "RD",
+    "Green":  "GR",
+    "Gold":   "GD",
+    "Silver": "SV",
+    "Pink":   "PK",
+    "Purple": "PR",
+    "Yellow": "YL",
+    "Orange": "OR",
+    "Gray":   "GY",
+    "Grey":   "GY",
+}
+
+
+def _color_short(color: str) -> str:
+    """Two-letter Code 39-safe code for a colour. Empty string for blank."""
+    if not color:
+        return ""
+    key = color.strip()
+    if not key:
+        return ""
+    if key in _COLOR_SHORT:
+        return _COLOR_SHORT[key]
+    # Strip non-alphanumeric, uppercase, take first two — keeps Code 39 happy
+    cleaned = "".join(c for c in key.upper() if c.isalnum())
+    return cleaned[:2] or "XX"
+
+
 @dataclass
 class BarcodeEntry:
     item_id: Optional[int]     # None for command barcodes
@@ -82,35 +117,55 @@ class BarcodeEntry:
     command_label: str = ""    # "ADD", "DEL", "OK"
     brand: str = ""            # "Apple", "Samsung"
     part_type: str = ""        # "(JK) incell FHD", "Back Cover"
+    color: str = ""            # "" for colorless parents, "Black"/"Blue"/... for variants
 
 
-def _abbreviate(name: str, max_len: int = 5) -> str:
-    """Create a short code from a name.
+def _abbreviate(name: str, max_len: int = 8) -> str:
+    """Create a short code from a model name.
+
+    Default ``max_len`` is 8 (was 5) — large enough to preserve common
+    suffixes like ``PRO+`` / ``ULTRA`` / ``5G`` so barcodes stay readable
+    instead of truncating into ambiguous prefixes ("Note 14 Pro+" →
+    ``NOTE14P+`` rather than the old truncated ``NOTE1``).
 
     Examples:
-      '14 Pro max' → '14PM'
+      '14 Pro Max' → '14PM'
       '12 / 12 Pro' → '12/12P'
-      'XS max' → 'XSM'
+      'XS Max' → 'XSM'
       'Galaxy A04 (A045F)' → 'A04'
-      'Galaxy A04e (A042F)' → 'A04E'
       'Galaxy A15 4G' → 'A154G'
-      'DD_SOFT_OLED' → 'DDSO'
+      'Note 14 Pro+' → 'NOTE14P+'
+      'S22 Ultra' → 'S22U'
+      'Galaxy Z Fold 5' → 'ZFD5'
     """
     name = name.upper().strip()
-    # Remove common prefixes
-    for prefix in ("IPHONE ", "GALAXY ", "SAMSUNG ", "REDMI "):
+    # Remove common brand-line prefixes (handled separately by _brand_code).
+    for prefix in ("IPHONE ", "GALAXY ", "SAMSUNG ", "REDMI ",
+                   "POCO ", "MI ", "PIXEL ", "HONOR ", "NOTHING "):
         if name.startswith(prefix):
             name = name[len(prefix):]
     # Remove model codes in parentheses like (A045F)
     name = re.sub(r'\([^)]*\)', '', name).strip()
 
-    # Word-level abbreviations (applied before splitting)
+    # Word-level abbreviations (applied before splitting). PRO+ matters
+    # for Redmi/POCO lineups; LITE/FOLD/FLIP are common Galaxy variants.
     _WORD_MAP = {
-        "PRO": "P", "MAX": "M", "PLUS": "PL", "ULTRA": "U",
-        "MINI": "MIN", "NACHO": "N",
+        "PRO":   "P",
+        "PRO+":  "P+",
+        "MAX":   "M",
+        "PLUS":  "PL",
+        "ULTRA": "U",
+        "MINI":  "MIN",
+        "NACHO": "N",
+        "LITE":  "L",
+        "FOLD":  "FD",
+        "FLIP":  "FP",
+        "EDGE":  "E",
+        "NEO":   "NE",
     }
 
-    # Split into parts — keep / as separator token
+    # Split on whitespace + underscores. Slashes stay attached to their
+    # token because "12/12 Pro" should keep the slash.
     parts = re.split(r'[\s_]+', name)
     code = ""
     for p in parts:
@@ -135,7 +190,69 @@ def _abbreviate(name: str, max_len: int = 5) -> str:
                 code += p[0] + digits
             else:
                 code += p[:2]
-    # Clean for Code39 (keep / which is valid in Code39)
+    # Clean for Code39 (keep / and + which are valid in Code39)
+    code = "".join(c for c in code if c in _CODE39_VALID)
+    return code[:max_len] if code else "X"
+
+
+def _brand_code(brand: str) -> str:
+    """Code39-safe 2-letter brand code for the start of a barcode.
+
+    Reuses the curated ``_BRAND_SHORT`` map so brand abbreviations are
+    consistent across barcodes and the YunPrint ``model`` column. Falls
+    back to the first two uppercase ASCII letters of the brand name for
+    anything not in the map. Always returns at least one valid char.
+    """
+    if not brand:
+        return "X"
+    short = _brand_short(brand)
+    safe = "".join(c for c in short.upper() if c in _CODE39_VALID)
+    if safe:
+        return safe
+    fallback = "".join(c for c in brand.upper() if c.isascii() and c.isalpha())
+    return (fallback[:2] if fallback else brand[0].upper()) or "X"
+
+
+def _part_type_code(name: str, max_len: int = 5) -> str:
+    """Compact part-type code for a barcode.
+
+    Strategy — bracket content + word initials — produces stable, readable
+    codes that don't collide as much as the legacy 4-char abbreviation:
+
+      - Parenthesised tokens become an alpha-only prefix (so "(JK)" → ``JK``,
+        "(D.D)" → ``DD``). This preserves the short identifier the shop
+        commonly uses to disambiguate display variants.
+      - The remaining words contribute their first letter each.
+      - Single-word part-types (no parens, no second word) get their
+        first 4 letters so we don't end up with a 1-char code like ``B``
+        for "Battery" (which would collide with everything starting B).
+
+    Examples:
+      'ORG Service Pack' → 'OSP'
+      '(JK) incell FHD' → 'JKIF'
+      '(D.D) Soft OLED' → 'DDSO'
+      'Back Cover' → 'BC'
+      'Battery' → 'BATT'
+      'LCD' → 'LCD'
+    """
+    if not name:
+        return "X"
+    parens_match = re.findall(r'\(([^)]+)\)', name)
+    parens_code = "".join(
+        c for p in parens_match for c in p if c.isalnum()
+    ).upper()
+    name_clean = re.sub(r'\([^)]*\)', '', name).strip().upper()
+    tokens = [t for t in re.split(r'[\s_\-.]+', name_clean) if t]
+
+    if not tokens:
+        body = ""
+    elif len(tokens) == 1:
+        body = tokens[0][:4]
+    else:
+        # Multi-word: initials of each, e.g. ORG SERVICE PACK → OSP
+        body = "".join(t[0] for t in tokens)
+
+    code = parens_code + body
     code = "".join(c for c in code if c in _CODE39_VALID)
     return code[:max_len] if code else "X"
 
@@ -143,17 +260,36 @@ def _abbreviate(name: str, max_len: int = 5) -> str:
 def _make_barcode_text(item: InventoryItem) -> str:
     """Generate a barcode string from an inventory item.
 
-    The Code39 barcode encodes '-' but German keyboard scanners
-    output 'ß' instead. We generate with '-' for the barcode image
-    but store with 'ß' in the DB so scanner lookups match.
+    Format:
+      ``BRAND-MODEL-PARTTYPE``        — colorless parent items
+      ``BRAND-MODEL-PARTTYPE-COLOR``  — colored variants (one barcode per colour)
+
+    Colored variants get their own barcodes so a single scan resolves
+    directly to that exact colour, without the existing two-step "scan
+    model → scan colour" dance. The two flows coexist: the colorless
+    parent still gets a barcode (so two-step scanning still works for
+    users who prefer it), and each colour gets its own.
+
+    The Code39 barcode image encodes ``-`` but German keyboard scanners
+    output ``ß`` instead. We generate with ``-`` for the barcode image
+    but store with ``ß`` in the DB so scanner lookups match.
     """
-    brand_code = (item.model_brand or item.brand or "X")[0].upper()
-    model_code = _abbreviate(item.model_name or item.name or "", 5)
-    if item.part_type_key:
-        pt_code = _abbreviate(item.part_type_key, 4)
+    brand_code = _brand_code(item.model_brand or item.brand or "")
+    model_code = _abbreviate(item.model_name or item.name or "")
+    # Prefer the human-readable part_type_name for the code so the bracket
+    # tag (e.g. "(JK)") becomes the prefix; fall back to the key for items
+    # without a name. Both go through _part_type_code so the result is
+    # consistent regardless of which source we use.
+    pt_source = item.part_type_name or item.part_type_key or ""
+    if pt_source:
+        pt_code = _part_type_code(pt_source)
         text = f"{brand_code}-{model_code}-{pt_code}"
     else:
         text = f"{brand_code}-{model_code}"
+    if item.color:
+        color_code = _color_short(item.color)
+        if color_code:
+            text = f"{text}-{color_code}"
     # Ensure Code39 valid for barcode image
     text = "".join(c for c in text.upper() if c in _CODE39_VALID)
     return text or "ITEM"
@@ -234,52 +370,99 @@ class BarcodeGenService:
                            category_id: int | None = None,
                            model_ids: list[int] | None = None,
                            part_type_ids: list[int] | None = None,
-                           include_existing: bool = False) -> list[BarcodeEntry]:
-        """Generate BarcodeEntry list for the selected scope."""
-        if include_existing:
-            items = _item_repo.get_all_matrix_items(category_id)
+                           include_existing: bool = False,
+                           include_per_color: bool = True,
+                           brand: str | None = None,
+                           regenerate: bool = False) -> list[BarcodeEntry]:
+        """Generate BarcodeEntry list for the selected scope.
+
+        ``include_per_color`` (default True): when an item has colour
+        variants, generate a per-colour barcode (``BRAND-MODEL-PT-COLOR``)
+        for each in addition to the colourless parent (``BRAND-MODEL-PT``).
+        Both flows coexist — the parent supports the existing two-step
+        "scan model → scan colour" workflow, the per-colour barcodes
+        resolve directly to the exact colour in a single scan. Set False
+        to keep only colourless parents (legacy behaviour).
+        """
+        # ``regenerate`` implies we want to touch items that already have a
+        # barcode (we're replacing it), so it forces ``include_existing``
+        # behaviour for the row fetch even if the caller forgot to set the
+        # flag — otherwise we'd silently skip every existing row.
+        fetch_all = include_existing or regenerate
+        if fetch_all:
+            items = _item_repo.get_all_matrix_items(category_id, brand=brand)
+            if model_ids:
+                items = [i for i in items if i.model_id in model_ids]
+            if part_type_ids:
+                items = [i for i in items if i.part_type_id in part_type_ids]
         else:
             items = _item_repo.get_items_without_barcode(
                 category_id=category_id,
                 model_ids=model_ids,
                 part_type_ids=part_type_ids,
+                brand=brand,
             )
 
-        if model_ids:
-            items = [i for i in items if i.model_id in model_ids]
-        if part_type_ids:
-            items = [i for i in items if i.part_type_id in part_type_ids]
-
-        # Sort: brand → part type → natural model order
+        # Sort: brand → part type → natural model order; within a model,
+        # parent (colorless) first, then coloured variants alphabetically.
+        # Compute the brand-sort tuple once per item rather than twice per
+        # comparison (the legacy lambda called ``_brand_sort_key`` twice
+        # for every key extraction, which Python's Timsort invokes O(N log N)
+        # times — for a 2000-item category that's ~22000 redundant regex
+        # splits inside ``_brand_sort_key``).
         from app.repositories.model_repo import _brand_sort_key
 
-        items.sort(key=lambda i: (
-            _brand_sort_key(i.model_brand or "", i.model_name or "")[0],  # brand priority only
-            i.part_type_name or "",
-            _brand_sort_key(i.model_brand or "", i.model_name or ""),    # full model order
-        ))
+        def _sort_key(i):
+            bsk = _brand_sort_key(i.model_brand or "", i.model_name or "")
+            return (
+                bsk[0],                       # brand priority bucket
+                i.part_type_name or "",
+                bsk,                           # full natural model order
+                i.color or "",                 # parent before colour variants
+            )
+
+        items.sort(key=_sort_key)
 
         entries: list[BarcodeEntry] = []
         used_codes: set[str] = set()
 
         for item in items:
-            # Skip colored items — barcodes only for colorless parent items
-            # Colors are resolved via two-step scan (scan model → scan color)
-            if item.color:
+            # Skip coloured variants when per-colour barcodes are disabled.
+            # The colourless parent still gets a barcode (two-step flow
+            # remains available via the dedicated scan_clr_* command codes).
+            if item.color and not include_per_color:
                 continue
-            if item.barcode and not include_existing:
+            # Skip items that already have a barcode unless the caller
+            # explicitly opts in to either re-listing them (include_existing)
+            # or replacing them (regenerate).
+            if item.barcode and not (include_existing or regenerate):
                 continue
-            if item.barcode:
-                # Existing barcode — keep DB value, convert to Code39 for image
+            if item.barcode and not regenerate:
+                # Existing barcode — keep DB value, convert to Code39 for image.
+                # ``regenerate=False`` is the "include existing in display, but
+                # don't touch the saved value" path — useful for previewing
+                # what's already saved without changing anything.
                 db_code = item.barcode
                 code39 = _to_code39(item.barcode)
             else:
-                # Generate new Code39 barcode
+                # Generate fresh Code39 from the current model + part-type
+                # names. Hits this branch when:
+                #   - the item has no barcode yet, OR
+                #   - ``regenerate=True`` and the user has opted in to
+                #     overwriting the saved value (e.g. after renaming a
+                #     part type from "ORG-Service-Pack-SM" to
+                #     "ORG Service Pack" and wanting fresh codes).
+                # Includes the -COLOR suffix when the item has a colour, so
+                # direct-scan barcodes are unique. Collisions get a "-N"
+                # suffix with a clear separator so the variant counter
+                # doesn't fuse with the colour code (e.g. "...-SV-2"
+                # instead of the old "...-SV2" which read as "Silver-2"
+                # but actually meant "second collision of -SV").
                 code39 = _make_barcode_text(item)
                 base = code39
                 suffix = 2
                 while code39 in used_codes:
-                    code39 = f"{base}{suffix}"
+                    code39 = f"{base}-{suffix}"
                     suffix += 1
                 used_codes.add(code39)
                 # Convert to scanner format for DB storage
@@ -293,6 +476,7 @@ class BarcodeGenService:
                 display_label=label,
                 brand=item.model_brand or item.brand or "",
                 part_type=item.part_type_name or "",
+                color=item.color or "",
             ))
 
         return entries
@@ -747,7 +931,8 @@ class BarcodeGenService:
         if ext.lower() != ".txt":
             output_path = root + ".txt"
 
-        headers = ["barcode", "model", "part_type", "model_full", "brand", "label"]
+        headers = ["barcode", "model", "part_type", "color",
+                   "model_full", "brand", "label"]
 
         def _clean(cell: str) -> str:
             # Newlines would break the row structure even inside quoted fields
@@ -776,6 +961,7 @@ class BarcodeGenService:
                     _clean(e.barcode_text),
                     _clean(short_model),
                     _clean(e.part_type or ""),
+                    _clean(e.color or ""),
                     _clean(full_model),
                     _clean(e.brand or ""),
                     _clean(e.display_label or ""),

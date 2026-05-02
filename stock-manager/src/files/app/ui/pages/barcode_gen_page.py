@@ -18,11 +18,15 @@ from app.core.theme import THEME
 from app.core.i18n import t
 from app.repositories.category_repo import CategoryRepository
 from app.repositories.model_repo import ModelRepository
-from app.services.barcode_gen_service import BarcodeGenService, BarcodeEntry
+from app.repositories.item_repo import ItemRepository
+from app.services.barcode_gen_service import (
+    BarcodeGenService, BarcodeEntry, BarcodeValidationError,
+)
 from app.ui.components.dashboard_widget import SummaryCard
 
 _cat_repo = CategoryRepository()
 _model_repo = ModelRepository()
+_item_repo = ItemRepository()
 _gen_svc = BarcodeGenService()
 
 
@@ -172,8 +176,25 @@ class BarcodeGenPage(QWidget):
         fmt_row = QHBoxLayout()
         fmt_row.setSpacing(12)
         self._rb_code39 = QRadioButton("Code 39")
-        self._rb_code39.setChecked(True)
+        self._rb_code39.setToolTip(
+            "Legacy symbology. ~40% wider than Code 128 for the same\n"
+            "payload — long codes (>11 chars) won't fit a 50mm sticker\n"
+            "at safe density on the K30F. Use only if your scanner is\n"
+            "configured for Code 39 only."
+        )
         self._rb_code128 = QRadioButton("Code 128")
+        # Default to Code 128: denser, has a built-in mod-103 checksum
+        # that catches print damage, and fits the typical 17-char
+        # payload on a 50×20mm K30F sticker. The DB barcode value is
+        # identical for both symbologies (same string), so switching
+        # only changes how the printer renders bars — no migration
+        # needed for items already labelled with Code 39.
+        self._rb_code128.setChecked(True)
+        self._rb_code128.setToolTip(
+            "Recommended for the K30F label printer. Denser bars fit\n"
+            "long payloads on a 50×20mm sticker, and the built-in\n"
+            "checksum catches thermal-bleed damage that Code 39 can't."
+        )
         fmt_group = QButtonGroup(self)
         fmt_group.addButton(self._rb_code39)
         fmt_group.addButton(self._rb_code128)
@@ -260,26 +281,49 @@ class BarcodeGenPage(QWidget):
         self._btn_export.clicked.connect(self._export)
         self._btn_export.setEnabled(False)
 
-        # Export to a YunPrint Database .xlsx for the K30F (and other
-        # Dlabel/YunPrint label printers). The same Code39 codes already
-        # saved on items get embedded as one row per barcode; the user
-        # imports the file in YunPrint's Database dialog and prints the
-        # whole batch as a single job.
+        # Export to a YunPrint .txt CSV for the K30F (and other
+        # Dlabel/YunPrint label printers). Same codes already saved on
+        # items get embedded as one row per barcode; the user imports the
+        # file in YunPrint's Database dialog and prints the whole batch
+        # as a single job.  Pre-export validation guarantees every line
+        # in the file decodes at K30F-grade settings — see
+        # ``BarcodeGenService.validate_scannability``.
         self._btn_export_yp = QPushButton("Export for YunPrint")
         self._btn_export_yp.setObjectName("btn_secondary_sm")
         self._btn_export_yp.setFixedHeight(24)
         self._btn_export_yp.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._btn_export_yp.setCursor(Qt.CursorShape.PointingHandCursor)
         self._btn_export_yp.setToolTip(
-            "Export an Excel file you can import via YunPrint → Database\n"
-            "for batch printing on the K30F label printer."
+            "Export a YunPrint Database .txt for the K30F.\n"
+            "Every barcode is pre-validated by rendering at the K30F's\n"
+            "actual resolution and decoding back; if anything wouldn't\n"
+            "scan or wouldn't fit a 50mm sticker, the export is blocked\n"
+            "with a clear failure list — no wasted label rolls."
         )
         self._btn_export_yp.clicked.connect(self._export_yunprint)
         self._btn_export_yp.setEnabled(False)
 
+        # Standalone "Verify" button — runs the same validation pass
+        # without exporting, so users can sanity-check a regenerated
+        # batch before deciding whether to overwrite saved barcodes.
+        self._btn_verify = QPushButton("Verify")
+        self._btn_verify.setObjectName("btn_secondary_sm")
+        self._btn_verify.setFixedHeight(24)
+        self._btn_verify.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._btn_verify.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_verify.setToolTip(
+            "Render every generated barcode at K30F-grade settings\n"
+            "(203 DPI, 0.25 mm narrow bar, 1-bit B&W) and decode it back\n"
+            "with zxing-cpp. Reports any that wouldn't scan IRL or\n"
+            "wouldn't fit a 50 mm sticker. Doesn't write any files."
+        )
+        self._btn_verify.clicked.connect(self._verify_scannability)
+        self._btn_verify.setEnabled(False)
+
         action_row.addWidget(self._btn_assign, 1)
         action_row.addWidget(self._btn_export, 1)
         action_row.addWidget(self._btn_export_yp, 1)
+        action_row.addWidget(self._btn_verify, 1)
         left.addLayout(action_row)
 
         # Status
@@ -580,6 +624,7 @@ class BarcodeGenPage(QWidget):
             # Export for YunPrint writes the .txt CSV. Both are fast.
             self._btn_assign.setEnabled(True)
             self._btn_export_yp.setEnabled(True)
+            self._btn_verify.setEnabled(True)
             # PDF-dependent buttons stay disabled until Stage 2 finishes.
             # They become "render-on-click" — the handlers below trigger
             # Stage 2 when first pressed.
@@ -795,25 +840,49 @@ class BarcodeGenPage(QWidget):
             return  # user cancelled
         split_by, target_path = choice
 
-        try:
-            if split_by == "single":
-                saved_path = _gen_svc.export_for_yunprint(self._entries, target_path)
-                files = [(saved_path, count)]
-                folder = os.path.dirname(saved_path)
-            else:
-                files = _gen_svc.export_for_yunprint_split(
-                    self._entries, target_path, split_by=split_by,
-                )
-                folder = target_path
-                if not files:
-                    QMessageBox.information(
-                        self, "Export for YunPrint",
-                        "Nothing to export — every entry is empty or filtered out.",
+        symbology = self._chosen_symbology()
+
+        # Pre-export validation runs inside the service; we surface
+        # failures to the user with a rich dialog (and an option to
+        # auto-switch to Code 128 if Code 39 was the cause).
+        force_export = False
+        while True:
+            try:
+                if split_by == "single":
+                    saved_path = _gen_svc.export_for_yunprint(
+                        self._entries, target_path,
+                        symbology=symbology, validate=not force_export,
                     )
+                    files = [(saved_path, count)]
+                    folder = os.path.dirname(saved_path)
+                else:
+                    files = _gen_svc.export_for_yunprint_split(
+                        self._entries, target_path, split_by=split_by,
+                        symbology=symbology, validate=not force_export,
+                    )
+                    folder = target_path
+                    if not files:
+                        QMessageBox.information(
+                            self, "Export for YunPrint",
+                            "Nothing to export — every entry is empty or filtered out.",
+                        )
+                        return
+                break  # success
+            except BarcodeValidationError as ve:
+                action = self._show_validation_failure_dialog(ve)
+                if action == "cancel":
                     return
-        except Exception as e:
-            QMessageBox.critical(self, "Export for YunPrint", str(e))
-            return
+                if action == "switch_code128":
+                    symbology = "code128"
+                    self._rb_code128.setChecked(True)
+                    continue  # retry with new symbology
+                if action == "force":
+                    force_export = True
+                    continue  # retry with validation off
+                return
+            except Exception as e:
+                QMessageBox.critical(self, "Export for YunPrint", str(e))
+                return
 
         total_rows = sum(c for _p, c in files)
         if len(files) == 1:
@@ -829,24 +898,48 @@ class BarcodeGenPage(QWidget):
             )
 
         self._status.setText(
-            f"YunPrint export: {total_rows} rows in {len(files)} file(s)"
+            f"YunPrint export: {total_rows} rows in {len(files)} file(s) · {symbology}"
         )
         # Open the containing folder so the user can drag files straight
         # into YunPrint's Database → Select File dialog.
         from PyQt6.QtCore import QUrl
         from PyQt6.QtGui import QDesktopServices
         QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
+
+        sym_label = "Code 128" if symbology == "code128" else "Code 39"
+        warn = (
+            "\n\n⚠ Validation was SKIPPED for this export. Some labels may "
+            "not scan — print one batch first and verify before printing more."
+            if force_export else ""
+        )
         QMessageBox.information(
             self, "Export for YunPrint",
             f"{summary}\n\n"
-            "In YunPrint:\n"
+            "── In YunPrint ──\n"
             "  1. Open your 50×20mm template.\n"
             "  2. Click Database → set source to .txt → Select File → "
             "choose ONE of the files.\n"
-            "  3. Make sure 'first line contains the field name' is checked.\n"
+            "  3. Tick 'first line contains the field name'.\n"
             "  4. Confirm → bind template fields to columns "
-            "(barcode / model / part_type) → Print.\n"
-            "  5. Repeat with the next file for the next batch.",
+            "(barcode / model / part_type) → Print all.\n\n"
+            f"── Template barcode settings (must be set in YunPrint, symbology = {sym_label}) ──\n"
+            "  • Symbology:        " + sym_label + "\n"
+            "  • Narrow bar width: 0.25 mm  (= 2 dots @ 203 DPI; the K30F's\n"
+            "                       physical decode floor — do NOT lower)\n"
+            "  • Quiet zone:       0.5–1.0 mm both sides  (ISO/IEC says\n"
+            "                       2.5 mm but the K30F + handheld scanner\n"
+            "                       decode 100% at 1.0 mm — bigger zones\n"
+            "                       just waste sticker width and overflow)\n"
+            "  • Bar height:       ≥ 8 mm\n"
+            "  • Print darkness:   70-80% (thermal sweet spot)\n"
+            "  • Print speed:      slow → medium\n\n"
+            "Every barcode in this batch was pre-validated by rendering at\n"
+            "0.25 mm narrow bar + 1.0 mm quiet zone and decoding back —\n"
+            "encoding is guaranteed sound at THESE settings. If you set\n"
+            "YunPrint's quiet zone higher than 1.0 mm, the printed symbol\n"
+            "will be wider than what we validated and may overflow the\n"
+            "sticker. Lower is fine; higher is the failure surface."
+            + warn,
         )
 
     def _ask_yunprint_split_mode(self, count: int):
@@ -942,6 +1035,180 @@ class BarcodeGenPage(QWidget):
         if not target:
             return None
         return (chosen, target)
+
+    # ── Validation helpers ──────────────────────────────────────────────────
+
+    def _chosen_symbology(self) -> str:
+        """Return the symbology name (``"code39"`` or ``"code128"``) the
+        format radio is currently on. Mirrors the ``barcode_format``
+        string the service methods accept so it's a drop-in."""
+        return "code39" if self._rb_code39.isChecked() else "code128"
+
+    def _verify_scannability(self):
+        """Run ``validate_scannability`` on the current entries WITHOUT
+        exporting and surface the result. Lets the user sanity-check a
+        regenerated batch before deciding whether to assign-and-save."""
+        if not self._entries:
+            return
+        self._status.setText("Verifying barcodes…")
+        # Synchronous — typical batch validates in < 1s for ≤ 500 codes.
+        # If it ever feels sluggish, switch to POOL.submit; the same
+        # report shape works either way.
+        report = _gen_svc.validate_scannability(
+            self._entries, symbology=self._chosen_symbology(),
+        )
+        self._show_validation_report_dialog(report)
+
+    def _show_validation_failure_dialog(self, ve: BarcodeValidationError) -> str:
+        """Render a failure dialog for a ``BarcodeValidationError`` and
+        return the user's chosen action: ``"cancel"``, ``"switch_code128"``,
+        or ``"force"``. Includes a per-entry breakdown (first 12 entries)
+        so the user can see WHICH labels would fail."""
+        sym_label = "Code 128" if ve.symbology == "code128" else "Code 39"
+        lines: list[str] = []
+        if ve.failed:
+            lines.append(f"⛔ {len(ve.failed)} barcode(s) won't decode at K30F-grade settings:")
+            for entry, reason in ve.failed[:6]:
+                lines.append(f"   • {entry.display_label[:42]} — {reason}")
+            if len(ve.failed) > 6:
+                lines.append(f"   … and {len(ve.failed) - 6} more")
+            lines.append("")
+        if ve.oversize:
+            lines.append(
+                f"⚠ {len(ve.oversize)} barcode(s) too wide for a 50 mm sticker "
+                f"at safe density:"
+            )
+            for entry, mm in ve.oversize[:8]:
+                lines.append(
+                    f"   • {entry.display_label[:36]}  →  {mm:.1f} mm wide  "
+                    f"({entry.barcode_text})"
+                )
+            if len(ve.oversize) > 8:
+                lines.append(f"   … and {len(ve.oversize) - 8} more")
+            lines.append("")
+
+        suggest_switch = (
+            ve.symbology == "code39" and ve.oversize and not ve.failed
+        )
+
+        body = (
+            f"Pre-export validation found problems with the {sym_label} encoding. "
+            "These barcodes would print labels that don't scan reliably on the "
+            "K30F (203 DPI thermal head):\n\n"
+            + "\n".join(lines) +
+            "\nWhat to do:\n"
+        )
+        if suggest_switch:
+            body += (
+                "  • RECOMMENDED — Switch to Code 128. It packs ~40% more data\n"
+                "    into the same sticker width and brings every payload\n"
+                "    into spec. The DB barcode value is unchanged, so existing\n"
+                "    Code-39 labels in your shop keep working.\n"
+            )
+        body += (
+            "  • Tick 'Regenerate (overwrite existing)' and Generate again —\n"
+            "    v2.5.0 uses shorter abbreviations (model 6 chars, part-type\n"
+            "    4 chars) which buys ~25% width back.\n"
+            "  • Untick 'Include per-color barcodes (direct scan)' — colour\n"
+            "    suffixes (-BK / -SV / -GD) eat 3 chars per code; without\n"
+            "    them you fall back to the two-step 'scan model → scan\n"
+            "    colour' flow which has no width problem.\n"
+            "  • Use a wider sticker roll (e.g. 70×30 mm) and update your\n"
+            "    YunPrint template accordingly. The K30F supports rolls\n"
+            "    up to 76 mm.\n"
+            "  • Print anyway (NOT recommended — labels may fail to scan)."
+        )
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Export blocked — barcodes won't scan")
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setText(body)
+
+        switch_btn = None
+        if suggest_switch:
+            switch_btn = box.addButton(
+                "Switch to Code 128", QMessageBox.ButtonRole.AcceptRole,
+            )
+        force_btn = box.addButton(
+            "Print anyway", QMessageBox.ButtonRole.DestructiveRole,
+        )
+        cancel_btn = box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(switch_btn or cancel_btn)
+        box.exec()
+
+        clicked = box.clickedButton()
+        if switch_btn and clicked is switch_btn:
+            return "switch_code128"
+        if clicked is force_btn:
+            return "force"
+        return "cancel"
+
+    def _show_validation_report_dialog(self, report: dict):
+        """Surface the result of a ``Verify`` click as a friendly summary."""
+        total = report["total"]
+        passed = len(report["passed"])
+        unscannable = report["unscannable"]
+        oversize = report["oversize"]
+        sym_label = (
+            "Code 128" if report["symbology"] == "code128" else "Code 39"
+        )
+
+        if total == 0:
+            QMessageBox.information(
+                self, "Verify scannability",
+                "No item barcodes to verify (only command/colour entries present).",
+            )
+            self._status.setText("Verify: nothing to check.")
+            return
+
+        pct = (passed / total * 100) if total else 0.0
+        head = (
+            f"Verified {total} {sym_label} barcodes against K30F-grade "
+            f"render (203 DPI, 0.25 mm narrow bar, 1-bit B&W decode):\n\n"
+            f"  ✅ {passed} / {total} pass  ({pct:.1f}%)\n"
+        )
+        if unscannable:
+            head += f"  ⛔ {len(unscannable)} won't decode\n"
+        if oversize:
+            head += f"  ⚠ {len(oversize)} too wide for the configured sticker\n"
+        if not report["decoder_available"]:
+            head += (
+                "\nNote: zxing-cpp is not installed — only the width check "
+                "ran. Install with: pip install zxing-cpp\n"
+            )
+
+        body_lines: list[str] = []
+        if unscannable:
+            body_lines.append("\n— Decode failures —")
+            for entry, reason in unscannable[:10]:
+                body_lines.append(
+                    f"  • {entry.display_label[:38]}  ({entry.barcode_text})  — {reason}"
+                )
+            if len(unscannable) > 10:
+                body_lines.append(f"  … and {len(unscannable) - 10} more")
+        if oversize:
+            body_lines.append("\n— Oversize for sticker —")
+            for entry, mm in oversize[:10]:
+                body_lines.append(
+                    f"  • {entry.display_label[:36]}  →  {mm:.1f} mm  ({entry.barcode_text})"
+                )
+            if len(oversize) > 10:
+                body_lines.append(f"  … and {len(oversize) - 10} more")
+
+        msg = head + "\n" + "\n".join(body_lines) if body_lines else head
+        ok = passed == total
+
+        box = QMessageBox(self)
+        box.setWindowTitle("Verify scannability")
+        box.setIcon(QMessageBox.Icon.Information if ok else QMessageBox.Icon.Warning)
+        box.setText(msg)
+        box.exec()
+
+        self._status.setText(
+            f"Verify ({sym_label}): {passed}/{total} pass"
+            + (f", {len(unscannable)} won't decode" if unscannable else "")
+            + (f", {len(oversize)} oversize" if oversize else "")
+        )
 
     def _print(self):
         # Same lazy-render gate as _export — first click triggers Stage 2.

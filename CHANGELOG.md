@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-05-06
+
+### Fixed — Scan-to-add round trip ("Galaxy A15 4G doesn't save")
+- **Root cause**: `ItemRepository.add_product` and `update_product` stored the barcode argument with only `.strip()` applied — no scanner-mark prefix removal — while `get_by_barcode` always normalised the input via `normalize_barcode`. When a user scanned an unknown barcode, `MainWindow._barcode` passed the **raw** scanner output (e.g. `aSAßA154ßOLßBK`, with the `a` prefix) into `_add_product(preset_barcode=…)`, the dialog set that raw form into the barcode field, and the save wrote `aSAßA154ßOLßBK` to the DB. On the next scan, `get_by_barcode` stripped the `a` prefix and queried `SAßA154ßOLßBK` — which the DB didn't have (it had the prefix-included form). Same barcode, two different stored strings, never matched. The user's intuition that it was "the a at the beginning" was correct. The bug was symptom-free as long as items came in via barcode-generator + Assign & Save (those use the canonical form), which is why it stayed hidden until the user added a model via scan-to-add. **Affects ALL scan-to-add inserts since v2.4.8** (when the V17 migration cleaned legacy data but the write-path wasn't fixed), not just A15.
+- **Fix**: introduced `canonical_barcode(text)` in `app/services/barcode_gen_service.py` — the single source of truth for the DB-canonical form — and applied it at every barcode write site (`add_product`, `update_product`, `update_barcode`, `bulk_update_barcodes`) and read site (`get_by_barcode`). Also canonicalised `preset_barcode` in `inventory_ops.add_product` so the dialog shows the user the same string that will actually be stored.
+- **Migration V18 → V19** rewrites any existing rows that leaked through the bug since V17 — re-applies the scanner-mark prefix strip (same heuristic as V17) on `inventory_items.barcode` and `app_config` command/colour barcode rows.
+
+### Fixed — Galaxy S10+ printed labels not scannable
+- **Root cause**: the K30F + YunPrint Code 128 renderer produces visual artifacts on the `+` character — the user's "lines pushed to other lines" symptom. The encoding is technically valid, but the printed bars overlap into adjacent positions and the resulting sticker fails to decode regardless of payload length (the user reported failure on a 13-char `SA-S10+-OS-BK` payload that should have fit comfortably). Affects every payload that contains `+`: OnePlus brand "1+", PRO+ marker "P+" (Note 14 Pro+, Pixel 6a Pro+, etc.), literal Plus models "S10+", "S20+", "S22+", "Note 10+".
+- **Fix**: substitute `+` → `P` in `_make_barcode_text` so the generator never emits `+` in a payload. `1+` (OnePlus brand) becomes `1P`, `P+` (Pro+ suffix) becomes `PP`, `S10+` (literal model) becomes `S10P`. The substitution is also applied symmetrically in `canonical_barcode`, so existing physical labels printed with `+` continue to scan against the canonicalised DB rows after the V19 migration rewrites them — old labels in shop don't have to be re-printed for lookups to keep working.
+- **Migration V18 → V19** also runs `REPLACE(barcode, '+', 'P')` on `inventory_items.barcode` and `app_config` so the stored DB rows are P-form. Verified end-to-end: `SA-S10P-OS-BK` (was `SA-S10+-OS-BK`) renders cleanly and decodes 100% in zxing-cpp at K30F-grade settings. Width unchanged (13 chars, 46.4 mm — well inside the 50 mm sticker budget).
+
+### Notes for the user
+- After updating to v2.5.2, the V19 migration runs automatically on first launch. No manual action required.
+- Existing physical labels printed with `+` continue to scan because `canonical_barcode` substitutes at lookup time. New regenerations produce P-form labels that print without the YunPrint render artifact.
+- For new items, the scan-to-add round trip is now correct: scan unknown → "add product" dialog (shows canonical form) → save → re-scan → finds the item.
+
 ## [2.5.1] - 2026-05-02
 
 ### Fixed — 100% scannable label printer barcodes

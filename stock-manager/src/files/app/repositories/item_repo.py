@@ -70,13 +70,14 @@ class ItemRepository(BaseRepository):
             return self._build(row) if row else None
 
     def get_by_barcode(self, barcode: str) -> Optional[InventoryItem]:
-        # Normalise the scanner-mark prefix off the input before looking up.
-        # The DB stores barcodes canonically (no prefix), so matching is
-        # independent of which lowercase letter the physical scanner emits
-        # for any given print run. See ``normalize_barcode`` in
-        # app/services/barcode_gen_service.py for rationale.
-        from app.services.barcode_gen_service import normalize_barcode
-        bc = normalize_barcode(barcode.strip()) if barcode else ""
+        # Canonicalise input before lookup. ``canonical_barcode`` strips
+        # the scanner-mark prefix AND substitutes ``+`` → ``P`` so that
+        # both forms (legacy ``+``-encoded labels and current P-encoded
+        # generation output) match against the canonical DB rows.
+        # See ``canonical_barcode`` in app/services/barcode_gen_service.py
+        # for the full rationale.
+        from app.services.barcode_gen_service import canonical_barcode
+        bc = canonical_barcode(barcode) if barcode else ""
         with self._conn() as conn:
             row = conn.execute(
                 self._SELECT + " WHERE ii.barcode=?", (bc,)
@@ -207,6 +208,13 @@ class ItemRepository(BaseRepository):
                     sell_price: Optional[float] = None,
                     expiry_date: Optional[str] = None,
                     warranty_date: Optional[str] = None) -> int:
+        # Canonicalise the barcode at write time so the stored form
+        # always matches what ``get_by_barcode`` looks up. Without this,
+        # scan-to-add flows (where the preset barcode still carries the
+        # scanner-mark prefix or a literal ``+``) would silently store
+        # an unmatchable form. v2.5.2 fix.
+        from app.services.barcode_gen_service import canonical_barcode
+        bc_canon = canonical_barcode(barcode) if barcode else None
         with self._conn() as conn:
             cur = conn.execute(
                 """INSERT INTO inventory_items
@@ -214,7 +222,7 @@ class ItemRepository(BaseRepository):
                     expiry_date, warranty_date)
                    VALUES (?,?,?,?,?,?,?,?,?)""",
                 (brand.strip(), name.strip(), color.strip(), stock,
-                 barcode.strip() if barcode else None, min_stock, sell_price,
+                 bc_canon, min_stock, sell_price,
                  expiry_date, warranty_date),
             )
             pid = cur.lastrowid
@@ -232,6 +240,9 @@ class ItemRepository(BaseRepository):
                        image_path: Optional[str] = None,
                        expiry_date: Optional[str] = None,
                        warranty_date: Optional[str] = None) -> None:
+        # Canonicalise barcode at write time — see ``add_product``.
+        from app.services.barcode_gen_service import canonical_barcode
+        bc_canon = canonical_barcode(barcode) if barcode else None
         with self._conn() as conn:
             conn.execute(
                 """UPDATE inventory_items
@@ -240,7 +251,7 @@ class ItemRepository(BaseRepository):
                        updated_at=datetime('now')
                    WHERE id=?""",
                 (brand.strip(), name.strip(), color.strip(),
-                 barcode.strip() if barcode else None,
+                 bc_canon,
                  min_stock, sell_price, image_path, expiry_date, warranty_date,
                  item_id),
             )
@@ -355,10 +366,13 @@ class ItemRepository(BaseRepository):
         return self._build(row) if row else None
 
     def update_barcode(self, item_id: int, barcode: str | None) -> None:
+        # Canonicalise barcode at write time — see ``add_product``.
+        from app.services.barcode_gen_service import canonical_barcode
+        bc_canon = canonical_barcode(barcode) if barcode else None
         with self._conn() as conn:
             conn.execute(
                 "UPDATE inventory_items SET barcode=?, updated_at=datetime('now') WHERE id=?",
-                (barcode or None, item_id),
+                (bc_canon, item_id),
             )
 
     def get_items_without_barcode(self, category_id: int | None = None,
@@ -462,8 +476,15 @@ class ItemRepository(BaseRepository):
         """
         if not updates:
             return 0
+        # Canonicalise each barcode at write time — see ``add_product``.
+        # ``BarcodeGenService`` already produces canonical-form strings
+        # (no scanner-mark prefix, no ``+``), but applying again here is
+        # idempotent and protects against any caller that bypasses the
+        # service layer.
+        from app.services.barcode_gen_service import canonical_barcode
         params = [
-            (barcode, item_id) for item_id, barcode in updates
+            (canonical_barcode(barcode) if barcode else None, item_id)
+            for item_id, barcode in updates
         ]
         with self._conn() as conn:
             try:

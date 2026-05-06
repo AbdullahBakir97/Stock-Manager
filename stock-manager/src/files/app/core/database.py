@@ -426,7 +426,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "18"
+_SCHEMA_VERSION = "19"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -870,6 +870,82 @@ def _migrate_v17_to_v18(conn: sqlite3.Connection) -> None:
     _log.info("V17 to V18 migration completed")
 
 
+def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
+    """V19: Re-canonicalise barcodes after fixing the scan-to-add bug.
+
+    Two distinct corrections, applied in one migration so v2.5.2 ships a
+    consistent DB regardless of how the existing rows were authored:
+
+    1. **Re-strip scanner-mark prefix on rows added since V17.** V16→V17
+       cleaned legacy ``f``-prefixed rows, but ``ItemRepository.add_product``
+       and ``update_product`` were still storing whatever the caller
+       passed in — so any item created via the scan-to-add flow since V17
+       silently re-introduced the prefix bug. v2.5.2 fixes the write
+       path; this migration cleans the rows that leaked through.
+
+    2. **Substitute ``+`` → ``P``.** The K30F + YunPrint Code 128 renderer
+       produces overlapping bars on the ``+`` character, so any barcode
+       containing ``+`` (OnePlus brand "1+", PRO+ marker "P+", literal
+       model "S10+" / "Note 14 Pro+") prints as a sticker that won't
+       scan. v2.5.2 generates barcodes without ``+`` from now on; this
+       migration brings existing rows into the same form so old labels
+       (which encode ``+``) keep matching against canonicalised lookups
+       (which substitute ``+`` → ``P``).
+
+    Touches: ``inventory_items.barcode`` and ``app_config`` rows whose
+    keys start with ``scan_cmd_`` or ``scan_clr_`` (command barcodes).
+    """
+    _log.info("Migrating database schema from V18 to V19 (re-canonicalise barcodes)")
+
+    # Step 1: strip leading [a-z][A-Z0-9]... scanner-mark prefix.
+    # Same heuristic as V17 — applied again because the write-path bug
+    # let new rows in with the prefix.
+    items_stripped = conn.execute(
+        """
+        UPDATE inventory_items
+           SET barcode = SUBSTR(barcode, 2)
+         WHERE barcode IS NOT NULL
+           AND LENGTH(barcode) > 1
+           AND SUBSTR(barcode, 1, 1) GLOB '[a-z]'
+           AND SUBSTR(barcode, 2, 1) GLOB '[A-Z0-9]'
+        """
+    ).rowcount
+    cfg_stripped = conn.execute(
+        """
+        UPDATE app_config
+           SET value = SUBSTR(value, 2)
+         WHERE (key LIKE 'scan_cmd_%' OR key LIKE 'scan_clr_%')
+           AND value IS NOT NULL
+           AND LENGTH(value) > 1
+           AND SUBSTR(value, 1, 1) GLOB '[a-z]'
+           AND SUBSTR(value, 2, 1) GLOB '[A-Z0-9]'
+        """
+    ).rowcount
+
+    # Step 2: substitute every '+' with 'P' in stored barcodes.
+    items_plus = conn.execute(
+        """
+        UPDATE inventory_items
+           SET barcode = REPLACE(barcode, '+', 'P')
+         WHERE barcode IS NOT NULL AND barcode LIKE '%+%'
+        """
+    ).rowcount
+    cfg_plus = conn.execute(
+        """
+        UPDATE app_config
+           SET value = REPLACE(value, '+', 'P')
+         WHERE (key LIKE 'scan_cmd_%' OR key LIKE 'scan_clr_%')
+           AND value IS NOT NULL AND value LIKE '%+%'
+        """
+    ).rowcount
+
+    _log.info(
+        "V18 to V19 migration completed (items_stripped=%s, cfg_stripped=%s, "
+        "items_plus_to_P=%s, cfg_plus_to_P=%s)",
+        items_stripped, cfg_stripped, items_plus, cfg_plus,
+    )
+
+
 def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
     """V17: Drop the scanner-mark prefix from saved barcodes.
 
@@ -1167,6 +1243,10 @@ def init_db() -> None:
             if current == "17":
                 _migrate_v17_to_v18(conn)
                 current = "18"
+
+            if current == "18":
+                _migrate_v18_to_v19(conn)
+                current = "19"
 
             # Always persist the final version after migrations
             conn.execute(

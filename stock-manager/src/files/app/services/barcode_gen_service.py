@@ -375,28 +375,36 @@ _PART_TYPE_OVERRIDES = {
     "display":          "DS",
     "screen":           "SC",
     "(jk) incell fhd":  "JK",
-    # (D.D) display family — mid-tier Chinese OLED brand. Codes follow
-    # a uniform ``D`` (brand prefix) + 2-char product mnemonic pattern
-    # so each variant is BOTH brand-aware (won't collide with a plain
-    # ``Soft-OLED`` from a different supplier) AND mnemonic for the
-    # shop tech reading the sticker:
+    # (D.D) display family — mid-tier Chinese OLED brand. Codes use
+    # the "DD" + 2-char product mnemonic pattern that the user printed
+    # physical labels with before v2.5.3, so already-applied stickers
+    # keep scanning. Diagnostic variants get a trailing "D" to stay
+    # distinct from the non-diagnostic counterpart:
     #
-    #   DSO = D.D + Soft-Oled
-    #   DSD = D.D + Soft-Diagnose
-    #   DHO = D.D + Hard-Oled
-    #   DHD = D.D + Hard-Diagnose
-    #   DOL = D.D + plain OLed
-    #   DOD = D.D + Oled-Diagnose
+    #   DDSO  = (D.D) Soft-Oled            (matches pre-v2.5.3 labels)
+    #   DDSOD = (D.D) Soft-Oled + Diagnose
+    #   DDHO  = (D.D) Hard-Oled
+    #   DDHOD = (D.D) Hard-Oled + Diagnose
+    #   DDOL  = (D.D) plain OLed
+    #   DDOLD = (D.D) OLed + Diagnose
+    #
+    # Width trade-off: this brings the iPhone-15-Pro-Max + (D.D) +
+    # colour case to 15 chars (51.9 mm) — slightly over the 50 mm
+    # sticker budget by 1.9 mm. The user accepts this because their
+    # existing stickers were printed with the same width and they
+    # don't want to re-print. Diagnostic variants at 5 chars push to
+    # 16 chars / 54.7 mm and need a slightly wider sticker or untick
+    # per-colour to drop the colour suffix.
     #
     # Diagnostic-family spellings ("Diagn" / "Diagnose" / "Diagnostic" /
     # "Diagnostics" / "Diagnosis") are all unified to ``"diagn"`` by
     # ``_normalize_pt_name`` so a single key catches every variation.
-    "(d.d) soft oled":           "DSO",
-    "(d.d) soft oled diagn":     "DSD",
-    "(d.d) hard oled":           "DHO",
-    "(d.d) hard oled diagn":     "DHD",
-    "(d.d) oled":                "DOL",
-    "(d.d) oled diagn":          "DOD",
+    "(d.d) soft oled":           "DDSO",
+    "(d.d) soft oled diagn":     "DDSOD",
+    "(d.d) hard oled":           "DDHO",
+    "(d.d) hard oled diagn":     "DDHOD",
+    "(d.d) oled":                "DDOL",
+    "(d.d) oled diagn":          "DDOLD",
     "org service pack": "OS",  # was "OSP" — trimmed 1 char to fit
                                # ``XX-MMMMM-XX-CC`` (5-char model + colour)
                                # patterns onto a 50 mm sticker.  Within the

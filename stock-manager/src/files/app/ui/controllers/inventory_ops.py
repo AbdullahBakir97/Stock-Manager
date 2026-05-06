@@ -26,10 +26,20 @@ _item_repo = ItemRepository()
 # ── Add Product ─────────────────────────────────────────────────────────────
 
 def add_product(win: MainWindow, checked: bool = False, preset_barcode: str = "") -> None:
-    """Open ProductDialog and create a new product."""
+    """Open ProductDialog and create a new product.
+
+    ``preset_barcode`` is canonicalised before being shown in the dialog
+    so the user sees the same prefix-stripped, P-substituted form that
+    will actually be stored.  Without this step the dialog showed the
+    raw scanner output (e.g. ``aSAßA154ßOLßBK``) which then got saved
+    verbatim while ``get_by_barcode`` looked up the canonical form
+    (``SAßA154ßOLßBK``) — same barcode, two different strings, never
+    matched.  v2.5.2 fix.
+    """
     dlg = ProductDialog(win)
     if preset_barcode:
-        dlg.barcode_edit.setText(preset_barcode)
+        from app.services.barcode_gen_service import canonical_barcode
+        dlg.barcode_edit.setText(canonical_barcode(preset_barcode))
     if dlg.exec() != QDialog.DialogCode.Accepted:
         return
     data = dlg.get_data()

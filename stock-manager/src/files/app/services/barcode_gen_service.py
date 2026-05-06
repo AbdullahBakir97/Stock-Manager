@@ -509,6 +509,17 @@ def _make_barcode_text(item: InventoryItem) -> str:
             text = f"{text}-{color_code}"
     # Ensure Code39 valid for barcode image
     text = "".join(c for c in text.upper() if c in _CODE39_VALID)
+    # Substitute ``+`` with ``P``. Code 128 renderers (specifically
+    # YunPrint's K30F driver) produce visual artifacts on ``+`` — bars
+    # bleed into adjacent bars and the printed sticker fails to decode
+    # even though the encoding is technically valid. The substitution
+    # applies to brand "1+" (OnePlus), the WORD_MAP "P+" suffix
+    # (Pro+ markers), and literal ``+`` in model names like "S10+",
+    # "S20+", "Galaxy Note 14 Pro+". Symmetric ``+`` → ``P`` at
+    # canonical_barcode lookup time means existing physical labels
+    # printed with ``+`` keep scanning after the V18 → V19 DB migration
+    # rewrites stored barcodes to the P-form.
+    text = text.replace("+", "P")
     return text or "ITEM"
 
 
@@ -541,6 +552,39 @@ def normalize_barcode(text: str) -> str:
         nxt = text[1]
         if nxt.isupper() or nxt.isdigit():
             return text[1:]
+    return text
+
+
+def canonical_barcode(text: str) -> str:
+    """Return the canonical DB form of a barcode.
+
+    Apply this at every DB read AND write site so the stored form is
+    consistent regardless of input source (scanner, typed, generator,
+    CSV import).  The two transforms applied:
+
+    1. **Strip leading scanner-mark prefix** (delegated to
+       ``normalize_barcode``).  Without this, scan-to-add flows would
+       store the prefix-included form (``aSAßA154ßOL``) but lookups
+       would strip the prefix at query time (``SAßA154ßOL``), so the
+       same barcode never matches itself.  This was the root cause of
+       the v2.5.1 "Galaxy A15 4G doesn't save" report.
+
+    2. **Substitute ``+`` → ``P``**.  YunPrint's Code 128 renderer
+       produces bar-bleed artifacts on the ``+`` character (visible as
+       overlapping bars in the printed sticker), making any label with
+       a ``+`` in its payload — OnePlus brand "1+", PRO+ marker "P+",
+       literal model "S10+" / "Note 14 Pro+" — scan-fail in the field.
+       Applying the substitution symmetrically at lookup time means
+       existing physical labels printed with ``+`` keep scanning after
+       the V18 → V19 DB migration rewrites stored rows to the P-form.
+
+    Idempotent: ``canonical_barcode(canonical_barcode(x)) == canonical_barcode(x)``.
+    """
+    text = (text or "").strip()
+    if not text:
+        return text
+    text = normalize_barcode(text)
+    text = text.replace("+", "P")
     return text
 
 

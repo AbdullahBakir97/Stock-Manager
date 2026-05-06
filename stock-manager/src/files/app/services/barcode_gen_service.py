@@ -360,6 +360,12 @@ def _brand_code(brand: str) -> str:
 # Adding new entries is safe: anything not matched here falls through to
 # the generic abbreviation logic, so this is purely additive — won't
 # break codes for part types you haven't curated yet.
+# NOTE: keys MUST be in the form produced by ``_normalize_pt_name``:
+# lowercase, hyphens / underscores replaced with single spaces, runs of
+# whitespace collapsed, and diagnostic-family words ("diagnose",
+# "diagnostic", "diagnostics", "diagnosis") all collapsed to "diagn".
+# The lookup applies the same normalisation to incoming names so the
+# table catches every spelling variation a shop might use.
 _PART_TYPE_OVERRIDES = {
     # Display panels — biggest fail-causers at width threshold
     "oled":             "OL",
@@ -369,9 +375,28 @@ _PART_TYPE_OVERRIDES = {
     "display":          "DS",
     "screen":           "SC",
     "(jk) incell fhd":  "JK",
-    "(d.d) soft oled":  "DD",
-    "(d.d) soft-oled":  "DD",
-    "(d.d) soft-oled diagn": "DDD",
+    # (D.D) display family — mid-tier Chinese OLED brand. Codes follow
+    # a uniform ``D`` (brand prefix) + 2-char product mnemonic pattern
+    # so each variant is BOTH brand-aware (won't collide with a plain
+    # ``Soft-OLED`` from a different supplier) AND mnemonic for the
+    # shop tech reading the sticker:
+    #
+    #   DSO = D.D + Soft-Oled
+    #   DSD = D.D + Soft-Diagnose
+    #   DHO = D.D + Hard-Oled
+    #   DHD = D.D + Hard-Diagnose
+    #   DOL = D.D + plain OLed
+    #   DOD = D.D + Oled-Diagnose
+    #
+    # Diagnostic-family spellings ("Diagn" / "Diagnose" / "Diagnostic" /
+    # "Diagnostics" / "Diagnosis") are all unified to ``"diagn"`` by
+    # ``_normalize_pt_name`` so a single key catches every variation.
+    "(d.d) soft oled":           "DSO",
+    "(d.d) soft oled diagn":     "DSD",
+    "(d.d) hard oled":           "DHO",
+    "(d.d) hard oled diagn":     "DHD",
+    "(d.d) oled":                "DOL",
+    "(d.d) oled diagn":          "DOD",
     "org service pack": "OS",  # was "OSP" — trimmed 1 char to fit
                                # ``XX-MMMMM-XX-CC`` (5-char model + colour)
                                # patterns onto a 50 mm sticker.  Within the
@@ -407,6 +432,33 @@ _PART_TYPE_OVERRIDES = {
     "volume button":    "VL",
     "home button":      "HB",
 }
+
+
+def _normalize_pt_name(name: str) -> str:
+    """Normalise a part-type name for ``_PART_TYPE_OVERRIDES`` lookup.
+
+    Collapses spelling variations so a single override key catches every
+    way a shop might write the same term.  Specifically:
+
+    1. Lowercase + strip leading / trailing whitespace.
+    2. Replace ``-`` and ``_`` with a single space.  ``"Soft-OLED"`` and
+       ``"Soft OLED"`` should hit the same override entry.
+    3. Collapse runs of whitespace to one space (handles double spaces,
+       tabs, etc.).
+    4. Unify the diagnostic-family spellings to ``"diagn"``.  Without
+       this, the user's catalogue could mix ``"Diagn"``, ``"Diagnose"``,
+       ``"Diagnostic"``, ``"Diagnostics"``, and ``"Diagnosis"`` and only
+       one variant would hit the override — the rest fall through to the
+       generic 4-char fallback and collide on ``DDSO``.
+
+    The override-table keys are stored in this normalised form, so the
+    lookup is symmetric (both sides go through the same function).
+    """
+    s = name.lower().strip()
+    s = re.sub(r"[-_]+", " ", s)
+    s = re.sub(r"\s+", " ", s)
+    s = re.sub(r"\bdiagnos(?:e|tic|tics|is)?\b", "diagn", s)
+    return s
 
 
 def _part_type_code(name: str, max_len: int = 4) -> str:
@@ -446,11 +498,11 @@ def _part_type_code(name: str, max_len: int = 4) -> str:
     """
     if not name:
         return "X"
-    # Curated override table — case- and whitespace-insensitive lookup.
-    # Normalises whitespace (collapses runs, strips leading/trailing) so
-    # ``"  OLED  "`` and ``"OLED"`` both match. Hits ~99% of real-world
-    # entries on a phone-repair shop's catalogue.
-    norm = " ".join(name.lower().split())
+    # Curated override table lookup — applies ``_normalize_pt_name`` so
+    # spelling variations (hyphens vs spaces, abbreviated vs full
+    # diagnostic words) all converge on the same key. Hits ~99% of
+    # real-world entries on a phone-repair shop's catalogue.
+    norm = _normalize_pt_name(name)
     if norm in _PART_TYPE_OVERRIDES:
         return _PART_TYPE_OVERRIDES[norm]
 

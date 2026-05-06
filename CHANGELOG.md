@@ -7,8 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.5.2] - 2026-05-06
+## [2.5.3] - 2026-05-06
 
+
+## [2.5.3] - 2026-05-06
+
+### Fixed — `(D.D) Soft-OLED` and `(D.D) Soft-OLED Diagnose` collided on `DDSO`
+- **Root cause**: the v2.5.1 `_PART_TYPE_OVERRIDES` table only had three (D.D)-family keys (`"(d.d) soft oled"`, `"(d.d) soft-oled"`, `"(d.d) soft-oled diagn"`). Any spelling variation — `"Diagnose"` instead of `"Diagn"`, space instead of hyphen, or both at once — fell through to the generic 4-char fallback which produces `DDSO` (parens "DD" + word-initials "SO/SOD" trimmed to 4 chars). When a user has both `(D.D) Soft-OLED` (override hit → `DD`) and `(D.D) Soft-OLED Diagnose` (fallback → `DDSO`) the codes are different — but if the user has TWO diagnostic-variants spelled differently (e.g. one with `Diagn`, one with `Diagnose`) they BOTH fall through to the same fallback `DDSO` and silently collide. The user reported both iPhone OLED variants showing the same `DD-SO` code on the sticker.
+- **Fix**: introduced `_normalize_pt_name(name)` that aggressively normalises before override lookup — replaces `-` and `_` with spaces, collapses runs of whitespace, and unifies every diagnostic-family word (`diagnose`, `diagnostic`, `diagnostics`, `diagnosis`) to the canonical `diagn`. Override keys are stored in the same normalised form. Verified against 22 plausible spellings: every `(D.D) Soft-OLED` variant resolves to `DSO` (5+ spellings), every `(D.D) Soft-OLED + diagnostic` variant resolves to `DSD` (7+ spellings including `Diagn`, `Diagnose`, `Diagnostic`, `Diagnostics`, `Diagnosis`).
+- **Hybrid `D` + 2-char product mnemonic codes** for the entire (D.D) family — picked over abstract `DD`/`DDD` so codes read meaningfully on the sticker:
+  - `(D.D) Soft-OLED`           → `DSO`  (D.D + Soft-Oled)
+  - `(D.D) Soft-OLED Diagn(*)`  → `DSD`  (D.D + Soft-Diagnose)
+  - `(D.D) Hard-OLED`           → `DHO`
+  - `(D.D) Hard-OLED Diagn(*)`  → `DHD`
+  - `(D.D) OLED`                → `DOL`
+  - `(D.D) OLED Diagn(*)`       → `DOD`
+- The leading `D` keeps the `(D.D)` brand identity in the code, so a future plain `Soft-OLED` from a different supplier (which falls through to the generic `SO` fallback) doesn't collide. Width: `DSO` is 1 char wider than the old `DD`, but every iPhone payload (4-char model + 3-char part-type + colour = 14 chars at 49.2 mm) still fits the 50 mm sticker comfortably. Verified end-to-end via `_make_barcode_text`.
+- **User action required**: tick **Regenerate (overwrite existing)** + **Generate** + **Assign & Save** on the Barcode Generator page to refresh stored codes. Old printed labels still scan against the canonicalised DB rows because the override applies at both write and read time, but stored barcode strings only update via regenerate.
+
+### Fixed — `logs/stock_manager.log` was being tracked in git
+- The runtime log file was inadvertently committed across v2.4.7 → v2.5.2 — every release pushed several MB of local log output to GitHub. Untracked the file via `git rm --cached` (file remains on disk and the app keeps writing to it normally) and added `logs/` + `*.log` to `stock-manager/.gitignore` so it can't sneak back in. Historical log content remains in the commit history; a follow-up `git filter-repo` could scrub it if size becomes a concern, but that's a destructive operation we shouldn't run without explicit consent.
 
 ## [2.5.2] - 2026-05-06
 

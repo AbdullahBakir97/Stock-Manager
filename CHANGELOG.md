@@ -7,8 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.5.3] - 2026-05-06
+## [2.5.4] - 2026-05-06
 
+
+## [2.5.4] - 2026-05-06
+
+### Fixed — `zxing-cpp` was not bundled with the installer (customer regression in v2.5.3)
+- **Symptom**: customer auto-updated to v2.5.3, opened the Barcode Generator → Verify dialog, and saw `"zxing-cpp is not installed — only the width check ran. Install with: pip install zxing-cpp"`. The decode validation that v2.5.1 introduced silently degraded to width-check-only because the lib wasn't on the customer's machine.
+- **Root cause**: v2.5.1 made `zxing-cpp` an OPTIONAL dependency via lazy import (`try: import zxingcpp; except ImportError: ...`) — the intent was to fail gracefully if it wasn't installed. But it was never added to `requirements.txt` or the PyInstaller `.spec`, so `installer/build_installer.bat` produced an installer without the lib. The decode check worked in the developer's environment (where `pip install zxing-cpp` had been run manually during v2.5.1 development) but not in any installed-from-installer copy. Asking customers to `pip install` something is a non-starter for a Windows-installer-distributed app.
+- **Fix**:
+  - Added `zxing-cpp==3.0.0` to `stock-manager/requirements.txt`
+  - Added explicit binary bundling in `StockManagerPro.spec` (zxing-cpp ships as a single `.pyd` extension module, not a package directory, so `collect_all` doesn't apply — the spec resolves `zxingcpp.__file__` and adds the `.pyd` path to `binaries` plus the module name to `hiddenimports`)
+  - Added a build-time guard in the spec that **raises if `zxingcpp` isn't importable in the build environment** — fails the build loudly so the operator notices BEFORE shipping a half-working installer (the v2.5.3 mistake)
+- **Build operator action required**: run `pip install zxing-cpp==3.0.0` once in the dev/build environment, then rebuild via `installer/build_installer.bat`. The spec's import guard will refuse to build if you forget. Customers auto-updating from v2.5.3 → v2.5.4 will get the bundled `.pyd` — no pip required, and their Verify dialog will switch from `541/541 pass (width check only)` to `541/541 pass (decode + width check)`.
+
+### Changed — Reverted `(D.D)` family codes to the pre-v2.5.3 `DDSO` form
+- **Why**: the user had already printed and applied physical labels with the legacy `DDSO`-style codes for `(D.D) Soft-OLED` items before v2.5.3 was released. v2.5.3's switch to `DSO`/`DSD` would have broken those existing stickers' DB lookups (different code in DB after regenerate vs. what's printed on the sticker). To avoid forcing a reprint of every applied label, the codes are reverted to the `DD` brand prefix + 2-char product mnemonic + optional `D` diagnose suffix:
+  - `(D.D) Soft-OLED`           → `DDSO`     (matches pre-v2.5.3 labels)
+  - `(D.D) Soft-OLED Diagn(*)`  → `DDSOD`
+  - `(D.D) Hard-OLED`           → `DDHO`
+  - `(D.D) Hard-OLED Diagn(*)`  → `DDHOD`
+  - `(D.D) OLED`                → `DDOL`
+  - `(D.D) OLED Diagn(*)`       → `DDOLD`
+- **What's kept from v2.5.3**: `_normalize_pt_name()` lenient matching (every spelling of `Diagn` / `Diagnose` / `Diagnostic` / `Diagnostics` / `Diagnosis` still resolves to one canonical key), and the diagnostic variants now have a UNIQUE code (`DDSOD` ≠ `DDSO`) instead of silently colliding via the pre-v2.5.1 fallback bug.
+- **Width trade-off acknowledged**: `IP-15PM-DDSO-BK` is 15 chars (51.9 mm) — 1.9 mm over a strict 50 mm sticker budget. This is the SAME width the user's existing physical labels are at, so it prints fine in their setup; new diagnostic variants (`DDSOD`, 16 chars / 54.7 mm) need either untick-per-color or a slightly wider sticker roll, same as before.
 
 ## [2.5.3] - 2026-05-06
 

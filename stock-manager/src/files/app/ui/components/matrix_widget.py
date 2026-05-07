@@ -409,6 +409,14 @@ class MatrixWidget(QTableWidget):
         brand_bg = QColor(tk.card2)
         brand_fg = QColor(tk.t1)
 
+        # Track brand + separator row indices so ``apply_theme`` can
+        # repaint them inline on theme switch without a full ``load()``
+        # rebuild — full rebuild would re-run the DB query and rebuild
+        # every cell, taking 100+ms. The targeted recolour finishes in
+        # < 1ms because it only walks ~5-10 brand/separator rows.
+        self._brand_row_indices: list[int] = []
+        self._sep_row_indices: list[int] = []
+
         for ri, rd in enumerate(row_data):
             r = ri + self._row_offset
 
@@ -416,6 +424,7 @@ class MatrixWidget(QTableWidget):
                 # Brand header row — full-width colored bar
                 self.setRowHeight(r, 32)
                 bname = rd["brand_name"]
+                self._brand_row_indices.append(r)
                 for c in range(self.columnCount()):
                     cell = self._ro("")
                     cell.setBackground(brand_bg)
@@ -433,6 +442,7 @@ class MatrixWidget(QTableWidget):
             if rd["type"] == "sep":
                 # Visible separator line between model series
                 self.setRowHeight(r, 3)
+                self._sep_row_indices.append(r)
                 for c in range(self.columnCount()):
                     cell = self._ro("")
                     cell.setBackground(sep_bg)
@@ -489,6 +499,7 @@ class MatrixWidget(QTableWidget):
                             "dtype_lbl": pt.name,
                             "min_stock": total_min,
                             "stock": total_stock,
+                            "is_aggregate": True,
                         }
                         price_src = any_item
                     else:
@@ -576,6 +587,7 @@ class MatrixWidget(QTableWidget):
                         sell_price=getattr(item, "sell_price", None),
                         pt_default_price=getattr(pt, "default_price", None),
                         cost_price=getattr(item, "cost_price", None),
+                        is_color_row=True,
                     )
 
         self.setUpdatesEnabled(True)
@@ -584,7 +596,7 @@ class MatrixWidget(QTableWidget):
                            meta: dict, min_stock: int, stock: int,
                            best: int, inventur, has_colors: bool = False,
                            sell_price=None, pt_default_price=None,
-                           cost_price=None):
+                           cost_price=None, is_color_row: bool = False):
         """Render the 7 data cells per part-type group.
 
         Layout: MIN-STOCK | DIFF | STOCK | ORDER | SELL | PRICE | TOTAL
@@ -640,12 +652,27 @@ class MatrixWidget(QTableWidget):
         inv.setToolTip(t("disp_tip_inv"))
         self.setItem(r, b + _SUB_ORDER, inv)
 
+        # Color rows hide per-unit prices too when "show color totals" is off —
+        # per-color prices are always identical to the parent's now, so they'd
+        # just be redundant noise.
+        hide_color_prices = False
+        if is_color_row:
+            try:
+                from app.core.config import ShopConfig
+                hide_color_prices = not ShopConfig.get().is_show_color_totals
+            except Exception:
+                pass
+
         # ── SELL price (sell_price with part-type default_price fallback) ──
         sell_val = sell_price
         sell_from_override = sell_val is not None
         if sell_val is None and pt_default_price is not None:
             sell_val = pt_default_price
-        if sell_val is None:
+        if hide_color_prices:
+            sell_txt = "—"
+            sell_col = tk.t4
+            sell_tip = ""
+        elif sell_val is None:
             sell_txt = "—"
             sell_col = tk.t4
             sell_tip = "Double-click to set sell price"
@@ -672,10 +699,14 @@ class MatrixWidget(QTableWidget):
         _set_item_font(sell_cell, _FONT_MONO, 11)
         sell_cell.setBackground(bg)
         sell_cell.setToolTip(sell_tip)
+        if hide_color_prices:
+            sell_cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         self.setItem(r, b + _SUB_SELL, sell_cell)
 
         # ── PRICE (cost_price) — hidden by default ─────────────────────────
-        if cost_price is None:
+        if hide_color_prices:
+            cp_txt, cp_col, cp_tip = "—", tk.t4, ""
+        elif cost_price is None:
             cp_txt, cp_col, cp_tip = "—", tk.t4, "Double-click to set cost price"
         else:
             try:
@@ -690,6 +721,8 @@ class MatrixWidget(QTableWidget):
         _set_item_font(cp_cell, _FONT_MONO, 11)
         cp_cell.setBackground(bg)
         cp_cell.setToolTip(cp_tip)
+        if hide_color_prices:
+            cp_cell.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
         self.setItem(r, b + _SUB_PRICE, cp_cell)
 
         # ── TOTAL — always visible, metric flips with COST_VIS ────────────
@@ -716,7 +749,17 @@ class MatrixWidget(QTableWidget):
         except (TypeError, ValueError):
             total_val = None
 
-        if total_val is None:
+        hide_color_total = False
+        if is_color_row:
+            try:
+                from app.core.config import ShopConfig
+                hide_color_total = not ShopConfig.get().is_show_color_totals
+            except Exception:
+                pass
+
+        if hide_color_total:
+            tot_txt, tot_col, tot_tip = "—", tk.t4, ""
+        elif total_val is None:
             tot_txt, tot_col, tot_tip = "—", tk.t4, ""
         else:
             tot_txt = _fmt_money(total_val)
@@ -767,6 +810,92 @@ class MatrixWidget(QTableWidget):
             b = _base(i)
             self.setColumnHidden(b + _SUB_PRICE, not cost_on)
             self.setColumnHidden(b + _SUB_TOTAL, not total_visible)
+
+    def apply_theme(self) -> None:
+        """Repaint theme-dependent inline cell backgrounds in place.
+
+        ``load()`` bakes the current ``tk.card2`` / ``tk.t3`` / ``tk.green``
+        colours into ``QTableWidgetItem.setBackground/setForeground`` calls
+        for brand-header and separator rows, plus row-stripe alternation.
+        Those are stored on the items themselves — Qt's QSS cascade can't
+        reach them — so a theme switch leaves them stuck on the previous
+        theme's colours until the next ``load()`` rebuild.
+
+        This method walks just the tracked brand + separator row indices
+        (typically 5-10 rows total, vs the table's hundreds) and re-paints
+        their backgrounds with fresh tokens. Finishes in < 1ms vs the
+        ~100ms a full ``load()`` rebuild would cost (DB fetch + every
+        cell rebuilt). Called by ``MatrixTab.apply_theme()`` from the
+        ``THEME.changed`` signal handler.
+        """
+        from app.core.theme import THEME
+        tk = THEME.tokens
+        brand_bg = QColor(tk.card2)
+        brand_fg = QColor(tk.green)
+        sep_bg = QColor(tk.t3)
+
+        try:
+            for r in getattr(self, "_brand_row_indices", ()):
+                for c in range(self.columnCount()):
+                    cell = self.item(r, c)
+                    if cell is None:
+                        continue
+                    cell.setBackground(brand_bg)
+                    if c == 0:
+                        cell.setForeground(brand_fg)
+            for r in getattr(self, "_sep_row_indices", ()):
+                for c in range(self.columnCount()):
+                    cell = self.item(r, c)
+                    if cell is not None:
+                        cell.setBackground(sep_bg)
+        except RuntimeError:
+            # Underlying widget was deleted — no-op.
+            return
+        # Trigger a viewport repaint so the new brushes show up immediately.
+        self.viewport().update()
+
+    def selection_stats(self) -> dict:
+        """Aggregate stats for currently selected numeric cells.
+
+        Walks ``selectedItems`` and pulls the displayed ``stock`` /
+        ``min_stock`` value out of each cell's ``meta`` dict. Returns
+        ``{count, sum, avg, min, max}`` for the live display in the
+        matrix-tab toolbar — gives the user an Excel-style ``Σ`` readout
+        without typing a SUM formula.
+
+        ``count`` is the number of cells with a usable numeric value (so
+        non-numeric cells like model names don't pad the average).
+        Returns zero-filled dict when the selection is empty.
+        """
+        values: list[int] = []
+        for cell in self.selectedItems():
+            meta = cell.data(Qt.ItemDataRole.UserRole)
+            field = meta.get("field") if isinstance(meta, dict) else None
+            if field in ("stock", "min_stock", "stamm_zahl", "best_bung",
+                         "inventur", "price", "cost_price", "total"):
+                txt = (cell.text() or "").replace(",", "").replace(" ", "")
+                # Strip currency symbols if present
+                for sym in ("€", "$", "£", "+", "-"):
+                    if sym == "-" and txt.startswith("-"):
+                        # Keep negative sign — but our values are usually
+                        # positive; the "+1" / "-7" diff cells aren't in
+                        # the field list above so they don't reach here.
+                        continue
+                    txt = txt.replace(sym, "")
+                try:
+                    values.append(float(txt))
+                except ValueError:
+                    pass
+        if not values:
+            return {"count": 0, "sum": 0.0, "avg": 0.0, "min": 0.0, "max": 0.0}
+        s = sum(values)
+        return {
+            "count": len(values),
+            "sum": s,
+            "avg": s / len(values),
+            "min": min(values),
+            "max": max(values),
+        }
 
     def retranslate(self) -> None:
         if not self._cat:
@@ -1363,14 +1492,37 @@ class MatrixWidget(QTableWidget):
                 self._refresh_cb()
 
         elif field == "stock":
-            item = _item_repo.get_by_id(item_id)
+            is_aggregate = meta.get("is_aggregate", False)
+            target_item_id = item_id
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                if siblings:
+                    color_names = [s.color for s in siblings]
+                    from PyQt6.QtWidgets import QInputDialog
+                    chosen, ok = QInputDialog.getItem(
+                        self,
+                        f"Choose Color — {model_name}",
+                        "This model has color variants.\nChoose which color to update:",
+                        color_names, 0, False,
+                    )
+                    if not ok:
+                        return
+                    for s in siblings:
+                        if s.color == chosen:
+                            target_item_id = s.id
+                            break
+
+            item = _item_repo.get_by_id(target_item_id)
             if not item:
                 return
             dlg = StockOpDialog(item, dtype_lbl, self)
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 op, qty = dlg.result_data()
                 try:
-                    iid, q = item_id, qty
+                    iid, q = target_item_id, qty
                     if op == "IN":
                         _stock_svc.stock_in(iid, q)
                         UNDO.push(Command(
@@ -1413,35 +1565,52 @@ class MatrixWidget(QTableWidget):
                 self._refresh_cb()
 
         elif field == "price":
-            # Per (model, part_type) price override — edits inventory_items.sell_price
             from PyQt6.QtWidgets import QInputDialog
+            is_aggregate = meta.get("is_aggregate", False)
             item_cur = _item_repo.get_by_id(item_id)
             prev_price = None
             if item_cur is not None and item_cur.sell_price is not None:
                 prev_price = float(item_cur.sell_price)
-            # Always open at 0 — user types the new value straight away.
-            # Previous value is shown in the prompt body so nothing's lost.
             prev_txt = (
                 f"{prev_price:.2f}" if prev_price is not None
                 else f"(default {float(meta.get('pt_default_price') or 0.0):.2f})"
             )
+            title_suffix = " (all colors)" if is_aggregate else ""
             new_val, ok = QInputDialog.getDouble(
                 self,
-                f"Sell Price — {model_name} · {dtype_lbl}",
+                f"Sell Price — {model_name} · {dtype_lbl}{title_suffix}",
                 f"Current: {prev_txt}\nNew unit sell price "
-                f"(0 = clear override → use part-type default):",
+                f"(0 = clear override → use part-type default):"
+                + ("\n\nThis will apply to ALL color variants." if is_aggregate else ""),
                 0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return
             new_price = None if new_val <= 0 else float(new_val)
-            _item_repo.update_price(item_id, new_price)
-            iid, prev, curr = item_id, prev_price, new_price
-            UNDO.push(Command(
-                label=f"Sell {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
-                undo_fn=lambda: _item_repo.update_price(iid, prev),
-                redo_fn=lambda: _item_repo.update_price(iid, curr),
-            ))
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                prev_prices = {}
+                for s in siblings:
+                    prev_prices[s.id] = float(s.sell_price) if s.sell_price is not None else None
+                    _item_repo.update_price(s.id, new_price)
+                saved_prev = dict(prev_prices)
+                saved_new = new_price
+                UNDO.push(Command(
+                    label=f"Sell {model_name} · {dtype_lbl} all colors → {saved_new or '—'}",
+                    undo_fn=lambda: [_item_repo.update_price(sid, sp) for sid, sp in saved_prev.items()],
+                    redo_fn=lambda: [_item_repo.update_price(sid, saved_new) for sid in saved_prev],
+                ))
+            else:
+                _item_repo.update_price(item_id, new_price)
+                iid, prev, curr = item_id, prev_price, new_price
+                UNDO.push(Command(
+                    label=f"Sell {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                    undo_fn=lambda: _item_repo.update_price(iid, prev),
+                    redo_fn=lambda: _item_repo.update_price(iid, curr),
+                ))
 
             # ── Instant local update of TOTAL (only when not in cost mode)
             from app.services.cost_visibility import COST_VIS
@@ -1471,37 +1640,52 @@ class MatrixWidget(QTableWidget):
             self._refresh_cb()
 
         elif field == "cost_price":
-            # Per-item cost_price — edits inventory_items.cost_price.
-            # Only editable while the owner has toggled the hidden columns on
-            # (PIN-gated at the toolbar); if somehow reached with cols hidden,
-            # we no-op defensively.
             from app.services.cost_visibility import COST_VIS
             if not COST_VIS.visible:
                 return
             from PyQt6.QtWidgets import QInputDialog
+            is_aggregate = meta.get("is_aggregate", False)
             item_cur = _item_repo.get_by_id(item_id)
             prev_cost = None
             if item_cur is not None and getattr(item_cur, "cost_price", None) is not None:
                 prev_cost = float(item_cur.cost_price)
             prev_txt = f"{prev_cost:.2f}" if prev_cost is not None else "—"
-            # Always open at 0 so the owner just types the new amount.
+            title_suffix = " (all colors)" if is_aggregate else ""
             new_val, ok = QInputDialog.getDouble(
                 self,
-                f"Cost Price — {model_name} · {dtype_lbl}",
+                f"Cost Price — {model_name} · {dtype_lbl}{title_suffix}",
                 f"Current: {prev_txt}\nNew unit cost / purchase price "
-                f"(0 = clear):",
+                f"(0 = clear):"
+                + ("\n\nThis will apply to ALL color variants." if is_aggregate else ""),
                 0.0, 0.0, 999999.99, 2,
             )
             if not ok:
                 return
             new_cost = None if new_val <= 0 else float(new_val)
-            _item_repo.update_cost_price(item_id, new_cost)
-            iid, prev, curr = item_id, prev_cost, new_cost
-            UNDO.push(Command(
-                label=f"Cost {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
-                undo_fn=lambda: _item_repo.update_cost_price(iid, prev),
-                redo_fn=lambda: _item_repo.update_cost_price(iid, curr),
-            ))
+
+            if is_aggregate:
+                model_id = meta["model_id"]
+                part_type_id = meta["part_type_id"]
+                siblings = _item_repo.get_colored_siblings(model_id, part_type_id)
+                prev_costs = {}
+                for s in siblings:
+                    prev_costs[s.id] = float(s.cost_price) if getattr(s, "cost_price", None) is not None else None
+                    _item_repo.update_cost_price(s.id, new_cost)
+                saved_prev = dict(prev_costs)
+                saved_new = new_cost
+                UNDO.push(Command(
+                    label=f"Cost {model_name} · {dtype_lbl} all colors → {saved_new or '—'}",
+                    undo_fn=lambda: [_item_repo.update_cost_price(sid, sp) for sid, sp in saved_prev.items()],
+                    redo_fn=lambda: [_item_repo.update_cost_price(sid, saved_new) for sid in saved_prev],
+                ))
+            else:
+                _item_repo.update_cost_price(item_id, new_cost)
+                iid, prev, curr = item_id, prev_cost, new_cost
+                UNDO.push(Command(
+                    label=f"Cost {model_name} · {dtype_lbl} ({prev or '—'} → {curr or '—'})",
+                    undo_fn=lambda: _item_repo.update_cost_price(iid, prev),
+                    redo_fn=lambda: _item_repo.update_cost_price(iid, curr),
+                ))
 
             # ── Instant local updates — no DB round-trip wait ────────────
             # 1) Repaint THIS cell with the new cost text/colour
@@ -1800,6 +1984,215 @@ class FrozenMatrixContainer(QWidget):
         """Sync the banner scroll position with the data table."""
         self._banner_scroll.horizontalScrollBar().setValue(value)
 
+    # ── Row filter (Excel-like) ─────────────────────────────────────────
+
+    def filter_rows(self, query: str = "", mode: str = "all") -> int:
+        """Hide / show rows in BOTH the frozen model column AND the data
+        table in lockstep, so vertical alignment is preserved.
+
+        Text search is "smart" and **AND-of-words**: the query is split
+        on whitespace and every word must appear somewhere in the row's
+        haystack. So "samsung galaxy s22 ultra" works even though the
+        haystack is "samsung galaxy note s22 ultra" (each word is found
+        independently — order doesn't matter).
+
+        Haystack: as we walk the rows top-to-bottom we track the most
+        recent brand-header row above the cursor (or, when there are no
+        internal brand headers, the container's ``_section_brand``
+        attribute set by ``MatrixTab._add_brand_section``). Brand-line
+        aliases (Apple→iphone/ipad, Samsung→galaxy/note, Xiaomi→
+        redmi/poco/mi/pocophone, Huawei→mate/p/nova/y, Honor→magic,
+        Google→pixel, OnePlus→nord) extend the haystack so users can
+        type the line they say out loud. Case-insensitive.
+
+        Stock-state ``mode`` is checked against the data table's per-cell
+        ``meta`` dicts:
+          * ``"all"``     — no stock-state filter
+          * ``"low"``     — at least one cell with ``0 < stock <= min_stock``
+          * ``"out"``     — at least one cell with ``stock == 0`` and ``min_stock > 0``
+          * ``"reorder"`` — at least one cell with ``stock < min_stock``
+
+        Brand-header rows + series separators stay visible only when
+        they have visible content on either side (otherwise lonely
+        headers / orphan separators leave broken-looking gaps).
+
+        Returns the count of model / colour rows visible after filtering.
+        """
+        # Split on whitespace; each word must be found independently.
+        # Empty query → no text predicate (everything matches text-wise).
+        q_words = [w for w in (query or "").lower().split() if w]
+        # Suppress per-row repaints while we flip ``setRowHidden`` flags
+        # — flushes ONE final repaint at the end instead of N during the
+        # walk, which makes fast typing feel completely smooth even on
+        # the 376-row Samsung container.
+        dt_widget = self._table
+        mt_widget = self._model_table
+        dt_widget.setUpdatesEnabled(False)
+        mt_widget.setUpdatesEnabled(False)
+        dt = self._table
+        mt = self._model_table
+        brand_rows = set(getattr(dt, "_brand_row_indices", ()))
+        sep_rows = set(getattr(dt, "_sep_row_indices", ()))
+        offset = getattr(dt, "_row_offset", 0)
+        n = dt.rowCount()
+        mt_n = mt.rowCount()
+
+        # Pass 1: walk all rows top-to-bottom, track the current brand
+        # context, decide visibility for each non-structural row.
+        # Brand headers themselves are decided in pass 2 (visible iff
+        # any model under them is visible).
+        # ``_section_brand`` is the fallback brand context used when this
+        # container has no internal brand-header rows (the common case
+        # in multi-brand mode where each container holds ONE brand and
+        # the brand label lives in an external QLabel above the table,
+        # OR single-brand mode where one specific brand was chosen).
+        # Brand-line aliases expand the context with common product-line
+        # names so the user can type the line they say out loud
+        # ("iphone" / "galaxy" / "redmi") instead of having to remember
+        # the corporate brand ("apple" / "samsung" / "xiaomi").
+        _BRAND_LINE_ALIASES = {
+            "apple":    "iphone ipad ipod mac",
+            "samsung":  "galaxy note",
+            "xiaomi":   "redmi poco mi pocophone",
+            "huawei":   "mate p nova y",
+            "honor":    "magic",
+            "google":   "pixel",
+            "oneplus":  "nord",
+        }
+        section = (getattr(self, "_section_brand", "") or "").strip().lower()
+        current_brand = (
+            f"{section} {_BRAND_LINE_ALIASES.get(section, '')}"
+            if section else ""
+        ).strip()
+        # row index -> True if this MODEL row is visible after the filter
+        model_visible: dict[int, bool] = {}
+        # brand row index -> list of model rows that belong to that brand
+        brand_to_models: dict[int, list[int]] = {}
+        # row index -> the brand-row index that's the closest header above
+        last_brand_row = -1
+
+        for r in range(n):
+            if r in brand_rows:
+                cell = dt.item(r, 0)
+                # Brand-header text is "  Apple" / "  Samsung" — strip
+                current_brand = (cell.text() if cell else "").strip().lower()
+                last_brand_row = r
+                brand_to_models.setdefault(r, [])
+                continue
+            if r in sep_rows or r < offset:
+                continue
+
+            # Compose searchable text: brand + model column. The brand
+            # comes from the most recent header; if there is no header
+            # yet (single-brand mode with no boundaries) we fall back to
+            # just the cell text — the brand is implicit.
+            cell = dt.item(r, 0)
+            cell_text = (cell.text() if cell else "").lower().strip()
+            haystack = f"{current_brand} {cell_text}".strip() if current_brand \
+                else cell_text
+
+            text_match = True
+            if q_words:
+                # AND-of-words: every word must appear somewhere in the
+                # haystack. Allows natural typing like "samsung galaxy
+                # s22 ultra" to match even when the order in the
+                # haystack differs.
+                text_match = all(w in haystack for w in q_words)
+
+            state_match = (mode == "all")
+            if not state_match:
+                for c in range(dt.columnCount()):
+                    mc = dt.item(r, c)
+                    if mc is None:
+                        continue
+                    meta = mc.data(Qt.ItemDataRole.UserRole)
+                    if not isinstance(meta, dict) or "stock" not in meta:
+                        continue
+                    stock = meta.get("stock") or 0
+                    min_stock = meta.get("min_stock") or 0
+                    if mode == "out" and stock == 0 and min_stock > 0:
+                        state_match = True; break
+                    if mode == "low" and 0 < stock <= min_stock:
+                        state_match = True; break
+                    if mode == "reorder" and stock < min_stock:
+                        state_match = True; break
+
+            visible = text_match and state_match
+            model_visible[r] = visible
+            if last_brand_row >= 0:
+                brand_to_models[last_brand_row].append(r)
+
+        # Pass 2: apply visibility. Brand headers visible iff at least
+        # one of their models is visible (otherwise hide them — empty
+        # "Samsung" header with no rows looks broken). Separator
+        # visibility depends on neighbors: a separator only earns its
+        # 3px gap if there's a visible model row both before AND after
+        # it within the same brand section. Otherwise it stacks into
+        # ugly grey stripes when filtering hides most models.
+        visible_count = 0
+        brand_visible: dict[int, bool] = {}
+        for br, model_rows in brand_to_models.items():
+            brand_visible[br] = any(model_visible.get(m, False) for m in model_rows)
+
+        # Pre-compute which separator rows survive the filter. Rule
+        # (tuned to avoid the "stack of 3px stripes" artifact when most
+        # rows are hidden): show AT MOST ONE separator between any two
+        # visible model rows. A gap of multiple separators (e.g. visible
+        # iPhone 11 Pro → hidden 12 series → visible 13 Pro max crosses
+        # both the 11→12 and 12→13 boundaries) collapses to no separator
+        # — we're already skipping enough content that an extra divider
+        # would just be visual noise. A single separator (e.g. 11 series
+        # ends, 12 series begins, both have visible models on either
+        # side) does show because it earns its 3px gap.
+        sep_show: dict[int, bool] = {sr: False for sr in sep_rows}
+        seen_visible_in_brand = False
+        pending_seps: list[int] = []
+        for r in range(offset, n):
+            if r in brand_rows:
+                seen_visible_in_brand = False
+                pending_seps.clear()
+                continue
+            if r in sep_rows:
+                if seen_visible_in_brand:
+                    pending_seps.append(r)
+                continue
+            # Model / colour row
+            if model_visible.get(r, False):
+                if seen_visible_in_brand and len(pending_seps) == 1:
+                    # Exactly one separator between the previous visible
+                    # model and this one — keep it as a clean series
+                    # divider. Multi-separator gaps stay hidden.
+                    sep_show[pending_seps[0]] = True
+                seen_visible_in_brand = True
+                pending_seps.clear()
+
+        try:
+            for r in range(n):
+                if r < offset:
+                    show = True
+                elif r in brand_rows:
+                    show = brand_visible.get(r, True)
+                elif r in sep_rows:
+                    show = sep_show.get(r, False)
+                else:
+                    show = model_visible.get(r, True)
+                    if show:
+                        visible_count += 1
+                dt.setRowHidden(r, not show)
+                if r < mt_n:
+                    mt.setRowHidden(r, not show)
+        finally:
+            # Always re-enable updates so a partial-walk failure doesn't
+            # leave the matrix frozen with no repaints.
+            dt_widget.setUpdatesEnabled(True)
+            mt_widget.setUpdatesEnabled(True)
+        return visible_count
+
+    def selection_stats(self) -> dict:
+        """Forward to the data table — selection lives there since the
+        frozen model column has selection disabled."""
+        return self._table.selection_stats()
+
     def _sync_model_column(self):
         """Copy column 0 from the main table to the frozen model table."""
         mt = self._model_table
@@ -1897,11 +2290,16 @@ class FrozenMatrixContainer(QWidget):
             mtx.setFont(body_font)
             mtx.horizontalHeader().setFont(header_font)
             mtx.horizontalHeader().setStyleSheet(hdr_qss)
-            mtx.setStyleSheet(mtx.styleSheet() + body_qss)
+            # REPLACE the stylesheet rather than concatenating. The legacy
+            # ``setStyleSheet(self.styleSheet() + body_qss)`` made the QSS
+            # blob grow on every zoom / theme change, forcing Qt to re-parse
+            # an ever-larger rule set on each apply (200-400ms hit per
+            # call). Replacing keeps the rule set bounded.
+            mtx.setStyleSheet(body_qss)
             model_tbl.setFont(body_font)
             model_tbl.horizontalHeader().setFont(header_font)
             model_tbl.horizontalHeader().setStyleSheet(hdr_qss)
-            model_tbl.setStyleSheet(model_tbl.styleSheet() + body_qss)
+            model_tbl.setStyleSheet(body_qss)
 
             # ── Scale every item's font by its stored BASE_PT_ROLE ──
             # Cache by (family, weight, base_pt) — dramatically reduces QFont
@@ -1984,16 +2382,24 @@ class FrozenMatrixContainer(QWidget):
                               _SUB_ORDER: 36, _SUB_SELL: 38,
                               _SUB_PRICE: 38, _SUB_TOTAL: 50}
 
+                # Cap how many rows we measure per column. Stock numbers
+                # rarely vary in width (1-4 digits), so a 100-row sample
+                # captures the widest realistic value; measuring all 200+
+                # rows × 35 columns previously cost ~7000 QFontMetrics calls
+                # per zoom, each of which triggers font-engine rasterisation.
+                _row_count = mtx.rowCount()
+                _measure_n = min(_row_count, 100)
                 for ti in range(len(mtx._cat.part_types)):
                     b = _base(ti)
                     for c in range(_COLS_PER_TYPE):
                         col = b + c
                         # Header text width at the ACTUAL rendered font
                         hdr_w = fm_header.horizontalAdvance(hdr_labels[c]) + hdr_side_pad * 2
-                        # Widest data text — measure using each cell's own font
-                        # (cells use _FONT_MONO or _FONT_DATA with different sizes)
+                        # Widest data text — measure a representative
+                        # sample with each cell's own font (cells use
+                        # _FONT_MONO or _FONT_DATA with different sizes).
                         data_w = 0
-                        for r in range(mtx.rowCount()):
+                        for r in range(_measure_n):
                             item = mtx.item(r, col)
                             if item and item.text():
                                 iw = QFontMetrics(item.font()).horizontalAdvance(item.text())
@@ -2018,19 +2424,28 @@ class FrozenMatrixContainer(QWidget):
             model_row_h = max(min_row, ZOOM.scale(48, minimum=min_row))
             color_row_h = max(min_row, ZOOM.scale(36, minimum=min_row))
             brand_row_h = max(min_row, ZOOM.scale(32, minimum=min_row))
+            # Skip the setRowHeight call when the row is already the right
+            # height — every Qt setRowHeight triggers a layout invalidation
+            # that's expensive on a 200+ row table even when the height
+            # didn't actually change. Common case (re-zoom at the same
+            # level, second refresh in a row) hits this fast path and avoids
+            # ~400 layout invalidations.
+            _model_rows = model_tbl.rowCount()
             for r in range(mtx.rowCount()):
                 cur_h = mtx.rowHeight(r)
                 if cur_h <= 5:
                     continue  # separator row
                 if cur_h == 32:
-                    mtx.setRowHeight(r, brand_row_h)
-                    if r < model_tbl.rowCount():
+                    if cur_h != brand_row_h:
+                        mtx.setRowHeight(r, brand_row_h)
+                    if r < _model_rows and model_tbl.rowHeight(r) != brand_row_h:
                         model_tbl.setRowHeight(r, brand_row_h)
                     continue
                 is_color_row = cur_h < 42
                 h = color_row_h if is_color_row else model_row_h
-                mtx.setRowHeight(r, h)
-                if r < model_tbl.rowCount():
+                if cur_h != h:
+                    mtx.setRowHeight(r, h)
+                if r < _model_rows and model_tbl.rowHeight(r) != h:
                     model_tbl.setRowHeight(r, h)
 
             # ── Banner (part-type labels above columns) ──

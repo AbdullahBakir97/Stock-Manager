@@ -9,6 +9,28 @@ pil_datas, pil_binaries, pil_hiddenimports     = collect_all('PIL')
 barcode_datas, barcode_binaries, barcode_hiddenimports = collect_all('barcode')
 fpdf_datas, fpdf_binaries, fpdf_hiddenimports  = collect_all('fpdf')
 fitz_datas, fitz_binaries, fitz_hiddenimports  = collect_all('fitz')
+# zxing-cpp ships its decoder as a single ``.pyd`` extension module
+# (``zxingcpp.cp3xx-win_amd64.pyd`` — NOT a package directory) so
+# ``collect_all`` doesn't apply. Bundle the .pyd explicitly + register
+# it as a hidden import so PyInstaller's bytecode analyzer picks it
+# up. Without this, the installer ships without zxing-cpp and the
+# customer's ``Verify scannability`` dialog reports "zxing-cpp is not
+# installed — only the width check ran" (lazy import in
+# ``BarcodeGenService.validate_scannability`` falls back to width-only
+# when the module is missing).
+try:
+    import zxingcpp as _zxingcpp_mod
+    zxing_binaries = [(_zxingcpp_mod.__file__, '.')]
+    zxing_hiddenimports = ['zxingcpp']
+except ImportError:
+    # Build environment doesn't have zxing-cpp installed. Fail loudly
+    # so the build operator notices BEFORE shipping a half-working
+    # installer to customers (the v2.5.3 mistake we're fixing here).
+    raise RuntimeError(
+        "zxing-cpp is required for the build but not installed in this "
+        "Python environment. Run: pip install zxing-cpp"
+    )
+zxing_datas = []
 
 # Force-collect PIL .pyd files (Python 3.11+ suffix confuses PyInstaller)
 import PIL
@@ -21,20 +43,20 @@ block_cipher = None
 a = Analysis(
     ['files/main.py'],
     pathex=['files'],
-    binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries + fitz_binaries,
+    binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries + fitz_binaries + zxing_binaries,
     datas=[
         ('files/img/icon_cube.ico',  'img'),
         ('files/img/icon_cube.png',  'img'),
         ('files/img/icon_logo.ico', 'img'),
         ('files/img/logo.png',      'img'),
         ('files/img/icons',         'img/icons'),
-    ] + pil_datas + barcode_datas + fpdf_datas + fitz_datas,
+    ] + pil_datas + barcode_datas + fpdf_datas + fitz_datas + zxing_datas,
     hiddenimports=[
         # PyQt6
         'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 'PyQt6.QtSql',
         # stdlib
         'sqlite3', '_sqlite3',
-    ] + pil_hiddenimports + barcode_hiddenimports + fpdf_hiddenimports + fitz_hiddenimports + [
+    ] + pil_hiddenimports + barcode_hiddenimports + fpdf_hiddenimports + fitz_hiddenimports + zxing_hiddenimports + [
         # ── app.core ──────────────────────────────────────────────────────────
         'app.core.colors',
         'app.core.config',

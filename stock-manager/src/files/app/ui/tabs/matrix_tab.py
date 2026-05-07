@@ -11,15 +11,16 @@ from PyQt6.QtGui import QColor, QFont
 from PyQt6.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QComboBox, QLabel, QWidget,
     QPushButton, QDialog, QMessageBox, QFrame, QScrollArea,
-    QInputDialog, QLineEdit, QToolButton,
+    QInputDialog, QLineEdit, QToolButton, QButtonGroup,
 )
+from PyQt6.QtCore import QTimer
 from app.core.theme import THEME
 
 from app.models.category import CategoryConfig
 from app.repositories.category_repo import CategoryRepository
 from app.repositories.model_repo import ModelRepository
 from app.repositories.item_repo import ItemRepository
-from app.ui.components.matrix_widget import FrozenMatrixContainer
+from app.ui.components.matrix_widget import FrozenMatrixContainer, MatrixWidget
 from app.ui.dialogs.matrix_dialogs import AddModelDialog
 from app.core.icon_utils import get_button_icon
 from app.ui.tabs.base_tab import BaseTab
@@ -195,6 +196,118 @@ class MatrixTab(BaseTab):
 
         tb.addWidget(self._brand_lbl)
         tb.addWidget(self._brand_combo)
+
+        # ── Excel-style row filter ──────────────────────────────────────
+        # Search box: type a model fragment (case-insensitive) to narrow
+        # the visible rows. Brand-header rows + separators stay visible
+        # so the surrounding context is preserved.
+        self._filter_input = QLineEdit()
+        self._filter_input.setPlaceholderText(
+            t("mtx_filter_placeholder")
+            if t("mtx_filter_placeholder") != "mtx_filter_placeholder"
+            else "Search models… (try iphone, galaxy, redmi 11 pro, max)"
+        )
+        self._filter_input.setMinimumHeight(32)
+        self._filter_input.setMinimumWidth(180)
+        self._filter_input.setMaximumWidth(280)
+        self._filter_input.setClearButtonEnabled(True)
+        # Debounced via simple typing — 150 ms idle then apply, so the
+        # filter doesn't re-walk the whole table on every keystroke.
+        self._filter_debounce = QTimer(self)
+        self._filter_debounce.setSingleShot(True)
+        self._filter_debounce.setInterval(150)
+        self._filter_debounce.timeout.connect(self._apply_row_filter)
+        self._filter_input.textChanged.connect(
+            lambda *_: self._filter_debounce.start()
+        )
+        # Enter / Return — apply immediately (skip the 150ms wait when
+        # the user explicitly commits the search).
+        self._filter_input.returnPressed.connect(self._apply_row_filter)
+        # Esc — clear the search and re-apply (back to no-text filter).
+        from PyQt6.QtGui import QKeySequence, QShortcut
+        _esc = QShortcut(QKeySequence("Escape"), self._filter_input)
+        _esc.setContext(Qt.ShortcutContext.WidgetShortcut)
+        _esc.activated.connect(lambda: (
+            self._filter_input.clear(),
+            self._apply_row_filter(),
+        ))
+        # Ctrl+F focuses the search box from anywhere on the matrix tab —
+        # standard "find" muscle memory across every productivity app.
+        _ctrl_f = QShortcut(QKeySequence("Ctrl+F"), self)
+        _ctrl_f.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        _ctrl_f.activated.connect(self._filter_input.setFocus)
+        # Ctrl+L cycles to "Low" / Ctrl+O to "Out" / Ctrl+R to "Reorder"
+        # / Ctrl+0 (zero) to "All" — matches the chip layout left to right.
+        for shortcut, key in (
+            ("Ctrl+0", "all"),
+            ("Ctrl+L", "low"),
+            ("Ctrl+O", "out"),
+            ("Ctrl+R", "reorder"),
+        ):
+            sc = QShortcut(QKeySequence(shortcut), self)
+            sc.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+            sc.activated.connect(lambda k=key: (
+                self._filter_btns[k].setChecked(True),
+                self._set_filter_mode(k),
+            ))
+        tb.addWidget(self._filter_input)
+
+        # Live match-count label — hidden when no filter is active, shows
+        # "X matching rows" / "No rows match" when search or chip is set.
+        # Gives the user immediate visual feedback about whether their
+        # filter narrowed correctly.
+        self._filter_count_lbl = QLabel("")
+        self._filter_count_lbl.setObjectName("matrix_filter_count")
+        self._filter_count_lbl.setMinimumHeight(32)
+        self._filter_count_lbl.setStyleSheet(
+            self._filter_count_qss()
+            if hasattr(self, "_filter_count_qss")
+            else ""
+        )
+        self._filter_count_lbl.hide()
+        tb.addWidget(self._filter_count_lbl)
+
+        # ── Quick-filter chips ──────────────────────────────────────────
+        # One-click views for the four most common stock states. Stay in
+        # sync with the search box — the predicate is (text AND state).
+        self._filter_mode = "all"
+        self._filter_btns: dict[str, QToolButton] = {}
+        chip_group = QButtonGroup(self)
+        chip_group.setExclusive(True)
+        for key, label, tip in (
+            ("all",     "All",      "Show every row"),
+            ("low",     "Low",      "Stock ≤ Min (and > 0)"),
+            ("out",     "Out",      "Stock = 0 with Min > 0"),
+            ("reorder", "Reorder",  "Stock < Min — needs ordering"),
+        ):
+            btn = QToolButton()
+            btn.setText(label)
+            btn.setToolTip(tip)
+            btn.setCheckable(True)
+            btn.setObjectName("matrix_filter_chip")
+            btn.setFixedHeight(32)
+            btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            btn.setStyleSheet(self._filter_chip_qss(active=False))
+            btn.toggled.connect(
+                lambda checked, k=key: checked and self._set_filter_mode(k)
+            )
+            chip_group.addButton(btn)
+            self._filter_btns[key] = btn
+            tb.addWidget(btn)
+        self._filter_btns["all"].setChecked(True)
+        self._filter_btns["all"].setStyleSheet(self._filter_chip_qss(active=True))
+
+        # ── Σ Selection statistics — Excel-style readout ───────────────
+        # Live count / sum / avg / min / max of the currently selected
+        # numeric cells. Hidden when nothing is selected so it doesn't
+        # take up space during normal browsing.
+        self._sel_stats_lbl = QLabel("")
+        self._sel_stats_lbl.setObjectName("matrix_sel_stats")
+        self._sel_stats_lbl.setMinimumHeight(32)
+        self._sel_stats_lbl.setStyleSheet(self._sel_stats_qss())
+        self._sel_stats_lbl.hide()
+        tb.addWidget(self._sel_stats_lbl)
+
         tb.addStretch()
 
         # Legend chips retained as an empty list for backward compatibility —
@@ -638,7 +751,11 @@ class MatrixTab(BaseTab):
         # will reconcile on the next activation.
         self._dirty = False
 
-        # Save scroll position (v-scroll of single mode, v-scroll of multi area)
+        # Save scroll position — both pixel offsets (single + multi
+        # mode). ``_post_apply_refresh`` restores these via QTimer with
+        # retries to handle row-build-after-rebuild timing. Pure pixel
+        # restore = zero visible movement after a stock edit, which is
+        # what the user wants ("don't move at all").
         self._saved_v = self._single_container.data_table.verticalScrollBar().value()
         self._saved_v_multi = self._multi_scroll.verticalScrollBar().value()
 
@@ -697,6 +814,13 @@ class MatrixTab(BaseTab):
     def _apply_refresh(self, payload: dict) -> None:
         """Run widget updates with data pre-fetched by the worker pool.
 
+        Caches the payload on the instance so ``apply_theme`` can re-run
+        the widget rebuild on theme toggle WITHOUT a DB query — the data
+        hasn't changed, only the colours need to swap. The DB-free
+        re-render finishes in ~10-30 ms (vs the legacy ``self.refresh()``
+        path which fired a full DB fetch + rebuild ~100ms+ that the user
+        felt as a freeze on toggle).
+
         Synchronous application — we tried staggering brand sections across
         ticks to reduce the single-frame spike, but it opened race windows
         where a second refresh mid-chain left the page empty. Correctness
@@ -704,6 +828,9 @@ class MatrixTab(BaseTab):
         """
         if not payload or not self._cat:
             return
+        # Cache the full payload for theme-toggle re-render. Captured BEFORE
+        # mode-specific processing so apply_theme always has fresh data.
+        self._last_payload = payload
         from app.models.category import CategoryConfig
 
         if payload["mode"] == "single":
@@ -712,6 +839,12 @@ class MatrixTab(BaseTab):
             item_map = payload["item_map"]
             used_pt_keys = {key[1] for key in item_map.keys()}
             filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+            # Hide model rows with no items left for this category — happens
+            # when every (model, pt) combo for the model has been excluded
+            # in Part Type Settings. Otherwise the row would render as "—"
+            # cells (looks "disabled") instead of disappearing.
+            models_with_items = {key[0] for key in item_map.keys()}
+            filtered_models = [m for m in models if m.id in models_with_items]
             filtered_cat = CategoryConfig(
                 id=self._cat.id, key=self._cat.key,
                 name_en=self._cat.name_en, name_de=self._cat.name_de,
@@ -719,13 +852,33 @@ class MatrixTab(BaseTab):
                 icon=self._cat.icon, is_active=self._cat.is_active,
                 part_types=filtered_pts or self._cat.part_types,
             )
+            # Cache last-seen cat + item_map so ``apply_theme`` can rebuild
+            # the per-part-type cards on theme toggle WITHOUT triggering an
+            # async refresh (which would be ~100ms+ DB query plus full
+            # widget rebuild — felt as a freeze the user reported on toggle).
+            self._last_card_cat = filtered_cat
+            self._last_card_item_map = item_map
             self._rebuild_cards(filtered_cat, item_map)
-            self._single_container.load(filtered_cat, models, item_map)
+            # Tag the single-brand container so the search filter can
+            # match against the brand name even though there are no
+            # internal brand-header rows.
+            self._single_container._section_brand = (
+                payload.get("brand") or ""
+            )
+            self._single_container.load(filtered_cat, filtered_models, item_map)
             self._container = self._single_container
             self._table = self._single_container.data_table
+            # Hook selection-stats + re-apply current filter — both
+            # need to run after every rebuild because ``load()`` creates
+            # fresh QTableWidgetItems that don't carry the prior signals.
+            self._attach_selection_handlers()
+            self._apply_row_filter()
         else:
             # All-brands mode
             self._content_stack.setCurrentIndex(1)
+            # Cache for theme-toggle card rebuild (see single-brand branch).
+            self._last_card_cat = self._cat
+            self._last_card_item_map = payload["all_items"]
             self._rebuild_cards(self._cat, payload["all_items"])
 
             brands_now = payload["brands_now"]
@@ -756,8 +909,18 @@ class MatrixTab(BaseTab):
 
                 self._multi_lay.addStretch()
                 self._brand_order = brands_now
+            # Multi-brand path also needs selection handlers + filter
+            # re-apply — same reason as the single-brand branch.
+            self._attach_selection_handlers()
+            self._apply_row_filter()
 
-        # Post-apply: zoom + scroll restore
+        # Post-apply: zoom + pixel-exact scroll restore. We deliberately
+        # do NOT call any ``scrollToItem`` / ``setCurrentCell`` here —
+        # the user's ask is "don't move at all" after a stock edit. The
+        # pixel restore in ``_post_apply_refresh`` puts the viewport
+        # back at the exact same Y offset it was at before the refresh,
+        # which is the closest thing to "no movement" possible after
+        # the table is fully rebuilt under the hood.
         self._post_apply_refresh(single_mode=(payload["mode"] == "single"))
 
     def _post_apply_refresh(self, single_mode: bool) -> None:
@@ -830,6 +993,10 @@ class MatrixTab(BaseTab):
             item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
         used_pt_keys = {key[1] for key in item_map.keys()}
         filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+        models_with_items = {key[0] for key in item_map.keys()}
+        filtered_models = [m for m in models if m.id in models_with_items]
+        if not filtered_models:
+            return
 
         filtered_cat = CategoryConfig(
             id=self._cat.id, key=self._cat.key,
@@ -839,22 +1006,57 @@ class MatrixTab(BaseTab):
             part_types=filtered_pts or self._cat.part_types,
         )
 
-        # Brand header
-        tk = THEME.tokens
+        # Brand header — uses an object name so the QSS in theme.py can
+        # paint it. Inline ``setStyleSheet(f"...{tk.X}...")`` strings get
+        # baked at construction time and don't refresh when the theme
+        # toggles; QSS-driven styling rebuilds automatically because
+        # ``setStyleSheet`` on the root cascades through every child.
+        # Ensures the all-brands view's "Apple" / "Samsung" header bars
+        # repaint instantly on theme toggle.
         header = QLabel(f"  {brand}")
+        header.setObjectName("brand_section_header")
+        header.setProperty("class", "brand_section_header")
         header.setFixedHeight(28)
+        # Provide a default inline style as a fallback — overridden by
+        # theme.py's QSS rule for ``QLabel#brand_section_header``. The
+        # fallback only matters before the theme stylesheet is applied
+        # (microseconds during startup) and is harmless thereafter.
+        from app.core.theme import THEME as _T
+        _tk = _T.tokens
         header.setStyleSheet(
-            f"background:{tk.card2}; color:{tk.t1}; "
-            f"font-size:12px; font-weight:700; "
-            f"border-left:3px solid {tk.green}; padding-left:10px;"
+            f"QLabel#brand_section_header {{"
+            f" background:{_tk.card2}; color:{_tk.t1};"
+            f" font-size:12px; font-weight:700;"
+            f" border-left:3px solid {_tk.green}; padding-left:10px;"
+            f" }}"
         )
+
+        # apply_theme: rebuild the inline rule with the current tokens so
+        # the colour swap happens instantly on toggle. Connected to the
+        # widget tree by ``MainWindow._refresh_theme``'s findChildren walk.
+        def _label_apply_theme(lbl=header):
+            tk2 = _T.tokens
+            lbl.setStyleSheet(
+                f"QLabel#brand_section_header {{"
+                f" background:{tk2.card2}; color:{tk2.t1};"
+                f" font-size:12px; font-weight:700;"
+                f" border-left:3px solid {tk2.green}; padding-left:10px;"
+                f" }}"
+            )
+        header.apply_theme = _label_apply_theme  # type: ignore[attr-defined]
+
         self._multi_lay.addWidget(header)
         self._brand_widgets.append(header)
 
         # Matrix container — large minimum height, scrolls internally
         # so banner + column headers stay STICKY at top of each section
         container = FrozenMatrixContainer(refresh_cb=self.refresh, parent=self)
-        container.load(filtered_cat, models, item_map)
+        # Tag the container with its brand so the row filter can match
+        # against ``"<brand> <model>"`` when the user types a brand name.
+        # Without this, "iphone" / "samsung" search returns nothing
+        # because the model column only holds "11 Pro" / "S22" etc.
+        container._section_brand = brand
+        container.load(filtered_cat, filtered_models, item_map)
 
         # Set height: full content if small, or a generous minimum if large
         tbl = container.data_table
@@ -893,6 +1095,8 @@ class MatrixTab(BaseTab):
             item_map = _item_repo.get_matrix_items(self._cat.id, brand=brand)
         used_pt_keys = {key[1] for key in item_map.keys()}
         filtered_pts = [pt for pt in self._cat.part_types if pt.key in used_pt_keys]
+        models_with_items = {key[0] for key in item_map.keys()}
+        filtered_models = [m for m in models if m.id in models_with_items]
         filtered_cat = CategoryConfig(
             id=self._cat.id, key=self._cat.key,
             name_en=self._cat.name_en, name_de=self._cat.name_de,
@@ -900,7 +1104,11 @@ class MatrixTab(BaseTab):
             icon=self._cat.icon, is_active=self._cat.is_active,
             part_types=filtered_pts or self._cat.part_types,
         )
-        container.load(filtered_cat, models, item_map)
+        # Re-tag the container brand on every reload — protects against
+        # the rare case where the same container is reused for a
+        # different brand after a category swap.
+        container._section_brand = brand
+        container.load(filtered_cat, filtered_models, item_map)
 
         # Recompute container height from new content
         tbl = container.data_table
@@ -910,9 +1118,263 @@ class MatrixTab(BaseTab):
         content_h = banner_h + header_h + rows_h + 16
         container.setFixedHeight(min(content_h, 500))
 
+    # ── Excel-like row filter + selection stats ────────────────────────────
+
+    def _filter_chip_qss(self, active: bool) -> str:
+        """QSS for the quick-filter chip buttons. ``active`` chip gets
+        the accent fill so the user always knows which view is on."""
+        tk = THEME.tokens
+        if active:
+            return (
+                f"QToolButton#matrix_filter_chip {{"
+                f"  background:{tk.blue}; color:#FFFFFF;"
+                f"  border:1px solid {tk.blue}; border-radius:6px;"
+                f"  padding:4px 10px; font-weight:700;"
+                f"}}"
+            )
+        return (
+            f"QToolButton#matrix_filter_chip {{"
+            f"  background:transparent; color:{tk.t2};"
+            f"  border:1px solid {tk.border}; border-radius:6px;"
+            f"  padding:4px 10px; font-weight:600;"
+            f"}}"
+            f"QToolButton#matrix_filter_chip:hover {{"
+            f"  background:{tk.card2}; color:{tk.t1};"
+            f"}}"
+        )
+
+    def _sel_stats_qss(self) -> str:
+        tk = THEME.tokens
+        return (
+            f"QLabel#matrix_sel_stats {{"
+            f"  background:{tk.card2}; color:{tk.t1};"
+            f"  border:1px solid {tk.border}; border-radius:6px;"
+            f"  padding:4px 10px;"
+            f"  font-family:'JetBrains Mono', 'Consolas', monospace;"
+            f"  font-size:10pt;"
+            f"}}"
+        )
+
+    def _filter_count_qss(self) -> str:
+        tk = THEME.tokens
+        return (
+            f"QLabel#matrix_filter_count {{"
+            f"  background:transparent; color:{tk.t3};"
+            f"  padding:4px 8px; font-size:10pt; font-weight:600;"
+            f"}}"
+        )
+
+    def _set_filter_mode(self, mode: str) -> None:
+        """Switch the active quick-filter chip and re-apply."""
+        self._filter_mode = mode
+        # Repaint chip styles so only the active one carries the accent.
+        for k, btn in self._filter_btns.items():
+            btn.setStyleSheet(self._filter_chip_qss(active=(k == mode)))
+        self._apply_row_filter()
+
+    def _apply_row_filter(self) -> None:
+        """Apply the current ``(text, mode)`` predicate across every
+        realised matrix container, AND hide entire brand sections in
+        multi-brand mode when no models in that section match.
+
+        Container's ``filter_rows`` does the row-level work (hides rows
+        in both the frozen model column and the data table in lockstep
+        so vertical alignment is preserved). After it runs we look at
+        the surviving model count per container — if it's zero in
+        multi-brand mode we also hide the QLabel header above that
+        container (otherwise a stray "Samsung" header would float over
+        an empty gap when the user filtered to iPhones only).
+
+        Defensive: every step wrapped because the timer that drives this
+        can fire after the user has navigated away — `findChildren`
+        could otherwise touch a partially-deleted widget.
+        """
+        if not hasattr(self, "_filter_input"):
+            return
+        query = self._filter_input.text()
+        mode = getattr(self, "_filter_mode", "all")
+
+        # Reset only the Python-level hover index (no Qt effect, just
+        # clears stale row tracking). We deliberately do NOT touch
+        # ``clearSelection`` / ``setCurrentCell`` here — those would
+        # cause Qt to scroll the table back to the top whenever the
+        # filter re-runs, which destroys the user's place after a
+        # stock-op refresh that re-applies the active filter.
+        # If the current cell ends up hidden, Qt handles it gracefully
+        # (the cell stays current, just isn't drawn).
+        try:
+            for cont in self.findChildren(FrozenMatrixContainer):
+                try:
+                    cont._table._hover_row = -1
+                    if hasattr(cont._model_table, "_hover_row"):
+                        cont._model_table._hover_row = -1
+                except RuntimeError:
+                    continue
+        except Exception:
+            pass
+
+        # ── Update the live "X matches" status hint on the search box.
+        # Total visible models across all containers, plus a hint so the
+        # user knows when their filter has zero results.
+        total_visible = 0
+        try:
+            for cont in self.findChildren(FrozenMatrixContainer):
+                try:
+                    total_visible += cont.filter_rows(query, mode)
+                except RuntimeError:
+                    # Underlying widget was deleted mid-walk — skip.
+                    continue
+        except Exception:
+            pass
+
+        # ── Hide entire brand sections (label + container) in
+        # multi-brand mode when no models match. ``_brand_widgets`` is a
+        # flat alternating list: [header, container, header, container, ...]
+        # so we pair them up and hide both members of empty pairs.
+        try:
+            widgets = list(getattr(self, "_brand_widgets", []) or [])
+            i = 0
+            while i + 1 < len(widgets):
+                header = widgets[i]
+                container = widgets[i + 1]
+                # Container is a FrozenMatrixContainer; header is a QLabel
+                if isinstance(container, FrozenMatrixContainer):
+                    dt = container._table
+                    visible_models = 0
+                    brand_rows = set(getattr(dt, "_brand_row_indices", ()))
+                    sep_rows = set(getattr(dt, "_sep_row_indices", ()))
+                    offset = getattr(dt, "_row_offset", 0)
+                    for r in range(offset, dt.rowCount()):
+                        if r in brand_rows or r in sep_rows:
+                            continue
+                        if not dt.isRowHidden(r):
+                            visible_models += 1
+                            break  # >0 is enough to keep the section
+                    section_visible = visible_models > 0 or not (query.strip() or mode != "all")
+                    try:
+                        header.setVisible(section_visible)
+                        container.setVisible(section_visible)
+                    except RuntimeError:
+                        pass
+                    i += 2
+                else:
+                    i += 1
+        except Exception:
+            pass
+
+        # ── Update the search-box placeholder with the result count.
+        # Always-visible feedback so the user knows whether the filter
+        # narrowed at all (avoids the "did it work?" question).
+        try:
+            if query.strip() or mode != "all":
+                tip = (
+                    f"{total_visible} matching row{'s' if total_visible != 1 else ''}"
+                    if total_visible
+                    else "No rows match"
+                )
+            else:
+                tip = ""
+            if hasattr(self, "_filter_count_lbl"):
+                self._filter_count_lbl.setText(tip)
+                self._filter_count_lbl.setVisible(bool(tip))
+        except Exception:
+            pass
+
+    def _on_selection_changed(self) -> None:
+        """Update the Σ stats readout when the cell selection changes.
+
+        Wired to every realised ``MatrixWidget``'s ``itemSelectionChanged``
+        signal in ``_attach_selection_handlers``. Cheap — walks only
+        ``selectedItems()`` (typically < 100 cells in practice)."""
+        if not hasattr(self, "_sel_stats_lbl"):
+            return
+        sender = self.sender()
+        if not isinstance(sender, MatrixWidget):
+            self._sel_stats_lbl.hide()
+            return
+        s = sender.selection_stats()
+        if s["count"] <= 1:
+            # Σ readout is only useful for multi-cell selections; single
+            # cell shows nothing so it doesn't spam the toolbar.
+            self._sel_stats_lbl.hide()
+            return
+        self._sel_stats_lbl.setText(
+            f"Σ  count={s['count']}   sum={s['sum']:,.0f}   "
+            f"avg={s['avg']:,.1f}   min={s['min']:,.0f}   max={s['max']:,.0f}"
+        )
+        self._sel_stats_lbl.show()
+
+    def _attach_selection_handlers(self) -> None:
+        """Connect ``itemSelectionChanged`` on every realised
+        ``MatrixWidget``. Called from ``_apply_refresh`` so containers
+        rebuilt after a brand swap also get hooked up."""
+        try:
+            for tbl in self.findChildren(MatrixWidget):
+                # Avoid duplicate connections — Qt tolerates them but it
+                # would fire the slot N times per change. Cheap idempotent
+                # disconnect-then-connect ensures exactly one wiring.
+                try:
+                    tbl.itemSelectionChanged.disconnect(self._on_selection_changed)
+                except (TypeError, RuntimeError):
+                    pass
+                tbl.itemSelectionChanged.connect(self._on_selection_changed)
+        except Exception:
+            pass
+
     def apply_theme(self) -> None:
-        """Refresh the matrix table so per-part-type cards and cells pick up the new theme."""
-        self.refresh()
+        """Refresh every theme-dependent widget on this matrix tab.
+
+        Strategy: re-run ``_apply_refresh`` with the **cached payload** from
+        the last real refresh. That rebuilds the entire matrix view (KPI
+        cards, brand-section headers in all-brands mode, brand rows inside
+        the table, every data cell with its theme-coloured stock/min/best
+        brushes) using the SAME data — only the theme tokens change.
+        No DB query, no async worker, no ``_dirty`` flag dance.
+
+        Cost: ~10-30 ms on a typical screen (vs the legacy ``self.refresh()``
+        path which was ~100ms+ with the DB fetch added in). Visibly snappy
+        on toggle even on the busiest matrix.
+
+        The eye icon (cost toggle) still gets a separate inline-style
+        re-apply because it lives in the toolbar above the matrix
+        content area, so it isn't covered by ``_apply_refresh``.
+        """
+        # Eye icon — re-apply inline style with current state. Lives in
+        # the toolbar (outside the matrix content area), so it isn't
+        # touched by _apply_refresh.
+        try:
+            from app.services.cost_visibility import COST_VIS
+            self._apply_cost_toggle_style(COST_VIS.visible)
+        except Exception:
+            pass
+        # Quick-filter chip styles + Σ stats label + match-count label —
+        # all outside the content area; all bake tk.X at construction.
+        try:
+            for k, btn in getattr(self, "_filter_btns", {}).items():
+                btn.setStyleSheet(self._filter_chip_qss(active=(k == self._filter_mode)))
+            if hasattr(self, "_sel_stats_lbl"):
+                self._sel_stats_lbl.setStyleSheet(self._sel_stats_qss())
+            if hasattr(self, "_filter_count_lbl"):
+                self._filter_count_lbl.setStyleSheet(self._filter_count_qss())
+        except Exception:
+            pass
+        # Re-render the full matrix view using cached data — no DB hit.
+        # Also covers per-cell brushes, brand-header rows inside the
+        # QTableWidget, all-brands section header QLabels (rebuilt by
+        # _add_brand_section), and the per-part-type KPI cards at the
+        # top of the toolbar.
+        cached = getattr(self, "_last_payload", None)
+        if cached:
+            try:
+                self._apply_refresh(cached)
+            except Exception:
+                # Don't propagate — theme toggle should never raise into
+                # the signal emitter.
+                import logging as _lg
+                _lg.getLogger(__name__).exception(
+                    "MatrixTab[%s] apply_theme cached re-render failed",
+                    getattr(self, "_cat_key", "?"),
+                )
 
     def retranslate(self) -> None:
         self._brand_lbl.setText(t("disp_filter_brand"))

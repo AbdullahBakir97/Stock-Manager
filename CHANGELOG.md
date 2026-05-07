@@ -9,6 +9,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2.5.4] - 2026-05-06
 
+
+## [2.5.4] - 2026-05-06
+
 ### Fixed — `zxing-cpp` was not bundled with the installer (customer regression in v2.5.3)
 - **Symptom**: customer auto-updated to v2.5.3, opened the Barcode Generator → Verify dialog, and saw `"zxing-cpp is not installed — only the width check ran. Install with: pip install zxing-cpp"`. The decode validation that v2.5.1 introduced silently degraded to width-check-only because the lib wasn't on the customer's machine.
 - **Root cause**: v2.5.1 made `zxing-cpp` an OPTIONAL dependency via lazy import (`try: import zxingcpp; except ImportError: ...`) — the intent was to fail gracefully if it wasn't installed. But it was never added to `requirements.txt` or the PyInstaller `.spec`, so `installer/build_installer.bat` produced an installer without the lib. The decode check worked in the developer's environment (where `pip install zxing-cpp` had been run manually during v2.5.1 development) but not in any installed-from-installer copy. Asking customers to `pip install` something is a non-starter for a Windows-installer-distributed app.

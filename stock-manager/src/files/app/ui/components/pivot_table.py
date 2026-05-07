@@ -681,6 +681,29 @@ class PivotTable(QWidget):
         self._filter_bar.populate(brands, cats)
         self._render()
 
+    def apply_theme(self) -> None:
+        """Re-render the pivot view on theme switch.
+
+        ``_BrandChip`` / ``_BrandCard`` / ``_PartTypeRow`` / ``_FilterBar``
+        all bake ``tk.X`` colours into inline ``setStyleSheet(f"...")``
+        strings during construction (46 inline-style call sites total
+        across the module). Rather than threading an ``apply_theme`` into
+        each subclass, we just re-run ``_render()`` against the cached
+        ``self._data`` — identical to the data-cached re-render approach
+        used by ``MatrixTab.apply_theme`` (see 2.5.8). No DB query, no
+        network call, no async worker — just widget rebuilding from
+        already-loaded data with the new ``THEME.tokens``.
+        """
+        if self._data is None:
+            return  # never populated yet — nothing to render
+        try:
+            self._render()
+        except Exception:
+            import logging as _lg
+            _lg.getLogger(__name__).exception(
+                "PivotTable.apply_theme re-render failed"
+            )
+
     # ── Filtering ──────────────────────────────────────────────────────────
 
     def _on_filter_changed(self, brand: str, category: str) -> None:

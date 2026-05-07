@@ -76,22 +76,43 @@ class ScanConfig:
                 )
         ScanConfig.invalidate()
 
+    @staticmethod
+    def _norm(text: str) -> str:
+        """Strip the scanner-mark prefix so comparisons survive scanner /
+        renderer changes. Same logic as the inventory barcode lookup —
+        see ``normalize_barcode`` in app/services/barcode_gen_service.py.
+        Inlined as a staticmethod to avoid a circular import.
+        """
+        if not text or len(text) < 2:
+            return text or ""
+        if text[0].islower() and text[0].isascii() and text[0].isalpha():
+            nxt = text[1]
+            if nxt.isupper() or nxt.isdigit():
+                return text[1:]
+        return text
+
     def is_command(self, barcode: str) -> bool:
-        return barcode in (self.cmd_takeout, self.cmd_insert, self.cmd_confirm)
+        bc = self._norm(barcode)
+        return bc in (self._norm(self.cmd_takeout),
+                      self._norm(self.cmd_insert),
+                      self._norm(self.cmd_confirm))
 
     def command_type(self, barcode: str) -> Optional[str]:
-        if barcode == self.cmd_takeout: return "TAKEOUT"
-        if barcode == self.cmd_insert:  return "INSERT"
-        if barcode == self.cmd_confirm: return "CONFIRM"
+        bc = self._norm(barcode)
+        if bc == self._norm(self.cmd_takeout): return "TAKEOUT"
+        if bc == self._norm(self.cmd_insert):  return "INSERT"
+        if bc == self._norm(self.cmd_confirm): return "CONFIRM"
         return None
 
     def is_color_barcode(self, barcode: str) -> bool:
         """Check if barcode matches any configured color."""
-        return barcode in self.color_barcodes.values()
+        bc = self._norm(barcode)
+        return bc in {self._norm(v) for v in self.color_barcodes.values()}
 
     def color_name(self, barcode: str) -> Optional[str]:
         """Return the color name for a color barcode, or None."""
-        for name, bc in self.color_barcodes.items():
-            if bc == barcode:
+        bc = self._norm(barcode)
+        for name, stored in self.color_barcodes.items():
+            if self._norm(stored) == bc:
                 return name
         return None

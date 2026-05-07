@@ -33,6 +33,7 @@ class ShopConfig:
     # Affects: TOTAL column in matrix table · per-part-type card value ·
     # grand-total card at the end of the cards strip.
     show_sell_totals:           str = "1"
+    show_color_totals:          str = "1"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -43,6 +44,7 @@ class ShopConfig:
         "zoom_level",
         "ui_scale",
         "show_sell_totals",
+        "show_color_totals",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -82,6 +84,10 @@ class ShopConfig:
     def is_show_sell_totals(self) -> bool:
         """Typed accessor — is the matrix 'sell total' display enabled?"""
         return (self.show_sell_totals or "1") != "0"
+
+    @property
+    def is_show_color_totals(self) -> bool:
+        return (self.show_color_totals or "1") != "0"
 
     @property
     def ui_scale_factor(self) -> float:

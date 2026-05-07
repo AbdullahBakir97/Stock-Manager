@@ -160,6 +160,15 @@ class ScanSessionService:
             return ScanEvent(ScanEventType.NOT_FOUND,
                              t("qscan_not_found", bc=barcode))
 
+        # Direct-colour barcode: the scan resolved straight to a coloured
+        # variant (e.g. "S-S22-DSP-BK"), so we skip the two-step "scan model
+        # → scan colour" wait state and add the exact item immediately.
+        # The two-step flow still works for users who scan the colourless
+        # parent — that path falls through to the colored-siblings check
+        # below.
+        if item.color:
+            return self._add_item(item)
+
         # ── Check if item has colored variants ──
         if item.model_id and item.part_type_id:
             colored = _item_repo.get_colored_siblings(item.model_id, item.part_type_id)

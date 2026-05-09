@@ -426,7 +426,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "19"
+_SCHEMA_VERSION = "20"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -946,6 +946,61 @@ def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
+    """V20: Swap Y ↔ Z in stored barcodes (DE-keyboard QWERTZ quirk).
+
+    Same family of bug as the V17 prefix-strip and the V19 ``+ → P``
+    substitution: the DB form should match what the user's barcode
+    scanner actually outputs through Windows, not what the printed
+    barcode encodes. On a German-layout machine, the physical Y key
+    sits in the US-Z position (and vice versa), so a scanner emitting
+    HID code 0x1C (US-Y) produces the character ``Z`` through Windows.
+    Pre-V20 the DB stored ``Y`` (the encoded character), so any item
+    with Y or Z in its barcode — notably colour ``Yellow`` → ``YL`` —
+    failed to match scanner output. Reported by the user against
+    iPhone 15 / 15 Plus Yellow rows: printed sticker said ``...-YL``,
+    scanner produced ``...-ZL``, lookup missed.
+
+    Python-side translation rather than chained SQL REPLACE because
+    SQLite has no built-in ``TRANSLATE`` and a Y → marker → Z → Y
+    chain in pure SQL is fiddly to get right. The row count is small
+    (only items with Y/Z somewhere in the barcode), so iterating in
+    Python costs negligible time.
+    """
+    _log.info("Migrating database schema from V19 to V20 (Y↔Z swap for DE keyboard)")
+    swap = str.maketrans("YZyz", "ZYzy")
+
+    rows = conn.execute(
+        "SELECT id, barcode FROM inventory_items "
+        "WHERE barcode IS NOT NULL "
+        "AND (barcode LIKE '%Y%' OR barcode LIKE '%Z%' "
+        "OR barcode LIKE '%y%' OR barcode LIKE '%z%')"
+    ).fetchall()
+    item_updates = [(b.translate(swap), rid) for rid, b in rows]
+    conn.executemany(
+        "UPDATE inventory_items SET barcode=? WHERE id=?",
+        item_updates,
+    )
+
+    cfg_rows = conn.execute(
+        "SELECT key, value FROM app_config "
+        "WHERE (key LIKE 'scan_cmd_%' OR key LIKE 'scan_clr_%') "
+        "AND value IS NOT NULL "
+        "AND (value LIKE '%Y%' OR value LIKE '%Z%' "
+        "OR value LIKE '%y%' OR value LIKE '%z%')"
+    ).fetchall()
+    cfg_updates = [(v.translate(swap), k) for k, v in cfg_rows]
+    conn.executemany(
+        "UPDATE app_config SET value=? WHERE key=?",
+        cfg_updates,
+    )
+
+    _log.info(
+        "V19 to V20 migration completed (items_swapped=%s, cfg_swapped=%s)",
+        len(item_updates), len(cfg_updates),
+    )
+
+
 def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
     """V17: Drop the scanner-mark prefix from saved barcodes.
 
@@ -1247,6 +1302,10 @@ def init_db() -> None:
             if current == "18":
                 _migrate_v18_to_v19(conn)
                 current = "19"
+
+            if current == "19":
+                _migrate_v19_to_v20(conn)
+                current = "20"
 
             # Always persist the final version after migrations
             conn.execute(

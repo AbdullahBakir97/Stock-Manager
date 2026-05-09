@@ -2025,6 +2025,10 @@ _TR: dict[str, dict[str, str]] = {
     "bcgen_page_of":        {"EN": "Page {current} of {total}","DE": "Seite {current} von {total}", "AR": "صفحة {current} من {total}"},
     "bcgen_no_items":       {"EN": "No items found for selected scope", "DE": "Keine Artikel für ausgewählten Bereich", "AR": "لم يتم العثور على منتجات"},
     "bcgen_assigned_n":     {"EN": "{n} barcodes assigned",    "DE": "{n} Barcodes zugewiesen",     "AR": "تم تعيين {n} باركود"},
+    "bcgen_cmds_only_btn":  {"EN": "Print Commands Only",       "DE": "Nur Befehle drucken",         "AR": "طباعة الأوامر فقط"},
+    "bcgen_cmds_only_tip":  {"EN": "Generate a single A4 page with just the\n3 command barcodes (ADD / DEL / OK), big and\nwell-spaced — no item rows.\nUse case: laminate as a permanent reference\nsheet near the workstation.", "DE": "Erzeugt eine einzelne A4-Seite mit nur\nden 3 Befehls-Barcodes (ADD / DEL / OK),\ngroß und gut verteilt — ohne Artikelzeilen.", "AR": "إنشاء صفحة A4 واحدة تحتوي فقط على\nباركودات الأوامر الثلاثة (ADD / DEL / OK)،\nكبيرة وبفواصل واسعة — بدون صفوف المنتجات."},
+    "bcgen_cmds_only_save_dialog": {"EN": "Save Quick-Scan Commands Sheet", "DE": "Quick-Scan-Befehlsblatt speichern", "AR": "حفظ ورقة أوامر المسح السريع"},
+    "bcgen_cmds_only_default_name": {"EN": "QuickScan_Commands_{date}.pdf", "DE": "Schnellscan_Befehle_{date}.pdf", "AR": "اوامر_المسح_{date}.pdf"},
     # ── StockService error messages ───────────────────────────────────────────
     "err_qty_positive": {
         "EN": "Quantity must be positive",

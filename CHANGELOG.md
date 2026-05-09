@@ -7,6 +7,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.5.5] - 2026-05-09
+
+
+## [2.5.5] - 2026-05-09
+
+### Fixed — Y ↔ Z swap on DE keyboards (the actual root cause for "Yellow doesn't scan")
+- **User-visible symptom**: a printed barcode reading `IP-15PL-WN-YL` scanned as `IP-15PL-WN-ZL` (`Z` at the end instead of `Y`). DB stored `YL`, scanner produced `ZL`, lookup missed.
+- **Root cause**: same family as the existing `-` → `ß` quirk we already adapt to. The DE-layout keyboard puts `Y` and `Z` in **swapped physical positions** vs US-layout (DE is QWERTZ, not QWERTY). USB barcode scanners emit raw HID scancodes assuming US layout; Windows on a DE machine interprets the same scancode through DE layout. Pressing the "US-Y" scancode (HID 0x1C) produces character `Z` on DE; the "US-Z" scancode (HID 0x1D) produces `Y`. So `Y` in a printed barcode comes out as `Z` through the DE OS, and vice versa. Affects every barcode containing `Y` or `Z` — Yellow (`YL`) was the most common case but `Galaxy Z Fold` and similar would have hit it too if they'd ever shipped via this code path.
+- **Fix**: same approach as `-` → `ß`. Apply the swap in `_barcode_for_db` so the DB stores the **scanner-output form** (`...ZL` for Yellow), not the printed form (`...YL`). Reverse the swap in `_to_code39` so the encoded image still shows the correct printed text. New `_DE_KEYBOARD_SWAP = str.maketrans("YZyz", "ZYzy")` constant — its own inverse, so the same translation applies in both directions.
+- **Migration V19 → V20** runs `swap.translate(YZyz, ZYzy)` over every existing `inventory_items.barcode` and `app_config` command/colour entry containing `Y` or `Z`. One-shot Python loop (SQLite has no built-in TRANSLATE), idempotent within a single run, ignores rows without Y/Z.
+- **Verified end-to-end**: generator outputs `IP-15PL-BN-YL` (with `Y`); DB stores `IPß15PLßBNßZL` (with `Z`); simulated DE scanner reading the printed barcode produces `IPß15PLßBNßZL`; lookup matches. `_to_code39` round-trips `IPß15PLßBNßZL` back to `IP-15PL-BN-YL` for image regeneration.
+
+### Fixed — `_color_short` was case-sensitive (silent yellow miscoding)
+- **User-visible symptom**: iPhone 15 / 15 Plus Yellow rows printed labels that wouldn't scan, while every other colour for the same models scanned fine. The user's question — "why only yellow" — was the right one.
+- **Root cause**: `_color_short` did a case-SENSITIVE dict lookup against `_COLOR_SHORT` (whose keys are Title-Case: `"Yellow": "YL"`). If a colour value came in lower-case, upper-case, or with stray whitespace mid-string, the dict lookup missed and the function fell through to the generic "first two alphanumeric chars, uppercased" fallback. So `"Yellow"` → `"YL"` (correct), but `"yellow"` → `"YE"` and `"YELLOW"` → `"YE"` (both wrong). Same physical colour, two different barcodes whenever the casing flipped between the originally-printed sticker and the regenerated DB entry. Affected EVERY multi-letter colour in the table — Yellow was just the one the user noticed because Apple introduced it as a distinctive new colour for iPhone 15 and the rows got re-edited at some point.
+- **Fix**: pre-computed lowercase index `_COLOR_SHORT_LC = {k.lower(): v for k, v in _COLOR_SHORT.items()}` and changed `_color_short(color)` to look up `key.lower()` instead of the raw key. Idempotent, O(1), zero performance impact, dict keys stay Title-Case for documentation legibility.
+- Verified against `Yellow` / `yellow` / `YELLOW` / `Yellow ` / ` Yellow` / `Black` / `black` / `BLACK` / `silver` / `SILVER` — all resolve to the same canonical 2-letter code.
+
+### Fixed — iPhone 12 mini / 13 mini Back Cover with NFC overflowed the sticker
+- **User-visible symptom**: 12 mini / 13 mini Back Cover (and Back Cover with NFC) labels failed to scan because the printed barcode physically didn't fit the 50 mm sticker. 15 Plus + Back Cover with NFC had the same issue.
+- **Root cause**: two compounding factors. First, the `MINI` → `MIN` abbreviation made mini model codes 5 chars (`12MIN`, `13MIN`) — one longer than typical 4-char iPhone codes. Second, the generic `_part_type_code` fallback for `"Back Cover with NFC"` produced `BCWN` (4 chars from word-initials of `BACK`, `COVER`, `WITH`, `NFC`), so the payload `IP-12MIN-BCWN-BK` was 16 chars / 54.7 mm — over a 50 mm sticker by ~5 mm.
+- **Fix (two-pronged)**:
+  - **`MINI` → `M`** in `_WORD_MAP` (was `"MIN"`). Saves 2 chars on every mini-model barcode, structurally fixing the overflow. The single-letter `M` collides nominally with `MAX` → `"M"`, but `MAX` only appears AFTER `PRO` ("Pro Max" → `PM`), never standalone, so `12M` always reads as "12 mini" and `12PM` as "12 Pro Max" — no real-world collision. Verified across all iPhone / Galaxy models.
+  - Added `"back cover nfc": "BN"` to `_PART_TYPE_OVERRIDES` (B = Back, N = Nfc). Catches the cases where the NFC variant on non-mini iPhones (15 Plus, etc.) would otherwise still overflow.
+  - Updated `_normalize_pt_name` to strip the filler words `"with"` and `"w/"` so every spelling — `"Back Cover with NFC"`, `"Back Cover w/ NFC"`, `"Back-Cover NFC"`, `"Back Cover NFC"`, `"BACK COVER WITH NFC"` — converges on the same `"back cover nfc"` override key.
+- **Verified**: `IP-12M-BN-BK` and `IP-13M-BN-YL` are now 12 chars / 43.7 mm (well inside the 50 mm sticker, with 6 mm margin); `IP-15PL-BN-YL` is 13 chars / 46.4 mm. Existing 4-char-model iPhones (15 Pro Max, 13 Pro Max etc.) unchanged because they don't go through the `MINI` mapping.
+- **User action**: tick **Regenerate (overwrite existing)** + **Generate** + **Assign & Save** to refresh the stored codes for any mini-model items, then reprint stickers for those items only.
+
+### Added — "Print Commands Only" sheet
+- New **"Print Commands Only"** button on the Barcode Generator page produces a single-page A4 PDF containing just the three Quick-Scan command barcodes (ADD / DEL / OK), big and well-spaced — no item / model rows. Use case: laminate as a permanent reference sheet near the workstation, or tape next to the K30F printer for a shop-floor scan target.
+- **Always available** — doesn't require Generate to have been clicked first, because the command barcodes come from `ScanConfig` (the user-configured CMD-INSERT / CMD-TAKEOUT / CMD-CONFIRM strings), not from inventory rows. One click, save, immediate preview in the system PDF viewer.
+- **Layout**: portrait A4 with 18 mm outer margins. Each block is one-third of the column height (~73 mm tall) with 16 mm whitespace between blocks. Top of each block is a coloured 14 mm strip carrying the action label (`ADD` blue-grey, `DEL` warm orange, `OK` muted green — matches the colour scheme used in the existing item+command sheet) plus a one-line action description and the underlying scanner text in monospace for visual debugging. The barcode itself fills 80% of the column width centred in the block, sized to ~50 mm tall so it scans at a comfortable distance.
+- **Pre-validated** end-to-end: `BarcodeGenService.create_commands_only_pdf` produces a 53 KB single-page PDF; rendered through PyMuPDF + decoded with zxing-cpp returns all three Code 128 commands cleanly (`CMD-INSERT`, `CMD-TAKEOUT`, `CMD-CONFIRM`).
+- **Localised** — button label and dialog text in EN / DE / AR (all three locales the rest of the app supports). Filename defaults to `QuickScan_Commands_YYYY-MM-DD.pdf` (or the localised equivalent), sanitised so non-Latin chars in the localised filename can't crash the save dialog.
+
 ## [2.5.4] - 2026-05-06
 
 

@@ -326,6 +326,23 @@ class BarcodeGenPage(QWidget):
         action_row.addWidget(self._btn_verify, 1)
         left.addLayout(action_row)
 
+        # Standalone "Print Commands Only" — produces a single A4 page
+        # with just the 3 command barcodes (ADD / DEL / OK), big and
+        # well-spaced, no item rows. Always available (doesn't require
+        # Generate to have been clicked) because the command barcodes
+        # come from ScanConfig, not from inventory data. Use case: a
+        # laminated reference sheet near the workstation.
+        self._btn_cmds_only = QPushButton(t("bcgen_cmds_only_btn"))
+        self._btn_cmds_only.setObjectName("btn_secondary_sm")
+        self._btn_cmds_only.setFixedHeight(26)
+        self._btn_cmds_only.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed,
+        )
+        self._btn_cmds_only.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._btn_cmds_only.setToolTip(t("bcgen_cmds_only_tip"))
+        self._btn_cmds_only.clicked.connect(self._export_commands_only)
+        left.addWidget(self._btn_cmds_only)
+
         # Status
         self._status = QLabel("")
         self._status.setStyleSheet(
@@ -809,6 +826,58 @@ class BarcodeGenPage(QWidget):
             with open(path, "wb") as f:
                 f.write(self._pdf_bytes)
             self._status.setText(f"Saved: {path}")
+
+    def _export_commands_only(self):
+        """Generate + save a standalone single-page PDF with just the 3
+        command barcodes (ADD / DEL / OK). No Generate-step required —
+        the commands come from ScanConfig, not from the inventory rows
+        the rest of the page deals with.
+
+        Flow: build PDF in-memory via ``BarcodeGenService.create_commands_only_pdf``,
+        ask the user where to save, write file, open the system PDF
+        viewer so they can immediately print or laminate.
+        """
+        from datetime import datetime
+        from PyQt6.QtCore import QUrl
+        from PyQt6.QtGui import QDesktopServices
+
+        # Render — fast (~100ms), do it on the UI thread to keep the
+        # dialog flow simple. The PDF is one page so there's no perf
+        # win from going through the worker pool.
+        symbology = self._chosen_symbology()
+        try:
+            pdf_bytes = _gen_svc.create_commands_only_pdf(
+                barcode_format=symbology,
+            )
+        except Exception as e:
+            QMessageBox.critical(self, t("bcgen_cmds_only_btn"), str(e))
+            return
+
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        default_name = t(
+            "bcgen_cmds_only_default_name", date=date_str,
+        )
+        # Sanitise: strip chars Windows / macOS / Linux all reject so
+        # the localized filename can't crash QFileDialog on any OS.
+        default_name = "".join(
+            c if c.isalnum() or c in "-_.() " else "_" for c in default_name
+        )
+        path, _ = QFileDialog.getSaveFileName(
+            self, t("bcgen_cmds_only_save_dialog"),
+            default_name, "PDF Files (*.pdf)",
+        )
+        if not path:
+            return
+        try:
+            with open(path, "wb") as f:
+                f.write(pdf_bytes)
+        except OSError as e:
+            QMessageBox.critical(self, t("bcgen_cmds_only_btn"), str(e))
+            return
+        self._status.setText(f"Saved: {path}")
+        # Open in the system PDF viewer so the user can immediately
+        # preview / print / laminate without hunting for the file.
+        QDesktopServices.openUrl(QUrl.fromLocalFile(path))
 
     def _export_yunprint(self):
         """Open a small dialog asking how to split the export, then write

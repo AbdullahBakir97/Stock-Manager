@@ -71,6 +71,16 @@ _model_repo = ModelRepository()
 # Code39 valid chars
 _CODE39_VALID = set("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-. $/+%")
 
+# Symmetric Y ↔ Z translation table for the DE-keyboard QWERTZ-vs-QWERTY
+# quirk. The physical Y key on a US-layout keyboard is the Z key on a
+# DE-layout keyboard (and vice versa), so a USB barcode scanner emitting
+# "Y" produces "Z" through Windows on a DE machine, and "Z" produces "Y".
+# Used by ``_barcode_for_db`` (forward, when computing the DB canonical
+# form from generator output) AND by ``_to_code39`` (inverse — same swap
+# table because Y↔Z is its own inverse). Lower-case is also swapped
+# defensively in case any path skips the upper-case filter.
+_DE_KEYBOARD_SWAP = str.maketrans("YZyz", "ZYzy")
+
 # ── Print-grade validation defaults ────────────────────────────────────────
 # These are the K30F's effective minimums — see module docstring for the
 # derivation. ``validate_scannability`` renders at these settings; if the
@@ -198,17 +208,35 @@ _COLOR_SHORT = {
     "Gray":   "GY",
     "Grey":   "GY",
 }
+# Pre-computed lowercase index for case-insensitive lookups in
+# ``_color_short``. ``_COLOR_SHORT`` keys are kept Title-Case for
+# documentation legibility; this index lets the lookup match any
+# casing variant the user happens to type ("Yellow" / "yellow" /
+# "YELLOW" all → "YL"). Without this v2.5.5 fix, mixed-casing
+# colour values produced different codes for the same physical
+# colour — `"Yellow"` → `YL` (correct dict hit), `"yellow"` → `YE`
+# (fell through to first-2-chars-upper fallback). Same physical
+# yellow item, two different barcodes; printed label and DB
+# entry diverged silently. Reported by user against iPhone 15 /
+# 15 Plus Yellow rows.
+_COLOR_SHORT_LC = {k.lower(): v for k, v in _COLOR_SHORT.items()}
 
 
 def _color_short(color: str) -> str:
-    """Two-letter Code 39-safe code for a colour. Empty string for blank."""
+    """Two-letter Code 39-safe code for a colour. Empty string for blank.
+
+    Lookup is **case-insensitive** — "Yellow", "yellow", and "YELLOW"
+    all return ``"YL"``. The fallback (first two alphanumeric chars,
+    uppercased) only fires for genuinely unknown colour names.
+    """
     if not color:
         return ""
     key = color.strip()
     if not key:
         return ""
-    if key in _COLOR_SHORT:
-        return _COLOR_SHORT[key]
+    code = _COLOR_SHORT_LC.get(key.lower())
+    if code is not None:
+        return code
     # Strip non-alphanumeric, uppercase, take first two — keeps Code 39 happy
     cleaned = "".join(c for c in key.upper() if c.isalnum())
     return cleaned[:2] or "XX"
@@ -278,7 +306,16 @@ def _abbreviate(name: str, max_len: int = 8) -> str:
         "MAX":   "M",
         "PLUS":  "PL",
         "ULTRA": "U",
-        "MINI":  "MIN",
+        # MINI → "M" (was "MIN" pre-v2.5.5). Saves 2 chars on every
+        # mini-model barcode, structurally fixing the iPhone 12/13 mini
+        # Back Cover-with-NFC overflow class. The single-letter ``M``
+        # collides nominally with ``MAX`` → ``"M"``, but in practice
+        # ``MAX`` only appears AFTER ``PRO`` ("Pro Max" → ``PM``), never
+        # standalone, while ``MINI`` only appears as a model suffix —
+        # so ``12M`` always reads as "12 mini" and ``12PM`` as "12 Pro
+        # Max", no real-world collision. Existing labels with ``MIN``
+        # need a one-time Regenerate + Assign & Save to refresh.
+        "MINI":  "M",
         "NACHO": "N",
         "LITE":  "L",
         "FOLD":  "FD",
@@ -414,6 +451,14 @@ _PART_TYPE_OVERRIDES = {
                                # always means ORG Service Pack.
     # Cover / housing
     "back cover":       "BC",
+    # NFC variant: 2-char code so payloads like ``IP-12MIN-BN-BK`` (14
+    # chars / 49.2 mm) fit the 50 mm sticker. Without this override,
+    # the generic fallback produces ``BCWN`` (4 chars) which pushes
+    # iPhone 12/13 mini Back-Cover-NFC + colour to 16 chars / 54.7 mm.
+    # ``_normalize_pt_name`` strips ``with`` / ``w/`` so every spelling
+    # — "Back Cover with NFC", "Back Cover w/ NFC", "Back-Cover NFC",
+    # "Back Cover NFC" — converges on this key.
+    "back cover nfc":   "BN",
     "back glass":       "BG",
     "front cover":      "FC",
     "frame":            "FR",
@@ -453,7 +498,14 @@ def _normalize_pt_name(name: str) -> str:
        ``"Soft OLED"`` should hit the same override entry.
     3. Collapse runs of whitespace to one space (handles double spaces,
        tabs, etc.).
-    4. Unify the diagnostic-family spellings to ``"diagn"``.  Without
+    4. Drop filler words ``"with"`` and ``"w/"`` so that
+       ``"Back Cover with NFC"`` and ``"Back Cover w/ NFC"`` hit the
+       same ``"back cover nfc"`` key as the bare-form spelling.
+       Without this the NFC variant on iPhone 12/13 mini overflows
+       the 50 mm sticker (the fallback produces a 4-char ``BCWN`` /
+       3-char ``BCN`` code that, paired with the 5-char ``12MIN``
+       model, yields 51.9–54.7 mm payloads).
+    5. Unify the diagnostic-family spellings to ``"diagn"``.  Without
        this, the user's catalogue could mix ``"Diagn"``, ``"Diagnose"``,
        ``"Diagnostic"``, ``"Diagnostics"``, and ``"Diagnosis"`` and only
        one variant would hit the override — the rest fall through to the
@@ -464,7 +516,12 @@ def _normalize_pt_name(name: str) -> str:
     """
     s = name.lower().strip()
     s = re.sub(r"[-_]+", " ", s)
-    s = re.sub(r"\s+", " ", s)
+    # Drop filler words BEFORE collapsing whitespace so the resulting
+    # double-spaces get re-collapsed in the next pass. ``w/`` has a
+    # ``/`` after the ``w``; the regex matches the ``/`` explicitly.
+    s = re.sub(r"\bwith\b", "", s)
+    s = re.sub(r"\bw/", "", s)
+    s = re.sub(r"\s+", " ", s).strip()
     s = re.sub(r"\bdiagnos(?:e|tic|tics|is)?\b", "diagn", s)
     return s
 
@@ -652,33 +709,46 @@ def _barcode_for_db(code39_text: str) -> str:
     """Convert Code39 barcode text to the canonical DB form.
 
     German keyboard scanners convert ``-`` to ``ß`` (the German sharp-s
-    occupies the dash key on a DE layout), so we store with ``ß`` to match
-    scanner output. We do NOT prepend a scanner-mark prefix — that's
-    stripped by ``normalize_barcode`` at lookup time, so the DB keeps the
-    payload-only canonical form regardless of which scanner-mark the
-    physical hardware is currently configured to emit.
+    occupies the dash key on a DE layout) AND swap ``Y`` ↔ ``Z`` (DE
+    QWERTZ vs US QWERTY). Both quirks are applied here so the DB stores
+    what the scanner OUTPUTS, not what the printed barcode encodes:
+    lookups then match without further translation.
 
-    Example: ``"S-A04-SMO"`` → ``"SßA04ßSMO"``.
+    Example: ``"IP-15PL-WN-YL"`` → ``"IPßXXßWNßZL"``  (dashes → ß,
+    Y → Z because DE keyboard's "US-Y" key emits Z).
     """
-    return code39_text.replace("-", "ß")
+    text = code39_text.replace("-", "ß")
+    # Y ↔ Z swap. DE-keyboard quirk: pressing the US-position-Y key on
+    # a DE layout emits Z (and vice versa). Without this swap, items
+    # with Y or Z in their barcode (notably anything Yellow → "YL")
+    # have a DB entry that never matches the scanner's actual output.
+    # Use translate() with str.maketrans so both directions swap in
+    # one pass (a naive ``.replace("Y", "Z").replace("Z", "Y")`` would
+    # collapse the round-trip).
+    return text.translate(_DE_KEYBOARD_SWAP)
 
 
 def _to_code39(scanner_text: str) -> str:
     """Convert scanner-output text back to Code39-encodable text.
 
     Strips any leading lowercase scanner-mark prefix (via
-    ``normalize_barcode``), converts ``ß`` back to ``-``, and uppercases.
-    Code39 only supports uppercase A-Z, 0-9, and a small set of specials.
+    ``normalize_barcode``), reverses both DE-keyboard quirks (``ß``
+    back to ``-``, Y ↔ Z swapped back), and uppercases. Code 39/128
+    image encoders see the original payload exactly as designed.
 
     Example: ``"fCMDßTAKEOUTS"`` → ``"CMD-TAKEOUTS"``.
     Example: ``"aCMDßTAKEOUTS"`` → ``"CMD-TAKEOUTS"`` (different scanner mark).
     Example: ``"CMDßTAKEOUTS"``  → ``"CMD-TAKEOUTS"`` (DB canonical form).
+    Example: ``"IPßXXßWNßZL"``   → ``"IP-XX-WN-YL"`` (Y/Z swap reversed).
     """
     text = normalize_barcode(scanner_text)
     # Convert ß back to -
     text = text.replace("ß", "-")
     # Uppercase for Code39
     text = text.upper()
+    # Reverse the Y ↔ Z swap so the encoded image shows the actual
+    # payload character (Yellow → "YL", not "ZL").
+    text = text.translate(_DE_KEYBOARD_SWAP)
     # Keep only Code39 valid chars
     text = "".join(c for c in text if c in _CODE39_VALID)
     return text
@@ -836,6 +906,168 @@ class BarcodeGenService:
                          db_text=cfg.cmd_confirm,
                          display_label="CONFIRM", is_command=True, command_label="OK"),
         ]
+
+    def create_commands_only_pdf(self, barcode_format: str = "code128") -> bytes:
+        """Generate a single A4 page with just the 3 command barcodes,
+        large and well-spaced — no item/model rows.
+
+        Layout: portrait A4 (210 × 297 mm), one page, three blocks
+        stacked vertically with generous whitespace between them. Each
+        block has the action label (ADD / DEL / OK) on top, the barcode
+        in the middle (~60 × 35 mm — much larger than the 25 × 18 mm
+        cells in ``create_pdf``), and the underlying scanner text in
+        small monospace at the bottom for visual debugging.
+
+        Use case: shop assistant wants to laminate or tape ONE sheet of
+        the three command codes near the workstation as a permanent
+        scan-target reference. The mixed item+command sheet from
+        ``create_pdf`` is awkward for this — every regenerate produces
+        a different page count and the commands move around. This
+        method always produces the same single page so it can be
+        re-printed reliably whenever a copy gets damaged or lost.
+
+        Returns the PDF as bytes — same shape as ``create_pdf`` so
+        callers can save / preview / print uniformly.
+        """
+        from fpdf import FPDF
+        from PIL import Image as PILImage
+        import os
+
+        pdf = FPDF(orientation="P", unit="mm", format="A4")
+        pdf.set_auto_page_break(auto=False)
+        pdf.add_page()
+
+        pw, ph = 210, 297
+        mx, my = 18, 18                # generous outer margins
+        usable_w = pw - 2 * mx
+        # Reserve space for title + footer; the rest gets divided into
+        # three equal blocks with whitespace between them.
+        title_h = 14
+        footer_h = 10
+        gap = 16                       # whitespace BETWEEN blocks
+        # 3 blocks + 2 gaps fill the column area below the title
+        col_h = ph - 2 * my - title_h - footer_h
+        block_h = (col_h - 2 * gap) / 3
+
+        # Each block:  [LABEL strip 14mm] [BARCODE area block_h-18mm]
+        label_strip_h = 14
+        bc_area_h = block_h - label_strip_h - 2     # tiny pad below label
+
+        # ── Title ─────────────────────────────────────────────────
+        pdf.set_font("Helvetica", "B", 18)
+        pdf.set_xy(mx, my)
+        pdf.cell(usable_w, title_h, "Quick-Scan Command Barcodes",
+                 ln=0, align="C")
+
+        # Render each command barcode at high DPI so the bars stay crisp
+        # when scaled up to ~50 mm height. We render once, save as a
+        # temp file, and let fpdf2 scale it — same pattern as create_pdf.
+        cmd_entries = self.get_command_entries()
+        cfg = ScanConfig.get()
+        cmd_text_map = {
+            "ADD": cfg.cmd_insert,
+            "DEL": cfg.cmd_takeout,
+            "OK":  cfg.cmd_confirm,
+        }
+        cmd_colors = {
+            "ADD": (190, 205, 235),    # blue-grey, matches create_pdf
+            "DEL": (240, 210, 190),    # warm orange-grey
+            "OK":  (195, 225, 195),    # muted green
+        }
+        cmd_action_desc = {
+            "ADD": "Adds scanned items to stock",
+            "DEL": "Removes scanned items from stock",
+            "OK":  "Confirms / commits the current scan batch",
+        }
+
+        temp_files: list[str] = []
+        try:
+            y_cursor = my + title_h
+            for ce in cmd_entries:
+                label = ce.command_label
+                # Render the barcode image at print-grade DPI so the
+                # large size on the page doesn't expose pixelation.
+                img_bytes = self.render_barcode_image(
+                    ce.barcode_text, fmt=barcode_format,
+                )
+                tf = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
+                tf.write(img_bytes)
+                tf.close()
+                temp_files.append(tf.name)
+
+                # Block background — coloured strip on the LEFT for the
+                # label, white area on the RIGHT for the barcode. Border
+                # around the whole thing so each block reads as one unit.
+                r, g, b = cmd_colors.get(label, (230, 230, 230))
+                pdf.set_draw_color(180, 180, 180)
+                pdf.set_fill_color(r, g, b)
+                # Label strip — colored band at the top of the block
+                pdf.rect(mx, y_cursor, usable_w, label_strip_h, "DF")
+
+                # Label text — large action name, centred in the strip
+                pdf.set_font("Helvetica", "B", 22)
+                pdf.set_text_color(20, 20, 20)
+                pdf.set_xy(mx, y_cursor + 1)
+                pdf.cell(usable_w * 0.25, label_strip_h, label, align="C")
+
+                # Action description — smaller, on the right of the strip
+                pdf.set_font("Helvetica", "", 10)
+                pdf.set_text_color(60, 60, 60)
+                pdf.set_xy(mx + usable_w * 0.25, y_cursor + 1)
+                pdf.cell(usable_w * 0.55, label_strip_h,
+                         cmd_action_desc.get(label, ""), align="L")
+
+                # Scanner text — monospace, on the right of the strip
+                pdf.set_font("Courier", "", 9)
+                pdf.set_text_color(80, 80, 80)
+                pdf.set_xy(mx + usable_w * 0.80, y_cursor + 1)
+                pdf.cell(usable_w * 0.20, label_strip_h,
+                         cmd_text_map.get(label, ""), align="R")
+
+                # Outer block border
+                pdf.set_draw_color(120, 120, 120)
+                pdf.rect(mx, y_cursor, usable_w, block_h)
+
+                # Barcode — large, centred in the white area below the
+                # label strip. We size it to ~80% of usable width so it
+                # has visual breathing room even on cramped printers.
+                bc_top = y_cursor + label_strip_h + 4
+                bc_w = usable_w * 0.8
+                bc_x = mx + (usable_w - bc_w) / 2
+                bc_h = max(20.0, bc_area_h - 6)    # leave 6mm pad below
+                pdf.image(tf.name, bc_x, bc_top, w=bc_w, h=bc_h)
+
+                # Reset draw / text colours for next iteration
+                pdf.set_draw_color(0, 0, 0)
+                pdf.set_text_color(0, 0, 0)
+
+                # Move cursor down for next block (with whitespace gap)
+                y_cursor += block_h + gap
+
+            # ── Footer ────────────────────────────────────────────
+            pdf.set_font("Helvetica", "", 9)
+            pdf.set_text_color(110, 110, 110)
+            pdf.set_xy(mx, ph - my - footer_h)
+            now = datetime.now().strftime("%Y-%m-%d %H:%M")
+            pdf.cell(usable_w, footer_h,
+                     f"Stock Manager Pro · Quick-Scan command sheet · "
+                     f"Generated {now}",
+                     align="C")
+
+            # ── Output ────────────────────────────────────────────
+            pdf_tmp = tempfile.NamedTemporaryFile(suffix=".pdf", delete=False)
+            pdf_tmp.close()
+            pdf.output(pdf_tmp.name)
+            with open(pdf_tmp.name, "rb") as f:
+                pdf_bytes = f.read()
+            temp_files.append(pdf_tmp.name)
+            return pdf_bytes
+        finally:
+            for tf in temp_files:
+                try:
+                    os.unlink(tf)
+                except Exception:
+                    pass
 
     # ── Print-grade validation ─────────────────────────────────────────────
     # The methods below let callers PROVE every barcode in a batch will scan

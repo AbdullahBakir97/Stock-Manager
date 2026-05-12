@@ -947,7 +947,7 @@ def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
 
 
 def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
-    """V20: Swap Y ↔ Z in stored barcodes (DE-keyboard QWERTZ quirk).
+    """V20: Swap Y/Z in stored barcodes (DE-keyboard QWERTZ quirk).
 
     Same family of bug as the V17 prefix-strip and the V19 ``+ → P``
     substitution: the DB form should match what the user's barcode
@@ -967,7 +967,7 @@ def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
     (only items with Y/Z somewhere in the barcode), so iterating in
     Python costs negligible time.
     """
-    _log.info("Migrating database schema from V19 to V20 (Y↔Z swap for DE keyboard)")
+    _log.info("Migrating database schema from V19 to V20 (Y/Z swap for DE keyboard)")
     swap = str.maketrans("YZyz", "ZYzy")
 
     rows = conn.execute(

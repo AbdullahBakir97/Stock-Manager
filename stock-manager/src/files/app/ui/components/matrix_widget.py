@@ -416,6 +416,21 @@ class MatrixWidget(QTableWidget):
         # < 1ms because it only walks ~5-10 brand/separator rows.
         self._brand_row_indices: list[int] = []
         self._sep_row_indices: list[int] = []
+        # Maps each colour sub-row's table index to the index of its
+        # parent model row. Used by ``filter_rows`` to inherit the
+        # parent's name into the colour row's search haystack — otherwise
+        # a query for "A33" matches the "Galaxy A33 5G" model row but
+        # not its "● Black" / "● Blue" / etc. children, because each
+        # colour sub-row's column-0 text is JUST the colour name
+        # (e.g. "      ● Black") with no model context. Built during
+        # ``load()`` so the lookup in ``filter_rows`` is O(1).
+        self._color_to_model_row: dict[int, int] = {}
+        # Inverse: model row index → list of colour sub-rows under it.
+        # Used by ``filter_rows`` so that a query that matches the model
+        # name (e.g. "A33") propagates visibility to every colour row of
+        # that model, not just the model row itself.
+        self._model_to_color_rows: dict[int, list[int]] = {}
+        _last_model_row = -1
 
         for ri, rd in enumerate(row_data):
             r = ri + self._row_offset
@@ -452,6 +467,11 @@ class MatrixWidget(QTableWidget):
             model = rd["model"]
 
             if rd["type"] == "model":
+                # Remember this row as the parent for any colour sub-rows
+                # that follow in the build (colour rows are emitted
+                # immediately after their model row in ``row_data``).
+                _last_model_row = r
+                self._model_to_color_rows.setdefault(r, [])
                 self.setRowHeight(r, 48)
                 # Model name cell
                 name_it = self._ro(f"  {model.name}")
@@ -537,6 +557,11 @@ class MatrixWidget(QTableWidget):
                     )
 
             elif rd["type"] == "color":
+                # Register the parent-model relationship so ``filter_rows``
+                # can propagate visibility between model and its colours.
+                if _last_model_row >= 0:
+                    self._color_to_model_row[r] = _last_model_row
+                    self._model_to_color_rows.setdefault(_last_model_row, []).append(r)
                 color = rd["color"]
                 self.setRowHeight(r, 36)
 
@@ -2070,6 +2095,27 @@ class FrozenMatrixContainer(QWidget):
         brand_to_models: dict[int, list[int]] = {}
         # row index -> the brand-row index that's the closest header above
         last_brand_row = -1
+        # Model/colour mapping captured at load time (see
+        # ``self._color_to_model_row`` / ``self._model_to_color_rows``).
+        # We use these to propagate the text-match between a model row
+        # and its colour sub-rows so a query like "A33" highlights the
+        # model AND all its colour variants (the original bug: colour
+        # rows store ONLY the colour name in column 0 — "● Black" — so
+        # a literal-haystack filter dropped them whenever the user
+        # typed a model-name query). A two-stage pass handles it:
+        #   Stage 1 — own-text-match per row (text only, no state)
+        #   Stage 1b — propagate model⇄colour (any colour match → model
+        #             visible; model match → all its colours visible)
+        #   Stage 2 — per-row state-match, combine with propagated text
+        # CRITICAL: ``filter_rows`` is a method of ``FrozenMatrixContainer``
+        # but the parent/child row dicts live on the wrapped
+        # ``MatrixWidget`` (``dt``), populated during its ``load()``.
+        # Reading them from ``self`` here returned `{}` and the colour
+        # propagation silently no-op'd — that was the v2.5.6 bug the
+        # user reported as "search shows model without colors".
+        c2m = getattr(dt, "_color_to_model_row", {})
+        m2c = getattr(dt, "_model_to_color_rows", {})
+        own_text_match: dict[int, bool] = {}
 
         for r in range(n):
             if r in brand_rows:
@@ -2098,7 +2144,32 @@ class FrozenMatrixContainer(QWidget):
                 # s22 ultra" to match even when the order in the
                 # haystack differs.
                 text_match = all(w in haystack for w in q_words)
+            own_text_match[r] = text_match
+            if last_brand_row >= 0:
+                brand_to_models[last_brand_row].append(r)
 
+        # Stage 1b: propagate text-match between each model row and its
+        # colour sub-rows. After this loop, every row's effective
+        # text-match is either its OWN match (existing behaviour) or its
+        # model/colour sibling's match — whichever is true.
+        propagated: dict[int, bool] = dict(own_text_match)
+        for mr, color_rows in m2c.items():
+            if mr not in own_text_match:
+                continue
+            model_own = own_text_match.get(mr, False)
+            any_color_own = any(own_text_match.get(cr, False) for cr in color_rows)
+            unified = model_own or any_color_own
+            propagated[mr] = unified
+            # Colour rows: visible if the model matches (model query
+            # finds all its colours) OR if the colour itself matches
+            # (colour query finds only that colour row). The "model→all
+            # colours" half is the fix for the user-reported "A33 shows
+            # only model, not colours" bug.
+            for cr in color_rows:
+                propagated[cr] = own_text_match.get(cr, False) or model_own
+
+        # Stage 2: combine propagated text-match with per-row state-match.
+        for r, text_match in propagated.items():
             state_match = (mode == "all")
             if not state_match:
                 for c in range(dt.columnCount()):
@@ -2116,11 +2187,7 @@ class FrozenMatrixContainer(QWidget):
                         state_match = True; break
                     if mode == "reorder" and stock < min_stock:
                         state_match = True; break
-
-            visible = text_match and state_match
-            model_visible[r] = visible
-            if last_brand_row >= 0:
-                brand_to_models[last_brand_row].append(r)
+            model_visible[r] = text_match and state_match
 
         # Pass 2: apply visibility. Brand headers visible iff at least
         # one of their models is visible (otherwise hide them — empty

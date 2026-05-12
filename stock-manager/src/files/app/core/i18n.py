@@ -4078,6 +4078,70 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Fügen Sie mindestens einen Artikel zum Verkauf hinzu.",
         "AR": "أضف عنصرًا واحدًا على الأقل للبيع.",
     },
+    # Sales-row actions (Edit / Void) — added v2.5.7
+    "sales_action_receipt": {
+        "EN": "Generate Receipt",
+        "DE": "Beleg erstellen",
+        "AR": "إنشاء إيصال",
+    },
+    "sales_action_edit_tip": {
+        "EN": "Edit this sale",
+        "DE": "Diesen Verkauf bearbeiten",
+        "AR": "تعديل هذه الفاتورة",
+    },
+    "sales_action_delete_tip": {
+        "EN": "Void this sale (restores stock)",
+        "DE": "Verkauf stornieren (Bestand wird zurückgebucht)",
+        "AR": "إلغاء البيع (إعادة المخزون)",
+    },
+    "sales_action_delete_title": {
+        "EN": "Void Sale",
+        "DE": "Verkauf stornieren",
+        "AR": "إلغاء البيع",
+    },
+    "sales_action_delete_body": {
+        "EN": ("Void sale #{id}?\n\n"
+               "This will:\n"
+               "  • Restore stock for every line item\n"
+               "  • Log a reversal transaction for the audit trail\n"
+               "  • Permanently delete the sale record\n\n"
+               "Items to restore to stock:\n{items}\n\n"
+               "Total: {currency} {total:.2f}"),
+        "DE": ("Verkauf #{id} stornieren?\n\n"
+               "Dies wird:\n"
+               "  • Bestand jeder Position zurückbuchen\n"
+               "  • Stornobuchung für den Audit-Trail erfassen\n"
+               "  • Verkaufsdatensatz dauerhaft löschen\n\n"
+               "Zurückzubuchender Bestand:\n{items}\n\n"
+               "Gesamt: {currency} {total:.2f}"),
+        "AR": ("هل تريد إلغاء البيع رقم {id}؟\n\n"
+               "سيتم:\n"
+               "  • إعادة كل صنف إلى المخزون\n"
+               "  • تسجيل معاملة عكسية في سجل التدقيق\n"
+               "  • حذف سجل البيع بشكل دائم\n\n"
+               "الأصناف المُعادة:\n{items}\n\n"
+               "الإجمالي: {currency} {total:.2f}"),
+    },
+    "sales_voided": {
+        "EN": "Sale #{id} voided. Stock restored ({n} items).",
+        "DE": "Verkauf #{id} storniert. Bestand zurückgebucht ({n} Artikel).",
+        "AR": "تم إلغاء البيع رقم {id}. أُعيد المخزون ({n} صنف).",
+    },
+    "pos_title_edit": {
+        "EN": "Edit Sale #{id}",
+        "DE": "Verkauf #{id} bearbeiten",
+        "AR": "تعديل البيع رقم {id}",
+    },
+    "pos_update_sale": {
+        "EN": "Update Sale",
+        "DE": "Verkauf aktualisieren",
+        "AR": "تحديث البيع",
+    },
+    "pos_sale_updated": {
+        "EN": "Sale #{id} updated.",
+        "DE": "Verkauf #{id} aktualisiert.",
+        "AR": "تم تحديث البيع رقم {id}.",
+    },
     "pos_title": {
         "EN": "Point of Sale",
         "DE": "Kasse",

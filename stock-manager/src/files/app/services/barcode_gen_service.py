@@ -306,6 +306,15 @@ def _abbreviate(name: str, max_len: int = 8) -> str:
         "MAX":   "M",
         "PLUS":  "PL",
         "ULTRA": "U",
+        # AIR → A (Apple's "Air" suffix on iPhone 17 Air / iPad Air).
+        # Saves 2 chars per Air-model barcode, structurally fixing the
+        # iPhone 17 Air + 3-char part-type + colour overflow class
+        # (``IP-17AIR-OS-BK`` 15 chars / 51.9 mm → ``IP-17A-OS-BK``
+        # 12 chars / 43.7 mm). Token "AIR" doesn't appear in any other
+        # Apple line (Galaxy doesn't use it), and Samsung's "A-series"
+        # tokens like "A04" / "A52" are kept whole by the len<=4 path
+        # so they're unaffected by this single-token mapping.
+        "AIR":   "A",
         # MINI → "M" (was "MIN" pre-v2.5.5). Saves 2 chars on every
         # mini-model barcode, structurally fixing the iPhone 12/13 mini
         # Back Cover-with-NFC overflow class. The single-letter ``M``

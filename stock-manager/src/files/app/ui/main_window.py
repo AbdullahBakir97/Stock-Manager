@@ -368,6 +368,20 @@ class MainWindow(QMainWindow):
         self._header.admin_clicked.connect(self._open_admin)
         self._header.search.barcode_scanned.connect(self._barcode)
         self._header.search.textChanged.connect(self._header_search_changed)
+        # Global scanner capture — catches USB-HID barcode bursts even
+        # when focus is on a non-text widget like the Matrix tab's
+        # table. Without this, scans on the Matrix tab go to the table
+        # cells and the command-barcode / scan-action-popup handlers
+        # never fire. Installed app-wide on QApplication so it's active
+        # on every page. Skips capture when a QLineEdit / QTextEdit /
+        # spin box / editable combo has focus so the user can still
+        # type normally into form fields. See ``GlobalScannerCapture``
+        # in app/ui/components/barcode_line_edit.py for the details.
+        from app.ui.components.barcode_line_edit import GlobalScannerCapture
+        from PyQt6.QtWidgets import QApplication as _QApp
+        self._scanner_capture = GlobalScannerCapture(parent=self)
+        self._scanner_capture.barcode_scanned.connect(self._barcode)
+        _QApp.instance().installEventFilter(self._scanner_capture)
 
         # Sidebar navigation
         self._sidebar.nav_clicked.connect(self._nav_ctrl.go)
@@ -746,9 +760,33 @@ class MainWindow(QMainWindow):
     def _barcode(self, bc: str) -> None:
         from app.core.scan_config import ScanConfig
         scan_cfg = ScanConfig.get()
-        if scan_cfg.is_command(bc) or self._quick_scan_tab._session.mode:
+        # Route to Quick Scan ONLY for command barcodes (ADD / DEL / OK).
+        # Pre-v2.5.6 the condition also fired when ``_quick_scan_tab._session.mode``
+        # was truthy — the intent was "an active Quick Scan session
+        # should keep absorbing subsequent scans". In practice this
+        # hijacked product scans from every other tab whenever the user
+        # had previously started a Quick Scan session and walked away
+        # without ending it. User-reported behaviour: "when i scan any
+        # barcode it sends me to quick scan" — the popup never fired.
+        #
+        # New rule: only the three command barcodes navigate. Product
+        # barcodes ALWAYS show the scan-action popup on the current
+        # tab, regardless of Quick Scan session state. Users who want
+        # to feed items into an open Quick Scan session simply navigate
+        # there manually first; the scan-action popup never gets in
+        # the way of product lookups elsewhere.
+        if scan_cfg.is_command(bc):
             self._header.search.clear()
             self._nav_ctrl.go("nav_quick_scan")
+            self._quick_scan_tab.process_command_barcode(bc)
+            self._quick_scan_tab.focus_input(); return
+        # If Quick Scan is the active tab AND has an open session, let
+        # it absorb the product scan via its own input flow (preserves
+        # the original "scan ADD then scan items" workflow). On every
+        # other tab, a product scan opens the popup.
+        on_quick_scan = getattr(self._nav_ctrl, "current", "") == "nav_quick_scan"
+        if on_quick_scan and self._quick_scan_tab._session.mode:
+            self._header.search.clear()
             self._quick_scan_tab.process_command_barcode(bc)
             self._quick_scan_tab.focus_input(); return
         item = _item_repo.get_by_barcode(bc)

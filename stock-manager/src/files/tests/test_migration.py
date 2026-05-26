@@ -213,8 +213,8 @@ class TestMigrateV7toV8(unittest.TestCase):
             self.assertGreaterEqual(total_qty, 15)
 
 
-class TestMigrateV19toV20(unittest.TestCase):
-    """V19→V20 rewrites '/' to '-' in stored barcodes.
+class TestMigrateV20toV21(unittest.TestCase):
+    """V20→V21 rewrites '/' to '-' in stored barcodes.
 
     A German-layout keyboard-wedge scanner types a printed '/' as '-', so
     barcodes for combined models ("12 / 12 Pro" → "IP-12/12P-...") and
@@ -248,7 +248,7 @@ class TestMigrateV19toV20(unittest.TestCase):
         self.conn.execute(
             "INSERT INTO inventory_items (barcode) VALUES (?)", ("SAßA15ßLC",)
         )
-        db_mod._migrate_v19_to_v20(self.conn)
+        db_mod._migrate_v20_to_v21(self.conn)
         rows = {
             r["id"]: r["barcode"]
             for r in self.conn.execute("SELECT id, barcode FROM inventory_items")
@@ -268,7 +268,7 @@ class TestMigrateV19toV20(unittest.TestCase):
         self.conn.execute(
             "INSERT INTO app_config (key, value) VALUES ('locale', 'de/DE')"
         )
-        db_mod._migrate_v19_to_v20(self.conn)
+        db_mod._migrate_v20_to_v21(self.conn)
         cfg = {
             r["key"]: r["value"]
             for r in self.conn.execute("SELECT key, value FROM app_config")
@@ -281,8 +281,8 @@ class TestMigrateV19toV20(unittest.TestCase):
         self.conn.execute(
             "INSERT INTO inventory_items (barcode) VALUES (?)", ("IPß12/12PßSO",)
         )
-        db_mod._migrate_v19_to_v20(self.conn)
-        db_mod._migrate_v19_to_v20(self.conn)
+        db_mod._migrate_v20_to_v21(self.conn)
+        db_mod._migrate_v20_to_v21(self.conn)
         row = self.conn.execute(
             "SELECT barcode FROM inventory_items WHERE id=1"
         ).fetchone()

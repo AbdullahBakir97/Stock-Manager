@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed — `Yellow` (and any Y/Z) barcodes didn't scan on German keyboards
+- **User-visible symptom**: iPhone 15 / 15 Plus `Yellow` rows didn't scan — the printed sticker said `…-YL` but the scanner produced `…-ZL`, so the lookup missed.
+- **Root cause**: on a German-layout (QWERTZ) machine the physical Y key sits in the US-Z position and vice versa, so a scanner emitting the US-Y HID code produces `Z` through Windows. The DB stored the encoded character (`Y`), which never matched the scanned `Z`.
+- **Fix**: symmetric `Y ↔ Z` translation at generation and lookup, plus a **V19 → V20** migration that swaps Y/Z in already-stored barcodes (and `scan_cmd_*` / `scan_clr_*` config rows). Same family as the `+` → `P` (V19) fix.
+
+### Fixed — Slash-bearing barcodes (`12/12 Pro`, `Soft/Hard OLED`) didn't scan
+- **User-visible symptom**: combined-model SKUs written `12 / 12 Pro` (one part that fits both iPhone 12 and 12 Pro) and the `Soft/Hard OLED` part type produced barcodes that wouldn't scan, even though every other model scanned fine.
+- **Root cause**: the handheld scanner runs in keyboard-wedge mode against a German (QWERTZ) OS layout, so a scanned character is replayed as the US-physical-key scancode and re-interpreted by the German layout. The US `/` key sits where German has `-`, so a printed `/` arrives at the app as `-`. The payload `IP-12/12P-SO` was stored with `/` but every scan produced `-` in that position, so the barcode never matched itself on lookup.
+- **Fix**: substitute `/` → `-` at generation (`_make_barcode_text`) and at lookup (`canonical_barcode`) so payloads round-trip cleanly through the same `-` → `ß` path every separator uses, and the print-grade validator now exercises the real payload. New **V20 → V21** migration rewrites already-stored `/` barcodes (and `scan_cmd_*` / `scan_clr_*` config rows) to `-` so labels printed before this change keep scanning. Same family as the existing `+` → `P` (V19) and `Y ↔ Z` (V20) fixes.
+
 ## [2.5.6] - 2026-05-12
 
 ### Added — Edit and Delete buttons on each sale row

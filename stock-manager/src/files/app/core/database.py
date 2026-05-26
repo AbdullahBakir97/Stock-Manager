@@ -426,7 +426,7 @@ _DDL = """
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
 """
 
-_SCHEMA_VERSION = "19"
+_SCHEMA_VERSION = "20"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -946,6 +946,54 @@ def _migrate_v18_to_v19(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_v19_to_v20(conn: sqlite3.Connection) -> None:
+    """V20: Substitute ``/`` → ``-`` in stored barcodes.
+
+    The user's handheld scanner runs in keyboard-wedge mode against a
+    German (QWERTZ) OS layout. A scanned character is replayed as the
+    US-physical-key scancode and then re-interpreted by the German layout;
+    the US ``/`` key lands where German has ``-`` (bottom row, right of
+    ``.``), so a printed ``/`` is received by the app as ``-`` — exactly
+    like the ``-`` separator, which the German layout in turn reads as
+    ``ß``.
+
+    Combined models written "12 / 12 Pro" (one SKU that fits both iPhone
+    12 and 12 Pro) and part types like "Soft/Hard OLED" therefore stored a
+    payload containing ``/`` while every scan produced ``-`` in that
+    position, so the barcode never matched itself and "didn't scan".
+
+    v2.5.x generates barcodes with ``-`` instead of ``/`` from now on (see
+    _make_barcode_text); this migration rewrites already-stored rows to the
+    same form so labels printed before the change keep matching against
+    canonicalised lookups (which also substitute ``/`` → ``-``).
+
+    Touches: ``inventory_items.barcode`` and ``app_config`` command-barcode
+    rows (keys ``scan_cmd_%`` / ``scan_clr_%``), mirroring V19's surface.
+    """
+    _log.info("Migrating database schema from V19 to V20 (slash to dash in barcodes)")
+
+    items_slash = conn.execute(
+        """
+        UPDATE inventory_items
+           SET barcode = REPLACE(barcode, '/', '-')
+         WHERE barcode IS NOT NULL AND barcode LIKE '%/%'
+        """
+    ).rowcount
+    cfg_slash = conn.execute(
+        """
+        UPDATE app_config
+           SET value = REPLACE(value, '/', '-')
+         WHERE (key LIKE 'scan_cmd_%' OR key LIKE 'scan_clr_%')
+           AND value IS NOT NULL AND value LIKE '%/%'
+        """
+    ).rowcount
+
+    _log.info(
+        "V19 to V20 migration completed (items_slash_to_dash=%s, cfg_slash_to_dash=%s)",
+        items_slash, cfg_slash,
+    )
+
+
 def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
     """V17: Drop the scanner-mark prefix from saved barcodes.
 
@@ -1247,6 +1295,10 @@ def init_db() -> None:
             if current == "18":
                 _migrate_v18_to_v19(conn)
                 current = "19"
+
+            if current == "19":
+                _migrate_v19_to_v20(conn)
+                current = "20"
 
             # Always persist the final version after migrations
             conn.execute(

@@ -7,6 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.5.7] - 2026-05-26
+
+
 ### Fixed — `Yellow` (and any Y/Z) barcodes didn't scan on German keyboards
 - **User-visible symptom**: iPhone 15 / 15 Plus `Yellow` rows didn't scan — the printed sticker said `…-YL` but the scanner produced `…-ZL`, so the lookup missed.
 - **Root cause**: on a German-layout (QWERTZ) machine the physical Y key sits in the US-Z position and vice versa, so a scanner emitting the US-Y HID code produces `Z` through Windows. The DB stored the encoded character (`Y`), which never matched the scanned `Z`.

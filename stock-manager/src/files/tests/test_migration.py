@@ -213,5 +213,81 @@ class TestMigrateV7toV8(unittest.TestCase):
             self.assertGreaterEqual(total_qty, 15)
 
 
+class TestMigrateV20toV21(unittest.TestCase):
+    """V20→V21 rewrites '/' to '-' in stored barcodes.
+
+    A German-layout keyboard-wedge scanner types a printed '/' as '-', so
+    barcodes for combined models ("12 / 12 Pro" → "IP-12/12P-...") and
+    "Soft/Hard OLED" part types never matched their stored form. The
+    migration brings already-stored rows onto the '-' form generated and
+    looked up everywhere now.
+    """
+
+    def setUp(self):
+        import sqlite3
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.row_factory = sqlite3.Row
+        self.conn.executescript(
+            """
+            CREATE TABLE app_config (key TEXT PRIMARY KEY, value TEXT);
+            CREATE TABLE inventory_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                barcode TEXT
+            );
+            """
+        )
+
+    def tearDown(self):
+        self.conn.close()
+
+    def test_slash_rewritten_to_dash_in_items(self):
+        self.conn.execute(
+            "INSERT INTO inventory_items (barcode) VALUES (?)", ("IPß12/12PßSO",)
+        )
+        # A barcode without a slash must be left untouched.
+        self.conn.execute(
+            "INSERT INTO inventory_items (barcode) VALUES (?)", ("SAßA15ßLC",)
+        )
+        db_mod._migrate_v20_to_v21(self.conn)
+        rows = {
+            r["id"]: r["barcode"]
+            for r in self.conn.execute("SELECT id, barcode FROM inventory_items")
+        }
+        self.assertEqual(rows[1], "IPß12-12PßSO")
+        self.assertEqual(rows[2], "SAßA15ßLC")
+        self.assertNotIn("/", rows[1])
+
+    def test_slash_rewritten_in_command_barcodes(self):
+        self.conn.execute(
+            "INSERT INTO app_config (key, value) VALUES ('scan_cmd_insert', 'CMD/IN')"
+        )
+        self.conn.execute(
+            "INSERT INTO app_config (key, value) VALUES ('scan_clr_black', 'CLR/BK')"
+        )
+        # An unrelated config row must not be touched.
+        self.conn.execute(
+            "INSERT INTO app_config (key, value) VALUES ('locale', 'de/DE')"
+        )
+        db_mod._migrate_v20_to_v21(self.conn)
+        cfg = {
+            r["key"]: r["value"]
+            for r in self.conn.execute("SELECT key, value FROM app_config")
+        }
+        self.assertEqual(cfg["scan_cmd_insert"], "CMD-IN")
+        self.assertEqual(cfg["scan_clr_black"], "CLR-BK")
+        self.assertEqual(cfg["locale"], "de/DE")
+
+    def test_idempotent(self):
+        self.conn.execute(
+            "INSERT INTO inventory_items (barcode) VALUES (?)", ("IPß12/12PßSO",)
+        )
+        db_mod._migrate_v20_to_v21(self.conn)
+        db_mod._migrate_v20_to_v21(self.conn)
+        row = self.conn.execute(
+            "SELECT barcode FROM inventory_items WHERE id=1"
+        ).fetchone()
+        self.assertEqual(row["barcode"], "IPß12-12PßSO")
+
+
 if __name__ == "__main__":
     unittest.main()

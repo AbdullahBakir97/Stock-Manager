@@ -646,6 +646,23 @@ def _make_barcode_text(item: InventoryItem) -> str:
     # printed with ``+`` keep scanning after the V18 → V19 DB migration
     # rewrites stored barcodes to the P-form.
     text = text.replace("+", "P")
+    # Substitute ``/`` with ``-``. The user's handheld scanner is in
+    # keyboard-wedge mode while the OS runs a German (QWERTZ) layout, so a
+    # scanned char is "typed" via the US-physical-key scancode and then
+    # re-interpreted by the German layout. The US ``/`` key sits where
+    # German has ``-`` (bottom row, right of ``.``), so a printed ``/``
+    # arrives at the app as ``-`` — exactly like the ``-`` separator does.
+    # This is why "12 / 12 Pro" style combined models (and any part type
+    # written "Soft/Hard OLED") didn't scan: the stored payload kept the
+    # ``/`` while the scan produced ``-``, so the two never matched.
+    # Generating with ``-`` instead means the payload round-trips cleanly
+    # through the same ``-`` → ``ß`` path every other separator uses, and
+    # the print-grade validator (which renders the real payload) can now
+    # actually catch any remaining issue instead of passing a ``/`` that
+    # only fails in the field. Applied symmetrically in canonical_barcode
+    # and the V20 → V21 DB migration so labels printed before this change
+    # keep scanning.
+    text = text.replace("/", "-")
     return text or "ITEM"
 
 
@@ -711,6 +728,13 @@ def canonical_barcode(text: str) -> str:
         return text
     text = normalize_barcode(text)
     text = text.replace("+", "P")
+    # ``/`` → ``-``: a German-layout keyboard-wedge scanner emits the US
+    # ``/`` key, which the OS reads as ``-``, so a printed ``/`` is
+    # received as ``-``. Mirror that here so scanner output, manually-typed
+    # values, and CSV imports that still carry a literal ``/`` all converge
+    # on the ``-`` form the DB now stores (see _make_barcode_text and the
+    # V20 → V21 migration).
+    text = text.replace("/", "-")
     return text
 
 

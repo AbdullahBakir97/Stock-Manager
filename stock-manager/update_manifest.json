@@ -1,7 +1,7 @@
 {
-  "version": "2.5.4",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.4/StockManagerPro-2.5.4-setup.exe",
-  "release_notes": "**Symptom**: customer auto-updated to v2.5.3, opened the Barcode Generator \u2192 Verify dialog, and saw `\"zxing-cpp is not installed \u2014 only the width check ran. Install with: pip install zxing-cpp\"`. The decode validation that v2.5.1 introduced silently degraded to width-check-only because the lib wasn't on the customer's machine.; **Root cause**: v2.5.1 made `zxing-cpp` an OPTIONAL dependency via lazy import (`try: import zxingcpp; except ImportError: ...`) \u2014 the intent was to fail gracefully if it wasn't installed. But it was never added to `requirements.txt` or the PyInstaller `.spec`, so `installer/build_installer.bat` produced an installer without the lib. The decode check worked in the developer's environment (where `pip install zxing-cpp` had been run manually during v2.5.1 development) but not in any installed-from-installer copy. Asking customers to `pip install` something is a non-starter for a Windows-installer-distributed app.; **Fix**:",
-  "release_date": "2026-05-06",
-  "checksum_sha256": "80b91b00356f39b45376ac8a7122654a2b923689d8f06d4ee9de75c56e885963"
+  "version": "2.5.6",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.6/StockManagerPro-2.5.6-setup.exe",
+  "release_notes": "The sales-history table's actions column now carries **three** icon buttons per row: Receipt (existing), **Edit** (blue, pencil), and **Delete** (red, trash). All three share the original 36\u00d736 styling so the table's visual rhythm is unchanged; the column width grew from 50 \u2192 130 px to fit the trio.; **Edit** opens `POSDialog` in edit mode (new `edit_sale_id` constructor param). The dialog pre-loads the sale's customer, discount, note, and every line item into the cart, switches the window title to `Edit Sale #N`, and renames the primary action button to `Update Sale`. On accept it routes to the new `SaleService.update_sale` which:; Computes a stock-delta per item: `new_qty - old_qty`. Positive delta \u2192 more sold \u2192 stock down + `OUT` transaction with note `Updated sale #N`. Negative \u2192 less sold \u2192 stock up + `IN` transaction. Zero \u2192 skip (no churn for unchanged lines).",
+  "release_date": "2026-05-12",
+  "checksum_sha256": "18c3fe6092ac8c930a2a25a17b15b041d5c342ec7e61670107d2ed8adaca9ae5"
 }

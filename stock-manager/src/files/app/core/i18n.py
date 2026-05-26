@@ -2025,6 +2025,10 @@ _TR: dict[str, dict[str, str]] = {
     "bcgen_page_of":        {"EN": "Page {current} of {total}","DE": "Seite {current} von {total}", "AR": "صفحة {current} من {total}"},
     "bcgen_no_items":       {"EN": "No items found for selected scope", "DE": "Keine Artikel für ausgewählten Bereich", "AR": "لم يتم العثور على منتجات"},
     "bcgen_assigned_n":     {"EN": "{n} barcodes assigned",    "DE": "{n} Barcodes zugewiesen",     "AR": "تم تعيين {n} باركود"},
+    "bcgen_cmds_only_btn":  {"EN": "Print Commands Only",       "DE": "Nur Befehle drucken",         "AR": "طباعة الأوامر فقط"},
+    "bcgen_cmds_only_tip":  {"EN": "Generate a single A4 page with just the\n3 command barcodes (ADD / DEL / OK), big and\nwell-spaced — no item rows.\nUse case: laminate as a permanent reference\nsheet near the workstation.", "DE": "Erzeugt eine einzelne A4-Seite mit nur\nden 3 Befehls-Barcodes (ADD / DEL / OK),\ngroß und gut verteilt — ohne Artikelzeilen.", "AR": "إنشاء صفحة A4 واحدة تحتوي فقط على\nباركودات الأوامر الثلاثة (ADD / DEL / OK)،\nكبيرة وبفواصل واسعة — بدون صفوف المنتجات."},
+    "bcgen_cmds_only_save_dialog": {"EN": "Save Quick-Scan Commands Sheet", "DE": "Quick-Scan-Befehlsblatt speichern", "AR": "حفظ ورقة أوامر المسح السريع"},
+    "bcgen_cmds_only_default_name": {"EN": "QuickScan_Commands_{date}.pdf", "DE": "Schnellscan_Befehle_{date}.pdf", "AR": "اوامر_المسح_{date}.pdf"},
     # ── StockService error messages ───────────────────────────────────────────
     "err_qty_positive": {
         "EN": "Quantity must be positive",
@@ -4073,6 +4077,70 @@ _TR: dict[str, dict[str, str]] = {
         "EN": "Add at least one item to the sale.",
         "DE": "Fügen Sie mindestens einen Artikel zum Verkauf hinzu.",
         "AR": "أضف عنصرًا واحدًا على الأقل للبيع.",
+    },
+    # Sales-row actions (Edit / Void) — added v2.5.7
+    "sales_action_receipt": {
+        "EN": "Generate Receipt",
+        "DE": "Beleg erstellen",
+        "AR": "إنشاء إيصال",
+    },
+    "sales_action_edit_tip": {
+        "EN": "Edit this sale",
+        "DE": "Diesen Verkauf bearbeiten",
+        "AR": "تعديل هذه الفاتورة",
+    },
+    "sales_action_delete_tip": {
+        "EN": "Void this sale (restores stock)",
+        "DE": "Verkauf stornieren (Bestand wird zurückgebucht)",
+        "AR": "إلغاء البيع (إعادة المخزون)",
+    },
+    "sales_action_delete_title": {
+        "EN": "Void Sale",
+        "DE": "Verkauf stornieren",
+        "AR": "إلغاء البيع",
+    },
+    "sales_action_delete_body": {
+        "EN": ("Void sale #{id}?\n\n"
+               "This will:\n"
+               "  • Restore stock for every line item\n"
+               "  • Log a reversal transaction for the audit trail\n"
+               "  • Permanently delete the sale record\n\n"
+               "Items to restore to stock:\n{items}\n\n"
+               "Total: {currency} {total:.2f}"),
+        "DE": ("Verkauf #{id} stornieren?\n\n"
+               "Dies wird:\n"
+               "  • Bestand jeder Position zurückbuchen\n"
+               "  • Stornobuchung für den Audit-Trail erfassen\n"
+               "  • Verkaufsdatensatz dauerhaft löschen\n\n"
+               "Zurückzubuchender Bestand:\n{items}\n\n"
+               "Gesamt: {currency} {total:.2f}"),
+        "AR": ("هل تريد إلغاء البيع رقم {id}؟\n\n"
+               "سيتم:\n"
+               "  • إعادة كل صنف إلى المخزون\n"
+               "  • تسجيل معاملة عكسية في سجل التدقيق\n"
+               "  • حذف سجل البيع بشكل دائم\n\n"
+               "الأصناف المُعادة:\n{items}\n\n"
+               "الإجمالي: {currency} {total:.2f}"),
+    },
+    "sales_voided": {
+        "EN": "Sale #{id} voided. Stock restored ({n} items).",
+        "DE": "Verkauf #{id} storniert. Bestand zurückgebucht ({n} Artikel).",
+        "AR": "تم إلغاء البيع رقم {id}. أُعيد المخزون ({n} صنف).",
+    },
+    "pos_title_edit": {
+        "EN": "Edit Sale #{id}",
+        "DE": "Verkauf #{id} bearbeiten",
+        "AR": "تعديل البيع رقم {id}",
+    },
+    "pos_update_sale": {
+        "EN": "Update Sale",
+        "DE": "Verkauf aktualisieren",
+        "AR": "تحديث البيع",
+    },
+    "pos_sale_updated": {
+        "EN": "Sale #{id} updated.",
+        "DE": "Verkauf #{id} aktualisiert.",
+        "AR": "تم تحديث البيع رقم {id}.",
     },
     "pos_title": {
         "EN": "Point of Sale",

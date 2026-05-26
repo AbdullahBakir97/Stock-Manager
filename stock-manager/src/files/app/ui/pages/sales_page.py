@@ -66,18 +66,48 @@ class _SalesKpiCard(QFrame):
 # ── POS Dialog ───────────────────────────────────────────────────────────────
 
 class POSDialog(QDialog):
-    """Professional point-of-sale dialog with product picker and cart."""
+    """Professional point-of-sale dialog with product picker and cart.
 
-    def __init__(self, parent=None):
+    ``edit_sale_id`` (optional): when provided, the dialog opens in
+    EDIT mode — the existing sale's customer, discount, note, and line
+    items are pre-loaded into the form, the title and primary action
+    button switch to the edit variant, and "Complete Sale" routes to
+    ``SaleService.update_sale`` instead of ``create_sale``. The stock-
+    diff math (see ``update_sale``) means changing quantities, adding
+    new items, or removing items from the cart all just work — no
+    special UI for "this line existed before".
+    """
+
+    def __init__(self, parent=None, edit_sale_id: int | None = None):
         super().__init__(parent)
         self.setObjectName("pos_dialog")
-        self.setWindowTitle(t("pos_title"))
         self.setMinimumSize(1000, 620)
         THEME.apply(self)
         self._cart: list[dict] = []
         self._products: list[InventoryItem] = []
+        self._edit_sale_id: int | None = edit_sale_id
         self._build()
+        if edit_sale_id is None:
+            self.setWindowTitle(t("pos_title"))
+        else:
+            # Title and primary action reflect edit mode. The window
+            # title is updated again after the existing sale loads so
+            # it can include the sale id, but we set a fallback now
+            # in case ``_load_existing_sale`` doesn't find the row.
+            self.setWindowTitle(
+                t("pos_title_edit", id=edit_sale_id)
+                if t("pos_title_edit") != "pos_title_edit"
+                else f"Edit Sale #{edit_sale_id}"
+            )
+            update_label = (
+                t("pos_update_sale")
+                if t("pos_update_sale") != "pos_update_sale"
+                else "Update Sale"
+            )
+            self._complete_btn.setText(f"  ✓  {update_label}")
         self._load_products()
+        if edit_sale_id is not None:
+            self._load_existing_sale(edit_sale_id)
         self.result_sale_id: int | None = None
 
     def _build(self) -> None:
@@ -363,9 +393,68 @@ class POSDialog(QDialog):
         cfg = ShopConfig.get()
         self._total_lbl.setText(f"{cfg.currency} {total:.2f}")
 
+    def _load_existing_sale(self, sale_id: int) -> None:
+        """Prefill the dialog from an existing sale for edit mode.
+
+        Loads the sale's customer (resolves via combo's UserRole data),
+        discount, note, and every line-item into the cart. Each cart
+        line stores an inflated ``stock`` value of (current_stock +
+        original_sold_qty) — this is the budget the user can reallocate
+        within the edit, since ``SaleService.update_sale`` will return
+        the old qty to stock before deducting the new qty.
+
+        If the underlying ``InventoryItem`` for a sold line no longer
+        exists (deleted product), the line is skipped with a console
+        warning rather than crashing the dialog.
+        """
+        sale = _sale_repo.get_by_id(sale_id)
+        if sale is None:
+            QMessageBox.warning(
+                self, self.windowTitle(),
+                f"Sale {sale_id} not found.",
+            )
+            self.reject()
+            return
+
+        # Customer combo: select the matching customer if there's one
+        # on the sale; fall back to walk-in.
+        if sale.customer_id is not None:
+            idx = self._customer_combo.findData(sale.customer_id)
+            if idx >= 0:
+                self._customer_combo.setCurrentIndex(idx)
+            else:
+                self._customer_combo.setCurrentIndex(0)
+                self._customer_combo.lineEdit().setText(sale.customer_name)
+        else:
+            self._customer_combo.setCurrentIndex(0)
+            if sale.customer_name:
+                self._customer_combo.lineEdit().setText(sale.customer_name)
+
+        self._discount_spin.setValue(sale.discount or 0)
+        self._note_edit.setText(sale.note or "")
+
+        # Build cart from sale_items. The "stock" budget for editing is
+        # (current_stock + sold_qty) because update_sale returns the
+        # original qty to stock before re-deducting the new qty.
+        for si in sale.items:
+            item = _item_repo.get_by_id(si.item_id)
+            if item is None:
+                # Item was deleted from inventory after the sale. Skip
+                # rather than crash; user will see the cart is shorter
+                # than the original and can decide what to do.
+                continue
+            self._cart.append({
+                "item_id": si.item_id,
+                "name": si.item_name or item.display_name,
+                "qty": si.quantity,
+                "price": si.unit_price,
+                "stock": item.stock + si.quantity,
+            })
+        self._refresh_cart()
+
     def _complete_sale(self) -> None:
         if not self._cart:
-            QMessageBox.warning(self, t("pos_title"), t("sales_no_items"))
+            QMessageBox.warning(self, self.windowTitle(), t("sales_no_items"))
             return
 
         items = [
@@ -385,6 +474,38 @@ class POSDialog(QDialog):
             cust_name = cust_name.split("  (")[0].strip()
 
         try:
+            if self._edit_sale_id is not None:
+                # ── EDIT path ────────────────────────────────────────
+                sale_id = _sale_svc.update_sale(
+                    sale_id=self._edit_sale_id,
+                    customer_name=cust_name,
+                    discount=self._discount_spin.value(),
+                    note=self._note_edit.text().strip(),
+                    items=items,
+                    customer_id=cust_id,
+                )
+                self.result_sale_id = sale_id
+                msg = (
+                    t("pos_sale_updated", id=sale_id)
+                    if t("pos_sale_updated") != "pos_sale_updated"
+                    else f"Sale #{sale_id} updated."
+                )
+                reply = QMessageBox.question(
+                    self, self.windowTitle(),
+                    msg + "\n\nGenerate updated receipt?",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                )
+                if reply == QMessageBox.StandardButton.Yes:
+                    try:
+                        path = _receipt_svc.generate_receipt(sale_id)
+                        import os
+                        os.startfile(path) if hasattr(os, "startfile") else None
+                    except Exception:
+                        pass
+                self.accept()
+                return
+
+            # ── NEW SALE path ────────────────────────────────────────
             sale_id = _sale_svc.create_sale(
                 customer_name=cust_name,
                 discount=self._discount_spin.value(),
@@ -408,7 +529,7 @@ class POSDialog(QDialog):
                     pass
             self.accept()
         except ValueError as e:
-            QMessageBox.warning(self, t("pos_title"), str(e))
+            QMessageBox.warning(self, self.windowTitle(), str(e))
 
     @staticmethod
     def _ro(text: str) -> QTableWidgetItem:
@@ -494,7 +615,9 @@ class SalesPage(QWidget):
         sh.setSectionResizeMode(4, QHeaderView.ResizeMode.Interactive)
         self._table.setColumnWidth(4, 110)
         sh.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-        self._table.setColumnWidth(5, 50)
+        # Wider for 3 action buttons (Receipt + Edit + Delete) instead
+        # of the original single Receipt button.
+        self._table.setColumnWidth(5, 130)
         self._table.verticalHeader().setVisible(False)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
@@ -575,16 +698,47 @@ class SalesPage(QWidget):
             self._table.setItem(row, 4, self._ro(
                 f"{cfg.currency} {sale.net_total:.2f}"
             ))
-            # Receipt button — direct cell widget (no wrapper)
+            # Actions cell: Receipt + Edit + Delete, side-by-side. The
+            # three buttons share the original 36×36 sizing and styling
+            # of the legacy receipt-only button so the visual rhythm
+            # of the table stays consistent.
+            actions = QWidget()
+            actions_lay = QHBoxLayout(actions)
+            actions_lay.setContentsMargins(0, 0, 0, 0)
+            actions_lay.setSpacing(2)
+
             rcpt_btn = QPushButton()
             rcpt_btn.setObjectName("admin_edit_btn")
             rcpt_btn.setIcon(get_colored_icon("receipt", tk.green))
             rcpt_btn.setIconSize(QSize(16, 16))
-            rcpt_btn.setToolTip("Generate Receipt")
+            rcpt_btn.setToolTip(t("sales_action_receipt") if t("sales_action_receipt") != "sales_action_receipt" else "Generate Receipt")
             rcpt_btn.setFixedSize(36, 36)
             rcpt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             rcpt_btn.clicked.connect(lambda _, sid=sale.id: self._gen_receipt(sid))
-            self._table.setCellWidget(row, 5, rcpt_btn)
+            actions_lay.addWidget(rcpt_btn)
+
+            edit_btn = QPushButton()
+            edit_btn.setObjectName("admin_edit_btn")
+            edit_btn.setIcon(get_colored_icon("edit", tk.blue))
+            edit_btn.setIconSize(QSize(16, 16))
+            edit_btn.setToolTip(t("sales_action_edit_tip") if t("sales_action_edit_tip") != "sales_action_edit_tip" else "Edit this sale")
+            edit_btn.setFixedSize(36, 36)
+            edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            edit_btn.clicked.connect(lambda _, sid=sale.id: self._edit_sale(sid))
+            actions_lay.addWidget(edit_btn)
+
+            del_btn = QPushButton()
+            del_btn.setObjectName("admin_edit_btn")
+            del_btn.setIcon(get_colored_icon("delete", tk.red))
+            del_btn.setIconSize(QSize(16, 16))
+            del_btn.setToolTip(t("sales_action_delete_tip") if t("sales_action_delete_tip") != "sales_action_delete_tip" else "Void this sale (restores stock)")
+            del_btn.setFixedSize(36, 36)
+            del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            del_btn.clicked.connect(lambda _, sid=sale.id: self._delete_sale(sid))
+            actions_lay.addWidget(del_btn)
+
+            actions_lay.addStretch()
+            self._table.setCellWidget(row, 5, actions)
             self._table.setRowHeight(row, 44)
 
     def _gen_receipt(self, sale_id: int) -> None:
@@ -598,6 +752,101 @@ class SalesPage(QWidget):
                 f"Receipt saved:\n{path}")
         except Exception as e:
             QMessageBox.warning(self, "Receipt", f"Failed to generate receipt:\n{e}")
+
+    def _edit_sale(self, sale_id: int) -> None:
+        """Open POSDialog in edit mode for ``sale_id``.
+
+        On accept, the dialog has already called
+        ``SaleService.update_sale`` which handles the stock-delta
+        and the sale row + sale_items rewrite atomically. We just
+        need to refresh the page so the KPIs and the row's totals
+        / customer / discount reflect the change.
+        """
+        dlg = POSDialog(self, edit_sale_id=sale_id)
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self._refresh()
+
+    def _delete_sale(self, sale_id: int) -> None:
+        """Void a sale: confirm with the user, then call
+        ``SaleService.void_sale`` which restores stock for every line
+        before deleting. Logs a reversal IN transaction per line so the
+        inventory audit trail remains complete (both the original SALE
+        OUT and the reversal IN are visible in transactions history).
+
+        Refuses if the sale row was already deleted elsewhere (race
+        condition that shouldn't happen single-user, but guarded
+        defensively).
+        """
+        sale = _sale_repo.get_by_id(sale_id)
+        if sale is None:
+            QMessageBox.warning(
+                self, t("sales_action_delete_title") if t("sales_action_delete_title") != "sales_action_delete_title" else "Void Sale",
+                f"Sale #{sale_id} not found (already deleted?).",
+            )
+            self._refresh()
+            return
+
+        # Build a body showing what will happen so the user knows
+        # exactly which stock will be returned.
+        cfg = ShopConfig.get()
+        lines = [f"  • {si.item_name}  x{si.quantity}" for si in sale.items]
+        items_preview = "\n".join(lines[:8])
+        if len(sale.items) > 8:
+            items_preview += f"\n  … and {len(sale.items) - 8} more"
+        title = (
+            t("sales_action_delete_title")
+            if t("sales_action_delete_title") != "sales_action_delete_title"
+            else "Void Sale"
+        )
+        body_tmpl = (
+            t("sales_action_delete_body")
+            if t("sales_action_delete_body") != "sales_action_delete_body"
+            else (
+                "Void sale #{id}?\n\n"
+                "This will:\n"
+                "  • Restore stock for every line item\n"
+                "  • Log a reversal transaction for the audit trail\n"
+                "  • Permanently delete the sale record\n\n"
+                "Items to restore to stock:\n{items}\n\n"
+                "Total: {currency} {total:.2f}"
+            )
+        )
+        body = body_tmpl.format(
+            id=sale_id, items=items_preview,
+            currency=cfg.currency, total=sale.net_total,
+        )
+
+        reply = QMessageBox.question(
+            self, title, body,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        try:
+            _sale_svc.void_sale(sale_id)
+        except Exception as e:
+            QMessageBox.critical(self, title, f"Failed to void sale:\n{e}")
+            return
+
+        success_tmpl = (
+            t("sales_voided")
+            if t("sales_voided") != "sales_voided"
+            else "Sale #{id} voided. Stock restored ({n} items)."
+        )
+        self._show_toast(success_tmpl.format(id=sale_id, n=len(sale.items)))
+        self._refresh()
+
+    def _show_toast(self, msg: str) -> None:
+        """Best-effort status toast — falls back to a QMessageBox if
+        the page doesn't have a status bar of its own (which it
+        doesn't currently)."""
+        QMessageBox.information(
+            self,
+            t("sales_action_delete_title") if t("sales_action_delete_title") != "sales_action_delete_title" else "Void Sale",
+            msg,
+        )
 
     def refresh(self) -> None:
         self._refresh()

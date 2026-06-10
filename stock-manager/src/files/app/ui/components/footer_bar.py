@@ -38,8 +38,9 @@ class FooterBar(QFrame):
     # Kept for backwards compatibility. Still emitted, but ZOOM is authoritative.
     zoom_changed = pyqtSignal(int)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, sync_service=None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self._sync_service = sync_service
         self.setObjectName("footer_bar")
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
@@ -168,9 +169,14 @@ class FooterBar(QFrame):
         self._version.setObjectName("footer_version")
         lay.addWidget(self._version)
 
-        self._sync = QLabel(f"●  {t('footer_connected')}")
-        self._sync.setObjectName("footer_sync")
-        lay.addWidget(self._sync)
+        if self._sync_service is not None:
+            from app.ui.components.sync_indicator import SyncIndicator
+            self._sync_indicator = SyncIndicator(self._sync_service)
+            lay.addWidget(self._sync_indicator)
+        else:
+            self._sync = QLabel(f"●  {t('footer_connected')}")
+            self._sync.setObjectName("footer_sync")
+            lay.addWidget(self._sync)
 
         # Live clock — update every second
         self._timestamp.setText(datetime.now().strftime("%H:%M:%S"))
@@ -272,7 +278,8 @@ class FooterBar(QFrame):
             w.setVisible(visible)
 
     def retranslate(self) -> None:
-        self._sync.setText(f"●  {t('footer_connected')}")
+        if hasattr(self, "_sync"):
+            self._sync.setText(f"●  {t('footer_connected')}")
         # Preset menu uses English labels (numbers + Fit/Reset) — no retranslate needed
 
     # ── UI Scale (one-shot at startup) ────────────────────────────────────

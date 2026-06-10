@@ -1,0 +1,11 @@
+﻿barcode,model,storage,condition,battery,sell_price,imei,label
+358879689310600,Apple 15 Pro max,256GB,Gebraucht,91%,€675.00,358879689310600,Apple · 15 Pro max · 256GB · Gebraucht
+354449445109789,Apple 15 Pro max,256GB,Gebraucht,86%,€650.00,354449445109789,Apple · 15 Pro max · 256GB · Gebraucht
+351858371564259,Apple 15 Pro max,256GB,Gebraucht,87%,€650.00,351858371564259,Apple · 15 Pro max · 256GB · Gebraucht
+350912500859253,Apple 16 Pro max,256GB,Gebraucht,92%,€800.00,350912500859253,Apple · 16 Pro max · 256GB · Gebraucht
+356910632332615,Apple 16 Pro max,256GB,Gebraucht,98%,€850.00,356910632332615,Apple · 16 Pro max · 256GB · Gebraucht
+359476730464301,Apple 16 Pro max,256GB,Gebraucht,90%,€800.00,359476730464301,Apple · 16 Pro max · 256GB · Gebraucht
+355350430194571,Apple 16 Pro max,256GB,Gebraucht,95%,€800.00,355350430194571,Apple · 16 Pro max · 256GB · Gebraucht
+354614447529330,Apple 16 Pro max,512GB,Gebraucht,92%,€850.00,354614447529330,Apple · 16 Pro max · 512GB · Gebraucht
+350651446873537,Apple 17 Pro max,256GB,Gebraucht,100%,€1000.00,350651446873537,Apple · 17 Pro max · 256GB · Gebraucht
+358936951602807,Apple 17 Pro max,256GB,Gebraucht,99%,€1000.00,358936951602807,Apple · 17 Pro max · 256GB · Gebraucht

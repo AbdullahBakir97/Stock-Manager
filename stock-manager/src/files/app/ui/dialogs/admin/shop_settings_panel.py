@@ -225,6 +225,22 @@ class ShopSettingsPanel(QWidget):
         regional_card.add_widget(self._preview_frame)
         outer.addWidget(regional_card)
 
+        # ── Card: Modules ──
+        # Stock Manager is white-label; shop-specific modules are opt-in
+        # per install so a generic shop doesn't see features it doesn't need.
+        modules_card = _FormCard(
+            "Modules",
+            "Enable optional modules for this shop. Requires app restart.",
+        )
+        self._module_phones = QCheckBox()
+        self._module_phones.setToolTip(
+            "Adds the 📱 Phones tab — track individual phone units by IMEI,\n"
+            "storage, condition, battery %, buy/sell price, and barcode labels.\n"
+            "Intended for phone-shop customers. Requires app restart."
+        )
+        modules_card.form.addRow("Phone inventory (IMEI tracking)", self._module_phones)
+        outer.addWidget(modules_card)
+
         # ── Card: Security ──
         sec_card = _FormCard(
             t("shop_card_security") if t("shop_card_security") != "shop_card_security"
@@ -319,6 +335,8 @@ class ShopSettingsPanel(QWidget):
         # Show sell totals
         self._show_sell_totals.setChecked(cfg.is_show_sell_totals)
         self._show_color_totals.setChecked(cfg.is_show_color_totals)
+        self._module_phones.setChecked(cfg.is_phones_module_enabled)
+        self._original_module_phones = cfg.is_phones_module_enabled
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
         # Auto-backup
@@ -378,6 +396,7 @@ class ShopSettingsPanel(QWidget):
         cfg.ui_scale = self._ui_scale.currentData()
         cfg.show_sell_totals = "1" if self._show_sell_totals.isChecked() else "0"
         cfg.show_color_totals = "1" if self._show_color_totals.isChecked() else "0"
+        cfg.module_phones_enabled = "1" if self._module_phones.isChecked() else "0"
         cfg.admin_pin = self._pin.text()
         cfg.contact_info = self._contact.text().strip()
         # Auto-backup
@@ -390,6 +409,7 @@ class ShopSettingsPanel(QWidget):
             self._ui_scale.currentData()
             != getattr(self, "_original_ui_scale", "normal")
         )
+        modules_changed = self._module_phones.isChecked() != getattr(self, "_original_module_phones", True)
         cfg.save()
         ShopConfig.invalidate()
         if ui_scale_changed:
@@ -399,6 +419,13 @@ class ShopSettingsPanel(QWidget):
                 "The new UI Scale will take effect after restarting the application.",
             )
             self._original_ui_scale = self._ui_scale.currentData()
+        if modules_changed:
+            from PyQt6.QtWidgets import QMessageBox
+            QMessageBox.information(
+                self, "Modules changed",
+                "Module changes (Phones tab) will take effect after restarting the application.",
+            )
+            self._original_module_phones = self._module_phones.isChecked()
         self._feedback.setText(
             t("shop_saved") if t("shop_saved") != "shop_saved" else "✓ Settings saved"
         )

@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+> Add your next changes here before tagging a release.
+
+---
+
+## [2.5.9] - 2026-06-12
+
 ### Added — Phone-inventory PDF reports (Parts **and** Phones now both fully reportable)
 - Two new professional, branded PDF reports on the **Reports** tab, shown only when the **Phones** module is enabled:
   - **📱 Phone Inventory** — every IMEI-tracked unit grouped by brand, with model / IMEI / storage / condition / battery / buy / sell and a colour-coded status badge (IN STOCK / SOLD / RESERVED). KPI header (total units, in stock, sold, **stock value at cost**, avg battery) and a grand-total bar.

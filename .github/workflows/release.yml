@@ -199,7 +199,9 @@ jobs:
               f.write(content)
           print(f"Stamped {fvi} -> {tup}")
 
-          # 3. StockManagerPro.iss — installer source version
+          # 3. StockManagerPro.iss — installer source version (#define) AND the
+          #    human-readable header/output comments, so the whole file is
+          #    coherent (no stale "Version : 2.3.0" left behind).
           iss = "stock-manager/src/installer/StockManagerPro.iss"
           with open(iss, "r", encoding="utf-8") as f:
               content = f.read()
@@ -208,9 +210,39 @@ jobs:
               f'#define AppVersion "{version}"',
               content,
           )
+          # Header comment ";  Version : X.Y.Z"
+          content = re.sub(
+              r'(;\s*Version\s*:\s*)\d+\.\d+\.\d+',
+              rf'\g<1>{version}',
+              content,
+          )
+          # Literal output filename in the build-instructions comment
+          # (the real OutputBaseFilename uses {#AppVersion} and is untouched).
+          content = re.sub(
+              r'StockManagerPro-\d+\.\d+\.\d+-setup',
+              f'StockManagerPro-{version}-setup',
+              content,
+          )
           with open(iss, "w", encoding="utf-8") as f:
               f.write(content)
           print(f"Stamped {iss} -> {version}")
+
+          # 5. StockManagerPro.spec — header comment version (cosmetic, keeps
+          #    the build manifest coherent with the release).
+          spec = "stock-manager/src/StockManagerPro.spec"
+          try:
+              with open(spec, "r", encoding="utf-8") as f:
+                  sc = f.read()
+              sc = re.sub(
+                  r'(Stock Manager Pro v)\d+(?:\.\d+)*',
+                  rf'\g<1>{version}',
+                  sc,
+              )
+              with open(spec, "w", encoding="utf-8") as f:
+                  f.write(sc)
+              print(f"Stamped {spec} -> {version}")
+          except FileNotFoundError:
+              print(f"WARN: {spec} not found — skipped")
 
           # 4. README.md — version badge + SQLite schema badge
           readme = "README.md"
@@ -320,6 +352,7 @@ jobs:
             CHANGELOG.md
             README.md
             stock-manager/update_manifest.json
+            stock-manager/src/StockManagerPro.spec
             stock-manager/src/files/app/core/version.py
             stock-manager/src/installer/version.py
             stock-manager/src/installer/file_version_info.txt

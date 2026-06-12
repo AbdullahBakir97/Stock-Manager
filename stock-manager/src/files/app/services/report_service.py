@@ -45,6 +45,8 @@ _UMAP = {
     "\u20ac": "EUR", "\u2013": "-", "\u2014": "--",
     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
     "\u2022": "*", "\u2026": "...", "\u00b7": ".",
+    "\u2192": "->", "\u2190": "<-", "\u2194": "<->",   # arrows (used in subtitles)
+    "\u2713": "OK", "\u2717": "x",                       # check / cross marks
 }
 
 
@@ -908,7 +910,12 @@ class ReportService:
         pdf.title_text = title
         pdf.subtitle_text = subtitle
         pdf.shop_cfg = self._cfg
-        pdf.set_auto_page_break(auto=True, margin=_MARGIN_B + 4)
+        # Auto page-break is DISABLED on purpose: the table renderers do their
+        # own proactive page breaks (so they can redraw column/group headers and
+        # keep a row + its coloured status badge together). Leaving fpdf's auto
+        # break on caused it to fire mid-row, stranding the badge on a separate
+        # page and producing blank/near-empty pages between full ones.
+        pdf.set_auto_page_break(auto=False)
         pdf.set_left_margin(_MARGIN_L)
         pdf.set_right_margin(_MARGIN_R)
         pdf.set_top_margin(_MARGIN_T)
@@ -938,6 +945,9 @@ class ReportService:
 
     def _section_title(self, pdf: _ReportPDF, text: str) -> None:
         pdf.ln(1)
+        # Keep the title with the header + first row that follow it.
+        if pdf.get_y() + 20 > _CONTENT_BOTTOM:
+            pdf.add_page()
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*_DARK)
         pdf.cell(0, 7, text, ln=True)
@@ -983,6 +993,8 @@ class ReportService:
 
     def _subtotal_row(self, pdf: _ReportPDF, label: str, meta: str) -> None:
         """Thin line showing a subtotal right below a grouped table."""
+        if pdf.get_y() + 8 > _CONTENT_BOTTOM:
+            pdf.add_page()
         y = pdf.get_y()
         pdf.set_draw_color(*_GRAY_400)
         pdf.line(_MARGIN_L, y, _MARGIN_L + _PW, y)
@@ -998,14 +1010,17 @@ class ReportService:
         pdf.ln(6.5)
 
     def _page_break_check_raw(self, pdf: _ReportPDF) -> None:
-        """Page-break when near the bottom, without redrawing a table header
-        (used before group headers which are self-contained)."""
-        if pdf.get_y() > _CONTENT_BOTTOM - 12:
+        """Proactive page-break before a group header, leaving room for the
+        header bar plus the table header and at least one row that follow it
+        (so a group header never lands alone at the bottom of a page)."""
+        if pdf.get_y() + 22 > _CONTENT_BOTTOM:
             pdf.add_page()
 
     def _grand_total_bar(self, pdf: _ReportPDF, kvs: list[tuple[str, str]]) -> None:
         """Bold emerald bar at the bottom of the valuation report."""
         pdf.ln(2)
+        if pdf.get_y() + 15 > _CONTENT_BOTTOM:
+            pdf.add_page()
         y = pdf.get_y()
         pdf.set_fill_color(*_PRIMARY)
         pdf.rect(_MARGIN_L, y, _PW, 11, "F")
@@ -1032,6 +1047,10 @@ class ReportService:
 
     def _draw_table_header(self, pdf: _ReportPDF,
                            cols: list[tuple[str, float, str]]) -> None:
+        # Never draw a column header so close to the bottom that no row would
+        # fit under it (auto page-break is off, so we guard explicitly).
+        if pdf.get_y() + 7 + 7 > _CONTENT_BOTTOM:
+            pdf.add_page()
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.set_fill_color(*_DARK)
         pdf.set_text_color(*_WHITE)
@@ -1058,7 +1077,11 @@ class ReportService:
 
     def _page_break_check(self, pdf: _ReportPDF,
                           cols: list[tuple[str, float, str]]) -> None:
-        if pdf.get_y() > _CONTENT_BOTTOM - 8:
+        """Proactive: called after each row, it guarantees the NEXT row has
+        room; if not, start a new page and redraw the column header. With auto
+        page-break disabled this is what keeps every row (and its badge) intact
+        on a single page."""
+        if pdf.get_y() + 7 > _CONTENT_BOTTOM:
             pdf.add_page()
             self._draw_table_header(pdf, cols)
 
@@ -1187,7 +1210,7 @@ class ReportService:
                     bg = _WHITE if (running_idx - 1) % 2 == 0 else _GRAY_50
                     pdf.set_fill_color(*bg)
                     pdf.cell(18, 6.5, status, border="B", fill=True, align="C")
-                    pdf.ln(0)
+                    pdf.set_xy(_MARGIN_L, y_before + 6.5)
                     self._page_break_check(pdf, cols)
 
                 self._subtotal_row(
@@ -1285,7 +1308,7 @@ class ReportService:
             bg = _WHITE if idx % 2 == 0 else _GRAY_50
             pdf.set_fill_color(*bg)
             pdf.cell(38, 6.5, urgency, border="B", fill=True, align="C")
-            pdf.ln(0)
+            pdf.set_xy(_MARGIN_L, y_before + 6.5)
             self._page_break_check(pdf, cols)
 
     # ── Transactions ───────────────────────────────────────────────────────
@@ -1388,7 +1411,7 @@ class ReportService:
             bg = _WHITE if idx % 2 == 0 else _GRAY_50
             pdf.set_fill_color(*bg)
             pdf.cell(36, 6.5, status_txt, border="B", fill=True, align="C")
-            pdf.ln(0)
+            pdf.set_xy(_MARGIN_L, y_before + 6.5)
             self._page_break_check(pdf, cols)
 
     # ── Phones — sold history ──────────────────────────────────────────────
@@ -1698,7 +1721,7 @@ class ReportService:
             bg = _WHITE if idx % 2 == 0 else _GRAY_50
             pdf.set_fill_color(*bg)
             pdf.cell(16, 6.5, status, border="B", fill=True, align="C")
-            pdf.ln(0)
+            pdf.set_xy(_MARGIN_L, y_before + 6.5)
             self._page_break_check(pdf, cols)
 
     # ── Category performance ───────────────────────────────────────────────

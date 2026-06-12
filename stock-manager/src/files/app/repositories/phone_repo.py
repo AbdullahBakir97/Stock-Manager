@@ -166,8 +166,11 @@ class PhoneRepository(BaseRepository):
                     SUM(status = 'reserved')                       AS reserved,
                     ROUND(AVG(CASE WHEN battery_pct IS NOT NULL
                                    THEN battery_pct END), 1)       AS avg_battery,
+                    -- Stock value = cost basis (buy_price). Falls back to
+                    -- sell_price only when no buy price was recorded.
                     ROUND(SUM(CASE WHEN status = 'in_stock'
-                                   THEN sell_price ELSE 0 END), 2) AS total_value
+                                   THEN COALESCE(buy_price, sell_price, 0)
+                                   ELSE 0 END), 2) AS total_value
                 FROM phones
             """).fetchone()
         return {
@@ -407,3 +410,104 @@ class PhoneRepository(BaseRepository):
                 sell_price=old.sell_price if old else None,
                 note="Phone unit removed from inventory",
             )
+
+    # ── Portable export / import (cross-database migration) ────────────────────
+
+    def export_units(self) -> list[dict]:
+        """Portable dump of every phone unit, keyed by model brand+name rather
+        than internal IDs so it can be re-imported into a different database
+        (e.g. moving phones onto the PC that holds the master parts data
+        before a one-time cloud push)."""
+        with self._conn() as conn:
+            rows = conn.execute(_SELECT).fetchall()
+        return [{
+            "model_brand": r["model_brand"] or "",
+            "model_name":  r["model_name"] or "",
+            "imei":        r["imei"] or "",
+            "storage":     r["storage"] or "",
+            "condition":   r["condition"] or "used",
+            "battery_pct": r["battery_pct"],
+            "buy_price":   r["buy_price"],
+            "sell_price":  r["sell_price"],
+            "status":      r["status"] or "in_stock",
+            "notes":       r["notes"] or "",
+            "created_at":  r["created_at"] or "",
+        } for r in rows]
+
+    def import_units(self, rows: list[dict]) -> dict:
+        """Import phone units produced by export_units() into this database.
+
+        Models are matched (or created) by name; phone units are de-duplicated
+        by IMEI so re-running the import is safe. Units with a blank IMEI are
+        always inserted (they can't be reliably de-duplicated). Returns
+        {"imported": n, "skipped": n, "models_created": n}.
+        """
+        imported = skipped = models_created = 0
+        with self._conn() as conn:
+            # Cache existing models by name and existing IMEIs up front.
+            model_by_name = {
+                (r["name"] or "").strip().lower(): r["id"]
+                for r in conn.execute("SELECT id, name FROM phone_models").fetchall()
+            }
+            existing_imeis = {
+                (r["imei"] or "").strip()
+                for r in conn.execute(
+                    "SELECT imei FROM phones WHERE imei IS NOT NULL AND imei != ''"
+                ).fetchall()
+            }
+
+            for row in rows:
+                name  = (row.get("model_name") or "").strip()
+                brand = (row.get("model_brand") or "").strip()
+                if not name:
+                    skipped += 1
+                    continue
+
+                key = name.lower()
+                model_id = model_by_name.get(key)
+                if model_id is None:
+                    max_order = conn.execute(
+                        "SELECT COALESCE(MAX(sort_order),0) FROM phone_models"
+                    ).fetchone()[0]
+                    cur = conn.execute(
+                        "INSERT INTO phone_models (brand, name, sort_order) VALUES (?,?,?)",
+                        (brand, name, max_order + 1),
+                    )
+                    model_id = cur.lastrowid
+                    model_by_name[key] = model_id
+                    models_created += 1
+
+                imei = (row.get("imei") or "").strip()
+                if imei and imei in existing_imeis:
+                    skipped += 1
+                    continue
+
+                conn.execute(
+                    """INSERT INTO phones
+                       (model_id, imei, storage, condition, battery_pct,
+                        buy_price, sell_price, status, notes, created_at)
+                       VALUES (?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        model_id,
+                        imei or None,
+                        row.get("storage") or "",
+                        row.get("condition") or "used",
+                        row.get("battery_pct"),
+                        row.get("buy_price"),
+                        row.get("sell_price"),
+                        row.get("status") or "in_stock",
+                        row.get("notes") or "",
+                        row.get("created_at") or None,
+                    ),
+                )
+                if imei:
+                    existing_imeis.add(imei)
+                imported += 1
+
+        try:
+            from app.repositories.model_repo import _invalidate_model_caches
+            _invalidate_model_caches()
+        except Exception:
+            pass
+        return {"imported": imported, "skipped": skipped,
+                "models_created": models_created}

@@ -8,6 +8,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QDate
 
+from app.core.i18n import t
 from app.repositories.phone_repo import PhoneRepository
 from app.ui.workers.worker_pool import POOL
 
@@ -19,7 +20,7 @@ class PhoneSoldHistoryDialog(QDialog):
 
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
-        self.setWindowTitle("Sold Phones History")
+        self.setWindowTitle(t("phh_title"))
         self.resize(820, 520)
         self._build()
         self._reload()
@@ -29,28 +30,28 @@ class PhoneSoldHistoryDialog(QDialog):
 
         filt = QHBoxLayout()
         self._search = QLineEdit()
-        self._search.setPlaceholderText("Search IMEI, brand, model…")
+        self._search.setPlaceholderText(t("phh_search_placeholder"))
         self._search.textChanged.connect(self._on_filter_changed)
         filt.addWidget(self._search)
 
-        self._use_dates = QCheckBox("Filter by date")
+        self._use_dates = QCheckBox(t("phh_filter_by_date"))
         self._use_dates.toggled.connect(self._on_filter_changed)
         filt.addWidget(self._use_dates)
 
         self._date_from = QDateEdit(calendarPopup=True)
         self._date_from.setDate(QDate.currentDate().addMonths(-1))
         self._date_from.dateChanged.connect(self._on_filter_changed)
-        filt.addWidget(QLabel("From"))
+        filt.addWidget(QLabel(t("phh_from")))
         filt.addWidget(self._date_from)
 
         self._date_to = QDateEdit(calendarPopup=True)
         self._date_to.setDate(QDate.currentDate())
         self._date_to.dateChanged.connect(self._on_filter_changed)
-        filt.addWidget(QLabel("To"))
+        filt.addWidget(QLabel(t("phh_to")))
         filt.addWidget(self._date_to)
 
         filt.addStretch()
-        refresh_btn = QPushButton("↺ Refresh")
+        refresh_btn = QPushButton(t("ph_btn_refresh"))
         refresh_btn.clicked.connect(self._reload)
         filt.addWidget(refresh_btn)
         root.addLayout(filt)
@@ -63,7 +64,11 @@ class PhoneSoldHistoryDialog(QDialog):
         self._table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self._table.verticalHeader().setVisible(False)
         self._table.setAlternatingRowColors(True)
-        cols = ["Sold On", "Brand", "Model", "Storage", "IMEI", "Sale Price", "Note"]
+        cols = [
+            t("phh_col_sold_on"), t("phh_col_brand"), t("phh_col_model"),
+            t("phh_col_storage"), t("phh_col_imei"), t("phh_col_sale_price"),
+            t("phh_col_note"),
+        ]
         self._table.setColumnCount(len(cols))
         self._table.setHorizontalHeaderLabels(cols)
         self._table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Stretch)
@@ -71,7 +76,7 @@ class PhoneSoldHistoryDialog(QDialog):
 
         btn_row = QHBoxLayout()
         btn_row.addStretch()
-        close_btn = QPushButton("Close")
+        close_btn = QPushButton(t("phh_close"))
         close_btn.clicked.connect(self.accept)
         btn_row.addWidget(close_btn)
         root.addLayout(btn_row)
@@ -120,5 +125,5 @@ class PhoneSoldHistoryDialog(QDialog):
             self._table.setItem(r, 6, _item(tx.note or ""))
 
         self._summary_lbl.setText(
-            f"{len(txs)} phone(s) sold — total €{total_value:.2f}"
+            t("phh_summary", n=len(txs), total=f"{total_value:.2f}")
         )

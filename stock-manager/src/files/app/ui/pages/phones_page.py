@@ -193,7 +193,13 @@ class PhonesPage(QWidget):
         hdr.addWidget(self._detail_title)
         hdr.addStretch()
         close_btn = QPushButton("✕")
-        close_btn.setFixedSize(24, 24)
+        close_btn.setObjectName("detail_close")
+        close_btn.setFixedSize(26, 26)
+        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        close_btn.setStyleSheet(
+            "QPushButton#detail_close{padding:0px;margin:0px;min-width:0px;"
+            "min-height:0px;font-size:13px;font-weight:700;border-radius:13px;}"
+        )
         close_btn.clicked.connect(lambda: (
             self._detail_container.setVisible(False),
             self._grid.clearSelection(),
@@ -219,7 +225,9 @@ class PhonesPage(QWidget):
         self._detail_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self._detail_table.horizontalHeader().setSectionResizeMode(7, QHeaderView.ResizeMode.Stretch)
         self._detail_table.horizontalHeader().setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)
-        self._detail_table.setColumnWidth(8, 76)
+        self._detail_table.setColumnWidth(8, 92)
+        # Give every row enough height so the action buttons aren't clipped.
+        self._detail_table.verticalHeader().setDefaultSectionSize(34)
 
         lay.addWidget(self._detail_table)
         return container
@@ -437,15 +445,20 @@ class PhonesPage(QWidget):
             tbl.setItem(r, 6, _item(t(status_key) if status_key else unit.status.replace("_", " ").title()))
             tbl.setItem(r, 7, _item(unit.notes or ""))
 
-            # Action buttons
+            # Action buttons — icon-only, so override the #mgmt_* padding that
+            # is sized for text buttons (it would otherwise clip the glyph).
             btn_w = QWidget()
             btn_lay = QHBoxLayout(btn_w)
-            btn_lay.setContentsMargins(2, 1, 2, 1)
-            btn_lay.setSpacing(4)
+            btn_lay.setContentsMargins(0, 0, 0, 0)
+            btn_lay.setSpacing(6)
+            btn_lay.addStretch()
 
             edit_btn = QPushButton("✎")
             edit_btn.setObjectName("mgmt_edit")
-            edit_btn.setFixedSize(30, 24)
+            edit_btn.setFixedSize(30, 26)
+            edit_btn.setStyleSheet(
+                "QPushButton#mgmt_edit{padding:0px;min-width:0px;min-height:0px;}"
+            )
             edit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             edit_btn.setToolTip(t("ph_tip_edit"))
             edit_btn.clicked.connect(lambda _, uid=unit.id: self._edit_phone(uid))
@@ -453,12 +466,16 @@ class PhonesPage(QWidget):
 
             del_btn = QPushButton("🗑")
             del_btn.setObjectName("mgmt_del")
-            del_btn.setFixedSize(30, 24)
+            del_btn.setFixedSize(30, 26)
+            del_btn.setStyleSheet(
+                "QPushButton#mgmt_del{padding:0px;min-width:0px;min-height:0px;}"
+            )
             del_btn.setCursor(Qt.CursorShape.PointingHandCursor)
             del_btn.setToolTip(t("ph_tip_delete"))
             del_btn.clicked.connect(lambda _, uid=unit.id: self._delete_phone(uid))
             btn_lay.addWidget(del_btn)
 
+            btn_lay.addStretch()
             tbl.setCellWidget(r, 8, btn_w)
 
         self._detail_container.setVisible(True)

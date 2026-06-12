@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QSizePolicy,
 )
 
+from app.core.i18n import t
 from app.core.theme import THEME, _rgba
 from app.models.phone_unit import PhoneUnit
 from app.ui.dialogs.dialog_base import DialogBase
@@ -48,7 +49,7 @@ class PhoneScanActionDialog(DialogBase):
     def __init__(self, phone: PhoneUnit, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._phone = phone
-        self.setWindowTitle("Scanned Phone Unit")
+        self.setWindowTitle(t("phs_title"))
         self.setModal(True)
         self.setMinimumWidth(460)
         THEME.apply(self)
@@ -76,9 +77,9 @@ class PhoneScanActionDialog(DialogBase):
         header_row.addWidget(name_lbl, 1)
 
         _status_style = {
-            "in_stock": ("IN STOCK",   tk.green,  "20"),
-            "sold":     ("SOLD",        tk.red,    "20"),
-            "reserved": ("RESERVED",    tk.orange, "20"),
+            "in_stock": (t("phs_badge_in_stock"), tk.green,  "20"),
+            "sold":     (t("phs_badge_sold"),     tk.red,    "20"),
+            "reserved": (t("phs_badge_reserved"), tk.orange, "20"),
         }
         badge_text, badge_fg, alpha = _status_style.get(
             p.status, (p.status.upper(), tk.t2, "20")
@@ -129,15 +130,15 @@ class PhoneScanActionDialog(DialogBase):
             return card
 
         if p.storage:
-            stats_row.addWidget(_stat_card("Storage", p.storage_label, tk.t1))
-        stats_row.addWidget(_stat_card("Condition", p.condition_label, tk.t2))
+            stats_row.addWidget(_stat_card(t("phs_stat_storage"), p.storage_label, tk.t1))
+        stats_row.addWidget(_stat_card(t("phs_stat_condition"), p.condition_label, tk.t2))
 
         batt_color = (tk.green  if (p.battery_pct or 0) >= 70 else
                       tk.orange if (p.battery_pct or 0) >= 40 else tk.red)
-        stats_row.addWidget(_stat_card("Battery", p.battery_label, batt_color))
+        stats_row.addWidget(_stat_card(t("phs_stat_battery"), p.battery_label, batt_color))
 
         if p.sell_price is not None:
-            stats_row.addWidget(_stat_card("Sell Price", f"€{p.sell_price:.2f}", tk.t1))
+            stats_row.addWidget(_stat_card(t("phs_stat_sell_price"), f"€{p.sell_price:.2f}", tk.t1))
 
         root.addLayout(stats_row)
 
@@ -163,16 +164,16 @@ class PhoneScanActionDialog(DialogBase):
 
         if p.status == "in_stock":
             # Primary: Stock Out = Mark Sold; secondary: Reserve
-            sold_btn = _action_btn("✓ Stock OUT  (Mark Sold)", tk.red,    self._on_sold)
-            res_btn  = _action_btn("⏸ Reserve",                 tk.orange, self._on_reserve)
+            sold_btn = _action_btn(t("phs_btn_sold"), tk.red,    self._on_sold)
+            res_btn  = _action_btn(t("phs_btn_reserve"),                 tk.orange, self._on_reserve)
             actions.addWidget(sold_btn, 2)
             actions.addWidget(res_btn,  1)
             sold_btn.setFocus()
         elif p.status == "reserved":
-            actions.addWidget(_action_btn("✓ Stock OUT  (Mark Sold)", tk.red,   self._on_sold), 2)
-            actions.addWidget(_action_btn("↩ Back to Stock",           tk.green, self._on_back), 1)
+            actions.addWidget(_action_btn(t("phs_btn_sold"), tk.red,   self._on_sold), 2)
+            actions.addWidget(_action_btn(t("phs_btn_back"),           tk.green, self._on_back), 1)
         else:  # sold
-            actions.addWidget(_action_btn("↩ Back to Stock", tk.green, self._on_back), 1)
+            actions.addWidget(_action_btn(t("phs_btn_back"), tk.green, self._on_back), 1)
 
         root.addLayout(actions)
 
@@ -193,11 +194,11 @@ class PhoneScanActionDialog(DialogBase):
             btn.clicked.connect(slot)
             return btn
 
-        sec.addWidget(_sec_btn("✎ Edit",        tk.blue, self._on_edit))
-        sec.addWidget(_sec_btn("↗ View in Phones", tk.t2,  self._on_view))
+        sec.addWidget(_sec_btn(t("phs_btn_edit"),        tk.blue, self._on_edit))
+        sec.addWidget(_sec_btn(t("phs_btn_view"), tk.t2,  self._on_view))
         sec.addStretch()
 
-        cancel_btn = QPushButton("Cancel")
+        cancel_btn = QPushButton(t("phs_btn_cancel"))
         cancel_btn.setMinimumHeight(34)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.setStyleSheet(
@@ -210,10 +211,7 @@ class PhoneScanActionDialog(DialogBase):
         root.addLayout(sec)
 
         # ── Footer note ───────────────────────────────────────────────────────
-        note = QLabel(
-            "ℹ  Each phone unit is 1 unique device (IMEI-tracked). "
-            "Stock OUT = Mark Sold.  Add new units via the Phones page."
-        )
+        note = QLabel(t("phs_footer_note"))
         note.setStyleSheet(f"color:{tk.t4}; font-size:9pt; background:transparent;")
         note.setWordWrap(True)
         root.addWidget(note)

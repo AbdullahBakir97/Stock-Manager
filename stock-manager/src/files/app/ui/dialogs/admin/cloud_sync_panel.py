@@ -200,6 +200,36 @@ class CloudSyncPanel(QWidget):
         init_row.addStretch()
         actions_lay.addLayout(init_row)
 
+        # ── Phone-units migration (merge) ──
+        sep2 = QFrame()
+        sep2.setFrameShape(QFrame.Shape.HLine)
+        sep2.setObjectName("admin_nav_separator")
+        actions_lay.addWidget(sep2)
+
+        mig_lbl = QLabel(
+            "Move Phone Units Between PCs  —  Export the phone units from this "
+            "PC to a file, then Import that file on the PC that holds your "
+            "parts/inventory. This merges phones into that PC's data WITHOUT "
+            "overwriting anything (matched by model name + IMEI, safe to re-run)."
+        )
+        mig_lbl.setObjectName("admin_content_desc")
+        mig_lbl.setWordWrap(True)
+        actions_lay.addWidget(mig_lbl)
+
+        mig_row = QHBoxLayout()
+        self._export_phones_btn = QPushButton("⬇  Export phone units to file…")
+        self._export_phones_btn.setObjectName("action_btn")
+        self._export_phones_btn.clicked.connect(self._export_phones)
+        mig_row.addWidget(self._export_phones_btn)
+
+        self._import_phones_btn = QPushButton("⬆  Import phone units from file…")
+        self._import_phones_btn.setObjectName("action_btn")
+        self._import_phones_btn.clicked.connect(self._import_phones)
+        mig_row.addWidget(self._import_phones_btn)
+
+        mig_row.addStretch()
+        actions_lay.addLayout(mig_row)
+
         outer.addWidget(actions_card)
 
         # ── Error log card ──
@@ -361,6 +391,78 @@ class CloudSyncPanel(QWidget):
             self._set_test_result(f"✕  {exc}", error=True)
         finally:
             self._init_replica_btn.setEnabled(True)
+
+    # ── Phone-units migration (export / import) ───────────────────────────────
+
+    def _export_phones(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog
+        import json
+        from datetime import datetime
+        try:
+            from app.repositories.phone_repo import PhoneRepository
+            units = PhoneRepository().export_units()
+        except Exception as exc:
+            QMessageBox.critical(self, "Export failed", str(exc))
+            return
+        if not units:
+            QMessageBox.information(
+                self, "Export phone units",
+                "There are no phone units on this PC to export.")
+            return
+        default = f"phone_units_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        path, _ = QFileDialog.getSaveFileName(
+            self, "Export phone units", default, "JSON files (*.json)")
+        if not path:
+            return
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"phone_units": units}, f, ensure_ascii=False, indent=2)
+        except Exception as exc:
+            QMessageBox.critical(self, "Export failed", str(exc))
+            return
+        QMessageBox.information(
+            self, "Export complete",
+            f"Exported {len(units)} phone unit(s) to:\n{path}\n\n"
+            "Copy this file to the PC that holds your parts/inventory and use "
+            "'Import phone units from file' there.")
+
+    def _import_phones(self) -> None:
+        from PyQt6.QtWidgets import QFileDialog
+        import json
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Import phone units", "", "JSON files (*.json)")
+        if not path:
+            return
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            rows = data.get("phone_units") if isinstance(data, dict) else data
+            if not isinstance(rows, list):
+                raise ValueError("File does not contain a phone-units list.")
+        except Exception as exc:
+            QMessageBox.critical(self, "Import failed",
+                                 f"Could not read the file:\n{exc}")
+            return
+        reply = QMessageBox.question(
+            self, "Import phone units",
+            f"This will add {len(rows)} phone unit(s) from the file into THIS "
+            "PC's database.\n\nExisting units are matched by IMEI and skipped, "
+            "so nothing is overwritten or duplicated.\n\nContinue?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            from app.repositories.phone_repo import PhoneRepository
+            result = PhoneRepository().import_units(rows)
+        except Exception as exc:
+            QMessageBox.critical(self, "Import failed", str(exc))
+            return
+        QMessageBox.information(
+            self, "Import complete",
+            f"Imported: {result['imported']} unit(s)\n"
+            f"Skipped (already present): {result['skipped']}\n"
+            f"New phone models created: {result['models_created']}")
 
     # ── Service signal handlers ───────────────────────────────────────────────
 

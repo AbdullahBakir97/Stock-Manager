@@ -125,8 +125,13 @@ class ItemRepository(BaseRepository):
                     SUM(CASE WHEN min_stock > 0 AND stock <= min_stock THEN 1 ELSE 0 END)
                                                                     AS low_stock_count,
                     SUM(CASE WHEN stock = 0 THEN 1 ELSE 0 END)    AS out_of_stock_count,
+                    -- Stock value = cost basis (what the stock is worth to the
+                    -- shop), using cost_price. Falls back to sell_price only when
+                    -- no cost has been entered, so the figure is never blank.
+                    SUM(stock * COALESCE(cost_price, sell_price, 0)) AS inventory_value,
+                    -- Retail value = potential sales revenue at sell_price.
                     SUM(CASE WHEN sell_price IS NOT NULL
-                             THEN stock * sell_price ELSE 0 END)   AS inventory_value
+                             THEN stock * sell_price ELSE 0 END)   AS inventory_retail_value
                 FROM inventory_items
             """).fetchone()
             return dict(row) if row else {}
@@ -548,7 +553,7 @@ class ItemRepository(BaseRepository):
             SELECT COALESCE(NULLIF(pm.brand, ''), NULLIF(ii.brand, ''), '(no brand)') AS brand_name,
                    SUM(CASE WHEN ii.stock > 0 THEN 1 ELSE 0 END) AS skus,
                    COALESCE(SUM(ii.stock), 0)                    AS units,
-                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+                   COALESCE(SUM(ii.stock * COALESCE(ii.cost_price, ii.sell_price, pt.default_price, 0)), 0) AS value
               FROM inventory_items ii
          LEFT JOIN phone_models pm ON pm.id = ii.model_id
          LEFT JOIN part_types   pt ON pt.id = ii.part_type_id
@@ -570,7 +575,7 @@ class ItemRepository(BaseRepository):
                    c.id AS cat_id, c.name_en AS cat_name, c.sort_order AS cat_order,
                    SUM(CASE WHEN ii.stock > 0 THEN 1 ELSE 0 END) AS skus,
                    COALESCE(SUM(ii.stock), 0) AS units,
-                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+                   COALESCE(SUM(ii.stock * COALESCE(ii.cost_price, ii.sell_price, pt.default_price, 0)), 0) AS value
               FROM inventory_items ii
               JOIN part_types pt ON pt.id = ii.part_type_id
               JOIN categories c  ON c.id  = pt.category_id
@@ -603,7 +608,7 @@ class ItemRepository(BaseRepository):
                    c.name_en AS cat_name,
                    c.sort_order AS cat_order,
                    COALESCE(SUM(ii.stock), 0) AS units,
-                   COALESCE(SUM(ii.stock * COALESCE(ii.sell_price, pt.default_price, 0)), 0) AS value
+                   COALESCE(SUM(ii.stock * COALESCE(ii.cost_price, ii.sell_price, pt.default_price, 0)), 0) AS value
               FROM inventory_items ii
               JOIN part_types pt ON pt.id = ii.part_type_id
               JOIN categories c  ON c.id  = pt.category_id

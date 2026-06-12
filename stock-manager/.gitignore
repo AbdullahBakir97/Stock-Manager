@@ -34,3 +34,6 @@ Output/
 
 CLAUDE.md
 .claude/
+
+phone_labels.txt
+phone_units_*.json

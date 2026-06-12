@@ -11,6 +11,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.5.10] - 2026-06-12
+
+### Fixed — Cloud upload ("Initialize as Primary") failed with a Turso parse error
+- **User-visible symptom**: uploading a PC's data to the cloud (Admin → Cloud Sync → **Initialize as Primary**) failed immediately with `Upload failed: Turso SQL error: SQL string could not be parsed: unexpected end of input`.
+- **Root cause**: the Turso HTTP client builds the cloud schema by splitting the DDL on `;`, but two schema comments contain a literal `;` (e.g. `-- … for that model; when absent …`). Splitting first cut those `CREATE TABLE` statements in half, so Turso received a comment-only fragment it couldn't parse. Local SQLite ignores comments entirely, so this only ever surfaced on cloud upload.
+- **Fix**: strip SQL line comments **before** splitting the DDL into statements, so semicolons inside comments can no longer break a statement. All 68 schema statements now upload cleanly, so Initialize as Primary (and the phone-units migration that depends on it) works.
+
+### Fixed — PDF report rows overlapped into an unreadable block
+- **User-visible symptom**: in the Inventory, Low Stock, Expiring and Phone Inventory PDF reports, every row in a group (and the subtotal) rendered stacked on top of each other at the same vertical position, producing a garbled, unreadable block.
+- **Root cause**: after drawing each row's coloured status/urgency badge as an overlay, the cursor was advanced with `pdf.ln(0)`, which left the Y position at the *top* of the row just drawn instead of moving to the next line — so every subsequent row painted over the previous one.
+- **Fix**: restore the cursor to the bottom of the row (`y_before + row_height`) after the badge overlay, in all four affected tables. Verified every table's columns still sum to the 186 mm usable width.
+
+### Fixed — Arrow character rendered as "?" in PDF subtitles
+- The `→` used in report subtitles (e.g. "grouped by category → part type") showed as `?` because it wasn't in the Latin-1 substitution map. Added `→ ← ↔ ✓ ✗` mappings so they render as readable ASCII.
+
+### Fixed — Blank/near-empty pages between full pages in PDF reports
+- **User-visible symptom**: long reports (Inventory, Audit, etc.) inserted one or two nearly-empty pages after each full page, roughly doubling the page count.
+- **Root cause**: fpdf's automatic page-break fired in the *middle* of a row, then the coloured status badge — drawn as a separate overlay positioned from the row's pre-break Y — landed on yet another page, so a single row was smeared across three pages.
+- **Fix**: disabled fpdf's auto page-break and made every table do proactive page breaks (checking there's room for the next row/subtotal/group-header before drawing, and redrawing column + "(continued)" headers on each new page). A 3,200-row test report dropped from 215 pages (≈70 wasted) to 87 pages with **zero** empty pages; continuation pages now always carry their headers.
+
+### Fixed — Stock value crashed on databases without a cost_price column
+- `inventory_items.cost_price` (added by the V16 migration and used by the new cost-basis stock value) was missing from the base `_DDL`, so a database created directly from the schema — including a fresh **Turso cloud** database — lacked the column and made reports/analytics fail with `no such column: cost_price`.
+- **Fix**: added `cost_price` to the `inventory_items` DDL and an idempotent startup column-ensure, so fresh, migrated, cloud, and previously-inconsistent databases all have it.
+
+### Changed — Installer wizard now uses the cube app logo
+- The setup wizard's large banner and small corner image were regenerated from the cube app logo (`icon_cube`) — the banner shows the cube on a branded navy→emerald gradient, the corner image on white — replacing the previous placeholder art. The setup/EXE icon was already the cube icon.
+
 ## [2.5.9] - 2026-06-12
 
 ### Added — Phone-inventory PDF reports (Parts **and** Phones now both fully reportable)

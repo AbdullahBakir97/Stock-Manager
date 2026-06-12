@@ -257,7 +257,7 @@ class AddEditPhoneDialog(QDialog):
                 )
             self.accept()
         except Exception as exc:
-            QMessageBox.critical(self, "Save Error", str(exc))
+            QMessageBox.critical(self, t("phd_save_error_title"), str(exc))
 
     def saved_id(self) -> Optional[int]:
         return self._saved_id

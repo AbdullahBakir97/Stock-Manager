@@ -229,16 +229,12 @@ class ShopSettingsPanel(QWidget):
         # Stock Manager is white-label; shop-specific modules are opt-in
         # per install so a generic shop doesn't see features it doesn't need.
         modules_card = _FormCard(
-            "Modules",
-            "Enable optional modules for this shop. Requires app restart.",
+            t("shop_card_modules"),
+            t("shop_card_modules_desc"),
         )
         self._module_phones = QCheckBox()
-        self._module_phones.setToolTip(
-            "Adds the 📱 Phones tab — track individual phone units by IMEI,\n"
-            "storage, condition, battery %, buy/sell price, and barcode labels.\n"
-            "Intended for phone-shop customers. Requires app restart."
-        )
-        modules_card.form.addRow("Phone inventory (IMEI tracking)", self._module_phones)
+        self._module_phones.setToolTip(t("shop_module_phones_tip"))
+        modules_card.form.addRow(t("shop_module_phones_label"), self._module_phones)
         outer.addWidget(modules_card)
 
         # ── Card: Security ──
@@ -422,8 +418,8 @@ class ShopSettingsPanel(QWidget):
         if modules_changed:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.information(
-                self, "Modules changed",
-                "Module changes (Phones tab) will take effect after restarting the application.",
+                self, t("shop_modules_changed_title"),
+                t("shop_modules_changed_body"),
             )
             self._original_module_phones = self._module_phones.isChecked()
         self._feedback.setText(

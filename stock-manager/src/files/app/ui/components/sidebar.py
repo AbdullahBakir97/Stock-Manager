@@ -18,6 +18,33 @@ from app.ui.components.collapsible_section import CollapsibleSection
 _cat_repo = CategoryRepository()
 
 
+def _nav_items() -> list[tuple[str, str]]:
+    """Main nav items, filtered by which optional modules are enabled.
+
+    Stock Manager is white-label; shop-specific modules (e.g. the phone-shop
+    "Phones" IMEI tracker) are only shown when enabled in Admin Settings.
+    """
+    items = [
+        ("nav_inventory",       "📦"),
+        ("nav_transactions",    "📋"),
+        ("nav_quick_scan",      "⚡"),
+        ("nav_sales",           "💰"),
+        ("nav_customers",       "👥"),
+        ("nav_purchase_orders", "🛒"),
+        ("nav_returns",         "↩"),
+        ("nav_suppliers",       "🏭"),
+        ("nav_audit",           "📝"),
+        ("nav_price_lists",     "💲"),
+        ("nav_barcode_gen",     "🏷"),
+        ("nav_reports",         "📊"),
+        ("nav_analytics",       "📈"),
+        ("nav_phones",          "📱"),
+    ]
+    if not ShopConfig.get().is_phones_module_enabled:
+        items = [i for i in items if i[0] != "nav_phones"]
+    return items
+
+
 class Sidebar(QFrame):
     """192px fixed sidebar (slim default) with main nav + collapsible category tabs.
 
@@ -62,21 +89,7 @@ class Sidebar(QFrame):
         nav_lay = QVBoxLayout(nav_section)
         nav_lay.setContentsMargins(8, 12, 8, 4); nav_lay.setSpacing(2)
 
-        nav_items = [
-            ("nav_inventory",       "📦"),
-            ("nav_transactions",    "📋"),
-            ("nav_quick_scan",      "⚡"),
-            ("nav_sales",           "💰"),
-            ("nav_customers",       "👥"),
-            ("nav_purchase_orders", "🛒"),
-            ("nav_returns",         "↩"),
-            ("nav_suppliers",       "🏭"),
-            ("nav_audit",           "📝"),
-            ("nav_price_lists",     "💲"),
-            ("nav_barcode_gen",     "🏷"),
-            ("nav_reports",         "📊"),
-            ("nav_analytics",       "📈"),
-        ]
+        nav_items = _nav_items()
         _tips = {
             "nav_inventory":       "Browse, add, and edit products",
             "nav_transactions":    "View all stock movement history",
@@ -91,6 +104,7 @@ class Sidebar(QFrame):
             "nav_barcode_gen":     "Generate and print barcode labels",
             "nav_reports":         "Generate PDF reports and audit sheets",
             "nav_analytics":       "Dashboard with charts and KPIs",
+            "nav_phones":          "Phone inventory — track devices by IMEI",
         }
         for key, icon in nav_items:
             btn = QPushButton(f"  {icon}   {t(key)}")
@@ -197,21 +211,7 @@ class Sidebar(QFrame):
             btn.style().unpolish(btn); btn.style().polish(btn)
 
     def retranslate(self) -> None:
-        nav_items = [
-            ("nav_inventory",       "📦"),
-            ("nav_transactions",    "📋"),
-            ("nav_quick_scan",      "⚡"),
-            ("nav_sales",           "💰"),
-            ("nav_customers",       "👥"),
-            ("nav_purchase_orders", "🛒"),
-            ("nav_returns",         "↩"),
-            ("nav_suppliers",       "🏭"),
-            ("nav_audit",           "📝"),
-            ("nav_price_lists",     "💲"),
-            ("nav_barcode_gen",     "🏷"),
-            ("nav_reports",         "📊"),
-            ("nav_analytics",       "📈"),
-        ]
+        nav_items = _nav_items()
         for i, (key, icon) in enumerate(nav_items):
             if i < len(self._nav_btns):
                 self._nav_btns[i].setText(f"  {icon}   {t(key)}")

@@ -34,6 +34,17 @@ class ShopConfig:
     # grand-total card at the end of the cards strip.
     show_sell_totals:           str = "1"
     show_color_totals:          str = "1"
+    # Cloud sync — Turso embedded replica
+    cloud_sync_enabled:         str = "0"   # "1" = active
+    turso_url:                  str = ""    # libsql://xxx.turso.io
+    turso_auth_token:           str = ""    # Turso auth token
+    sync_interval_minutes:      str = "5"   # periodic sync cadence
+    sync_role:                  str = "primary"  # "primary" | "replica" (UX hint)
+    # Optional modules — this is a white-label general stock manager;
+    # shop-specific modules (e.g. the phone-shop "Phones" IMEI tracker)
+    # are opt-in per install. Defaults to "1" so existing installs that
+    # already use the Phones tab keep it after upgrading.
+    module_phones_enabled:      str = "1"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -45,6 +56,9 @@ class ShopConfig:
         "ui_scale",
         "show_sell_totals",
         "show_color_totals",
+        "cloud_sync_enabled", "turso_url", "turso_auth_token",
+        "sync_interval_minutes", "sync_role",
+        "module_phones_enabled",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -88,6 +102,26 @@ class ShopConfig:
     @property
     def is_show_color_totals(self) -> bool:
         return (self.show_color_totals or "1") != "0"
+
+    @property
+    def is_cloud_sync_enabled(self) -> bool:
+        return self.cloud_sync_enabled == "1" and bool(self.turso_url)
+
+    @property
+    def is_phones_module_enabled(self) -> bool:
+        """Whether the shop-specific 'Phones' (IMEI inventory) module is shown.
+
+        This is a white-label general stock manager — the Phones tab is an
+        opt-in module for phone-shop customers, toggled in Admin Settings.
+        """
+        return (self.module_phones_enabled or "1") != "0"
+
+    @property
+    def sync_interval_minutes_int(self) -> int:
+        try:
+            return max(1, int(self.sync_interval_minutes))
+        except (ValueError, TypeError):
+            return 5
 
     @property
     def ui_scale_factor(self) -> float:

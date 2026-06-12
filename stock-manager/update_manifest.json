@@ -1,7 +1,7 @@
 {
-  "version": "2.5.7",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.7/StockManagerPro-2.5.7-setup.exe",
-  "release_notes": "v2.5.7 \u2014 see changelog for details",
-  "release_date": "2026-05-26",
-  "checksum_sha256": "5ecad37f3aa2128027f18ae65d44ceb55fc104b08463fff5da3ac5cffd2b8004"
+  "version": "2.5.9",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.9/StockManagerPro-2.5.9-setup.exe",
+  "release_notes": "Two new professional, branded PDF reports on the **Reports** tab, shown only when the **Phones** module is enabled:; **\ud83d\udcf1 Phone Inventory** \u2014 every IMEI-tracked unit grouped by brand, with model / IMEI / storage / condition / battery / buy / sell and a colour-coded status badge (IN STOCK / SOLD / RESERVED). KPI header (total units, in stock, sold, **stock value at cost**, avg battery) and a grand-total bar.; **\ud83d\udcb8 Phones Sold** \u2014 sold-unit history for the selected date range (sold-on, brand, model, IMEI, sale price, note) with revenue / avg-sale-price KPIs.",
+  "release_date": "2026-06-12",
+  "checksum_sha256": "f15ace1182d9678348384c965fe7e4274aace1d05dc2ad3d0a4c86285457c2f3"
 }

@@ -23,6 +23,7 @@ from app.ui.dialogs.admin.suppliers_panel import SuppliersPanel
 from app.ui.dialogs.admin.locations_panel import LocationsPanel
 from app.ui.dialogs.admin.customers_panel import CustomersPanel
 from app.ui.dialogs.admin.about_panel import AboutPanel
+from app.ui.dialogs.admin.cloud_sync_panel import CloudSyncPanel
 from app.core.theme import THEME
 from app.core.i18n import t
 
@@ -63,6 +64,7 @@ _NAV_GROUPS = [
             {"key": "backup",        "label_key": "admin_tab_backup",        "icon": "💾"},
             {"key": "import_export", "label_key": "admin_tab_import_export", "icon": "📊"},
             {"key": "db_tools",      "label_key": "admin_tab_db_tools",      "icon": "🔧"},
+            {"key": "cloud_sync",    "label_key": "admin_tab_cloud_sync",    "icon": "☁"},
             {"key": "about",         "label_key": "admin_tab_about",         "icon": "ℹ️"},
         ],
     },
@@ -79,8 +81,9 @@ class AdminDialog(QDialog):
     settings_changed         = pyqtSignal()
     preview_banner_requested = pyqtSignal(object)   # emits UpdateManifest
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, sync_service=None):
         super().__init__(parent)
+        self._sync_service = sync_service
         self.setObjectName("admin_dialog")
         self.setWindowTitle(t("admin_title"))
         self.setModal(True)
@@ -176,6 +179,7 @@ class AdminDialog(QDialog):
         self._backup_panel = BackupPanel()
         self._import_export_panel = ImportExportPanel()
         self._db_tools_panel = DatabaseToolsPanel()
+        self._cloud_sync_panel = CloudSyncPanel(sync_service=self._sync_service)
         self._about_panel = AboutPanel()
 
         panel_map = {
@@ -190,6 +194,7 @@ class AdminDialog(QDialog):
             "backup": self._backup_panel,
             "import_export": self._import_export_panel,
             "db_tools": self._db_tools_panel,
+            "cloud_sync": self._cloud_sync_panel,
             "about": self._about_panel,
         }
 

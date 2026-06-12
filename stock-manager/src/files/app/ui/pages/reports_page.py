@@ -92,6 +92,12 @@ class _ReportWorker(QThread):
                 path = svc.generate_category_performance_report(
                     date_from=date_from, date_to=date_to,
                 )
+            elif rt == "phones_inventory":
+                path = svc.generate_phones_inventory_report()
+            elif rt == "phones_sold":
+                path = svc.generate_phones_sold_report(
+                    date_from=date_from, date_to=date_to,
+                )
             else:
                 self.errored.emit(f"Unknown report type: {rt}")
                 return
@@ -150,7 +156,8 @@ class ReportsPage(QWidget):
     """Report selection, date range, filters, + output path + actions."""
 
     # Which reports consume date_from / date_to
-    _USES_DATE = {"transactions", "sales", "scan_invoices", "category_performance"}
+    _USES_DATE = {"transactions", "sales", "scan_invoices", "category_performance",
+                  "phones_sold"}
     # Which reports consume an operation filter
     _USES_OP = {
         "transactions": ("", "IN", "OUT", "ADJUST", "CREATE"),
@@ -261,6 +268,19 @@ class ReportsPage(QWidget):
             ("expiring",             "⏰", "Expiring Stock",       "Items with expiry within 30 days."),
             ("category_performance", "📈", "Category Performance", "Stock value + movement per category."),
         ]
+
+        # Phone-inventory reports — only when the Phones module is enabled.
+        try:
+            from app.core.config import ShopConfig
+            if ShopConfig.get().is_phones_module_enabled:
+                report_defs += [
+                    ("phones_inventory", "📱", "Phone Inventory",
+                     "All phone units by IMEI, brand, condition + stock value."),
+                    ("phones_sold",      "💸", "Phones Sold",
+                     "Sold phone units with sale price in the date range."),
+                ]
+        except Exception:
+            pass
 
         self._cards: list[_ReportCard] = []
         for i, (rt, icon, title, desc) in enumerate(report_defs):

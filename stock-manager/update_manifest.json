@@ -1,7 +1,7 @@
 {
-  "version": "2.5.9",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.9/StockManagerPro-2.5.9-setup.exe",
-  "release_notes": "Two new professional, branded PDF reports on the **Reports** tab, shown only when the **Phones** module is enabled:; **\ud83d\udcf1 Phone Inventory** \u2014 every IMEI-tracked unit grouped by brand, with model / IMEI / storage / condition / battery / buy / sell and a colour-coded status badge (IN STOCK / SOLD / RESERVED). KPI header (total units, in stock, sold, **stock value at cost**, avg battery) and a grand-total bar.; **\ud83d\udcb8 Phones Sold** \u2014 sold-unit history for the selected date range (sold-on, brand, model, IMEI, sale price, note) with revenue / avg-sale-price KPIs.",
+  "version": "2.5.10",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.10/StockManagerPro-2.5.10-setup.exe",
+  "release_notes": "**User-visible symptom**: uploading a PC's data to the cloud (Admin \u2192 Cloud Sync \u2192 **Initialize as Primary**) failed immediately with `Upload failed: Turso SQL error: SQL string could not be parsed: unexpected end of input`.; **Root cause**: the Turso HTTP client builds the cloud schema by splitting the DDL on `;`, but two schema comments contain a literal `;` (e.g. `-- \u2026 for that model; when absent \u2026`). Splitting first cut those `CREATE TABLE` statements in half, so Turso received a comment-only fragment it couldn't parse. Local SQLite ignores comments entirely, so this only ever surfaced on cloud upload.; **Fix**: strip SQL line comments **before** splitting the DDL into statements, so semicolons inside comments can no longer break a statement. All 68 schema statements now upload cleanly, so Initialize as Primary (and the phone-units migration that depends on it) works.",
   "release_date": "2026-06-12",
-  "checksum_sha256": "f15ace1182d9678348384c965fe7e4274aace1d05dc2ad3d0a4c86285457c2f3"
+  "checksum_sha256": "04321dcd3a81e48314c3f67976ed8751204e1e3a8251f96b1685ffb9dace01fc"
 }

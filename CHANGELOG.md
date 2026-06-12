@@ -7,8 +7,50 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-## [2.5.7] - 2026-05-26
+> Add your next changes here before tagging a release.
 
+---
+
+## [2.5.9] - 2026-06-12
+
+### Added — Phone-inventory PDF reports (Parts **and** Phones now both fully reportable)
+- Two new professional, branded PDF reports on the **Reports** tab, shown only when the **Phones** module is enabled:
+  - **📱 Phone Inventory** — every IMEI-tracked unit grouped by brand, with model / IMEI / storage / condition / battery / buy / sell and a colour-coded status badge (IN STOCK / SOLD / RESERVED). KPI header (total units, in stock, sold, **stock value at cost**, avg battery) and a grand-total bar.
+  - **💸 Phones Sold** — sold-unit history for the selected date range (sold-on, brand, model, IMEI, sale price, note) with revenue / avg-sale-price KPIs.
+- Both reuse the existing `_ReportPDF` header/footer/pagination engine, so they match the look of the 12 existing reports (inventory, valuation, low stock, transactions, summary, audit, discrepancy, sales, scan invoices, expiring, category performance, barcode labels).
+
+### Added — Move phone units between PCs (safe cross-database merge)
+- New **Export / Import phone units** actions in **Admin → Cloud Sync → Actions**. Export dumps all phone units to a portable JSON file keyed by model **name + IMEI** (not internal database IDs); Import re-creates any missing phone models by name and inserts the units, **de-duplicating by IMEI** so it is safe to re-run and never overwrites existing data.
+- Purpose: combine a PC that holds the phone units with a PC that holds the master parts/inventory **before** a one-time cloud push, so neither dataset is lost. Backed by `PhoneRepository.export_units()` / `import_units()`.
+
+### Changed — "Stock value" now reflects **cost basis**, not retail price
+- The Analytics dashboard **STOCK VALUE** card, the **Stock Valuation**, **Summary** and **Category Performance** PDF reports, and the **Phones** stock-value KPI now value on-hand stock at **cost price** (`cost_price` for parts, `buy_price` for phones), falling back to sell price only when no cost was recorded so the figure is never blank. A separate retail value remains available for parts.
+- The per-brand / per-part-type / pivot value breakdowns use the same cost basis, so every "value" figure across the app is now consistent.
+
+### Fixed — Phone detail-table action buttons were clipped
+- In the Phones page detail table, the per-row **Edit (✎)** / **Delete (🗑)** icon buttons and the panel's **✕** close button rendered cut off. Root cause: the shared `#mgmt_edit` / `#mgmt_del` style carries `padding: 3px 12px` (sized for text buttons), which left no room for the glyph inside the fixed-size icon buttons. Fixed by overriding the padding/min-size on the icon buttons, centring them, widening the Actions column (76 → 92 px) and giving rows a 34 px height.
+
+### Changed — Full EN / DE / AR translations for every phone feature
+- All user-facing strings across the Phones page, Add/Edit Phone dialog, barcode-scan action popup, Sold-Phones history dialog, phone transaction/audit labels, and the Shop Settings **Modules** card are now localised in English, German and Arabic (RTL-aware), matching the rest of the app.
+
+## [2.5.8] - 2026-06-10
+
+### Added — 📱 Phones tab: whole-device inventory tracked by IMEI
+- New **Phones** sidebar tab (opt-in per shop) for tracking individual phone units as whole devices by **IMEI**, separate from the parts matrix. Brand × model **stock grid** (storage columns 64 GB–1 TB) with colour-coded counts and a per-model **detail panel** listing every unit, plus KPI cards (total, in stock, sold, avg battery, stock value).
+- **Add / Edit Phone** dialog: model, IMEI (with duplicate detection), storage, condition (New / Used / Refurbished), battery %, buy/sell price, status (in stock / sold / reserved) and notes.
+- **Barcode labels** for phone units (IMEI / PHN-code) exportable for YunPrint, plus a **scan → Phone action popup** (Stock OUT / Mark Sold, Reserve, Back to Stock, Edit, View) when a unit's barcode is scanned from the header search.
+- **Transaction history & Sold-Phones history**: every add / edit / sell / reserve / return / delete is written to a new `phone_transactions` audit log with a denormalised snapshot (readable even after a unit is deleted) and surfaced in a Sold Phones history dialog; status changes support **undo / redo**.
+
+### Added — Cloud Sync across multiple PCs (Turso, no server required)
+- New **Cloud Sync** admin panel: enter Turso database URL + token, **Test Connection**, enable sync, choose an interval, **Sync Now**, and **Initialize as Primary / Replica** to choose which PC seeds the shared data. Connectivity uses a pure-stdlib **Turso HTTP pipeline** client (no Rust / embedded-replica dependency), so every repository reads and writes the cloud database unchanged. A header **sync indicator** shows live status.
+
+### Added — White-label module toggle
+- A new **Modules** card in Shop Settings makes the Phones tab opt-in per install, so shops that don't sell phones never see it. Requires an app restart to apply.
+
+### Changed — Database schema V21 → V23
+- **V22** adds the `phones` table (IMEI-tracked units); **V23** adds the `phone_transactions` audit table. Existing databases upgrade automatically on first launch.
+
+## [2.5.7] - 2026-05-26
 
 ### Fixed — `Yellow` (and any Y/Z) barcodes didn't scan on German keyboards
 - **User-visible symptom**: iPhone 15 / 15 Plus `Yellow` rows didn't scan — the printed sticker said `…-YL` but the scanner produced `…-ZL`, so the lookup missed.

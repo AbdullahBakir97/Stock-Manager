@@ -173,9 +173,17 @@ class _TursoHTTPConnection:
             self._post(stmts)
 
     def executescript(self, script: str) -> None:
+        # Strip SQL line comments BEFORE splitting on ';'. The schema has a
+        # ';' inside a '-- ...' comment; splitting first would cut a statement
+        # in half, and Turso parses each ';'-separated chunk independently —
+        # the comment-only fragment fails with "unexpected end of input".
+        # (Safe here: the DDL never contains '--' inside a string literal.)
+        cleaned = "\n".join(
+            line.split("--", 1)[0] for line in script.splitlines()
+        )
         stmts = [
             {"sql": s.strip()}
-            for s in script.split(";")
+            for s in cleaned.split(";")
             if s.strip() and not s.strip().upper().startswith("PRAGMA")
         ]
         if stmts:
@@ -471,6 +479,7 @@ _DDL = """
         sku          TEXT,
         barcode      TEXT    UNIQUE,
         sell_price   REAL,
+        cost_price   REAL,
         stock        INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0),
         min_stock    INTEGER NOT NULL DEFAULT 0,
         inventur     INTEGER,
@@ -1593,11 +1602,39 @@ def _migrate_v1_transactions(conn: sqlite3.Connection) -> None:
 
 # ── Public init ───────────────────────────────────────────────────────────────
 
+def _ensure_columns(conn) -> None:
+    """Idempotently add migration-introduced columns that may be missing on a
+    DB whose schema_version already says they should exist — e.g. a database
+    created directly from _DDL (a fresh cloud DB, or an inconsistent local one)
+    rather than walking the migration chain. Cheap and safe to run on every
+    startup. Skipped silently for the Turso HTTP connection (PRAGMA returns
+    nothing there; fresh cloud DBs get the column from _DDL instead)."""
+    ensure = {
+        "inventory_items": [("cost_price", "REAL")],
+    }
+    for table, columns in ensure.items():
+        try:
+            existing = {r[1] for r in conn.execute(
+                f"PRAGMA table_info({table})").fetchall()}
+        except Exception:
+            continue
+        if not existing:
+            continue  # table absent or PRAGMA unsupported (HTTP) — skip
+        for col, decl in columns:
+            if col not in existing:
+                try:
+                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                    _log.info("Ensured %s.%s column", table, col)
+                except Exception as exc:
+                    _log.warning("Could not add %s.%s: %s", table, col, exc)
+
+
 def init_db() -> None:
     """Create schema, run migrations, seed reference data."""
     _log.info("Initializing database")
     with get_connection() as conn:
         _executescript(conn, _DDL)
+        _ensure_columns(conn)
 
         # Detect schema version
         version = conn.execute(

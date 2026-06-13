@@ -3,5 +3,5 @@
   "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.3/StockManagerPro-2.6.3-setup.exe",
   "release_notes": "Fixed persistent foreign key constraint errors during cloud upload by changing from DELETE to DROP TABLE approach, since Turso HTTP API ignores PRAGMA statements. Also fixed data loss after 2.6.0 update when cloud sync was enabled by checking sync_role in get_connection(), and added safety check to prevent wiping cloud DB with empty local data.",
   "release_date": "2026-06-13",
-  "checksum_sha256": ""
+  "checksum_sha256": "954db3d6d83f46dc5c62f7c1ba6bbea236920364fbe843296f1e14189a8b3452"
 }

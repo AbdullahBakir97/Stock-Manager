@@ -6,7 +6,7 @@
 
 **Professional desktop inventory management for Windows**
 
-Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
+Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Optional cloud sync · Multilingual
 
 [![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
@@ -23,7 +23,7 @@ Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Multilingual
 
 ## Overview
 
-Stock Manager Pro is a professional, fully offline desktop inventory management application for small-to-medium repair shops, retail stores, and warehouses. It ships with a complete business operations suite — from a full POS terminal and purchase order lifecycle to stocktake audits, price lists, supplier CRM, and multi-location stock tracking — all built on a zero-freeze async engine with a clean controller architecture.
+Stock Manager Pro is a professional, offline-first desktop inventory management application for small-to-medium repair shops, retail stores, and warehouses. It ships with a complete business operations suite — a full POS terminal, purchase-order lifecycle, stocktake audits, price lists, supplier CRM, multi-location stock, **IMEI-level phone-unit tracking**, and **14 branded PDF reports** — all built on a zero-freeze async engine with a clean controller architecture. Data stays local by default, with **optional multi-PC cloud sync** via Turso when you need it.
 
 > **Designed for resale.** Every architecture decision prioritises reusability and extensibility so the codebase can serve as the foundation for a general-purpose stock management platform.
 
@@ -33,16 +33,18 @@ Stock Manager Pro is a professional, fully offline desktop inventory management 
 
 ### Core Inventory
 - Unified inventory across categories, part types, phone models, and colour variants
-- Matrix grid view — bulk stock operations in a spreadsheet-style interface
-- Stock In / Out / Adjust with timestamped notes and full undo support
-- Per-item configurable minimum stock thresholds with real-time alerts
+- **Matrix grid view** — spreadsheet-style bulk stock across model × part-type × colour, with a frozen model column, sticky headers, and per-part-type value totals
+- **Phone units (IMEI tracking)** — track whole devices individually by IMEI: storage, condition, battery %, buy/sell price, status (in stock / sold / reserved), barcode labels, sold-history and a full audit log *(optional white-label module)*
+- Stock In / Out / Adjust with timestamped notes and full undo / redo
+- Per-item minimum-stock thresholds with real-time low-stock alerts
 - Product photos, expiry dates, and warranty tracking per item
 - Barcode generation (Code128/EAN) and USB scanner interception
 
 ### Business Modules
 | Module | Highlights |
 |---|---|
-| **Sales / POS** | Full cart-based POS, customer lookup, discounts, PDF receipts |
+| **Sales / POS** | Cart-based POS, customer lookup, discounts, PDF receipts, edit/void with automatic stock reversal |
+| **Phones (IMEI)** | Whole-device inventory by IMEI — brand × model stock grid, scan-to-sell, reserve, barcode labels, sold history |
 | **Purchase Orders** | DRAFT → SENT → PARTIAL → RECEIVED lifecycle, auto stock-in on receipt |
 | **Returns** | RESTOCK or WRITE_OFF actions, refund tracking, sale linkage |
 | **Suppliers** | Supplier CRM, cost prices, lead days, linked inventory items |
@@ -50,127 +52,121 @@ Stock Manager Pro is a professional, fully offline desktop inventory management 
 | **Audit / Stocktake** | Cycle-based counted vs system qty comparison with variance reporting |
 | **Customers** | Customer profiles linked to sales and purchase history |
 | **Locations** | Multi-location stock with transfers between warehouse positions |
-| **Reports** | PDF inventory and transaction reports |
+| **Reports** | 14 branded PDF reports — inventory, valuation (at cost), low stock, transactions, sales, category performance, audit, **phone inventory & sold history**, barcode labels, and more |
 
 ### Platform
 - **Zero-freeze UI** — every DB operation runs off the main thread via `WorkerPool`
+- **Optional cloud sync** — share one live dataset across multiple PCs via Turso (libSQL) over the HTTP API; pure-stdlib client, no server to run, opt-in per install
+- **White-label modules** — shop-specific features (e.g. the Phones / IMEI tracker) are opt-in per install via Shop Settings → Modules
 - **Multilingual** — English, German (DE), Arabic (AR) with live switching and full RTL layout
 - **Four themes** — Dark, Light, Pro Dark (emerald/charcoal), Pro Light (emerald/white) — toggle updates all components
-- **Excel-like zoom** — Ctrl+Scroll / Ctrl+Plus/Minus zoom (50-200%) with footer slider
-- **Sticky model column** — frozen model names when scrolling horizontally in matrix view
-- **Per-model colours** — assign different product colours per model+part-type combination
-- **Series separators** — visual dividers between model series (X-series, 11-series, A0x, A1x, S2x)
-- **Auto-updater** — manifest-based version check with SHA256 verification, CI/CD auto-release via PR
+- **Excel-like zoom** — Ctrl+Scroll / Ctrl+Plus/Minus zoom (50–200%) with footer slider
+- **Auto-updater** — manifest-based version check with SHA256 verification; CI/CD auto-release
 - **Auto-backup** — scheduled backup with configurable retention
 - **Optimised database** — thread-local connection pool, batch inserts, performance indexes, tuned pragmas
-- **Undo transactions** — reverse any IN/OUT/ADJUST operation
-- **30+ pytest modules** — in-memory SQLite fixtures, full migration chain tested
-- **Offline & private** — SQLite WAL, no telemetry, no cloud sync
+- **Undo / redo** — reverse any stock or phone-status operation
+- **Tested & CI-released** — pytest suite over repositories, services and the full migration chain
+- **Offline-first** — local SQLite (WAL), no telemetry; cloud sync is strictly opt-in
 
 ---
 
 ## 📸 Screenshots
 
-### Dashboard
-Real-time KPI cards, 30-day stock movement chart, category breakdown, and low-stock alert panel — loaded asynchronously in two phases.
+> Screenshots use a demo **Galaxy@Phone** dataset.
 
-![Dashboard](files/img/scr-dashboard.png)
+### Analytics Dashboard
+Real-time KPI cards (stock value at cost, revenue, transactions, low stock), a stock-health donut, value-by-brand bars, and a brand × part-type valuation pivot — all loaded asynchronously off the UI thread.
+
+![Analytics Dashboard](files/img/scr-dashboard.png)
+
+---
+
+### Matrix View
+The core workflow — spreadsheet-style bulk stock across model × part-type × colour, with a frozen model column, per-part-type value totals, and Low / Out / Reorder filters.
+
+![Matrix View](files/img/scr-displays.png)
 
 ---
 
 ### Inventory
-Searchable, filterable product table with responsive columns, inline detail panel showing sparkline trend and quick-action buttons (IN / OUT / ADJUST / Edit).
+Searchable, filterable product table with KPI overview cards (units, low / out of stock, inventory value), status badges, and inline +1 / −1 quick-stock actions.
 
 ![Inventory](files/img/scr-inventory-v2.png)
 
 ---
 
+### Phones — IMEI tracking
+Whole-device inventory tracked by IMEI: a brand × model stock grid by storage, KPIs (total / in stock / sold / avg battery / stock value), scan-to-sell, reserve, and barcode labels. *(Optional white-label module.)*
+
+![Phones](files/img/scr-phones.png)
+
+---
+
 ### Sales & POS
-Full point-of-sale terminal with product picker, cart management, discount support, and automatic PDF receipt generation on checkout.
+Cart-based point-of-sale with product picker, customer lookup, discounts, automatic PDF receipts, and edit / void with stock reversal.
 
 ![Sales & POS](files/img/scr-sales.png)
 
 ---
 
-### Analytics
-Single-pass async data fetch, stock health donut chart, category distribution bars, top movers list, and 90-day stock value trend line.
+### Reports
+14 professional, branded PDF reports for **parts and phones** — inventory, valuation (at cost), low stock, transactions, sales, category performance, audit sheets, phone inventory & sold history, expiring stock, and barcode labels.
 
-![Analytics](files/img/scr-analytics.png)
+![Reports](files/img/scr-reports.png)
 
 ---
 
 ### Transactions
-Paginated audit log with summary strip (IN / OUT / ADJUST / Net), debounced filter bar, Load More pagination, and column copy via context menu.
+Paginated stock-movement audit log with an IN / OUT / ADJUST / Net summary strip, debounced filters, and Load-More pagination.
 
 ![Transactions](files/img/scr-transactions.png)
 
 ---
 
 ### Purchase Orders
-Full PO lifecycle from DRAFT through SENT → PARTIAL → RECEIVED. Receiving a PO automatically triggers a stock-in operation.
+Full PO lifecycle from DRAFT through SENT → PARTIAL → RECEIVED. Receiving a PO automatically triggers a stock-in.
 
 ![Purchase Orders](files/img/scr-purchase-orders.png)
 
 ---
 
+### Suppliers
+Supplier CRM with contact details, rating, linked inventory items, and open purchase-order count per supplier.
+
+![Suppliers](files/img/scr-suppliers.png)
+
+---
+
 ### Audit & Stocktake
-Cycle-based stocktake with item-by-item counted qty entry, system vs counted variance reporting, and cycle completion summary.
+Cycle-based stocktake with item-by-item counted-qty entry, system-vs-counted variance reporting, and a completion summary.
 
 ![Audit](files/img/scr-audit.png)
 
 ---
 
 ### Price Lists
-Create and manage pricing configurations. Apply a bulk percentage markup or push a price list directly to live inventory in one click.
+Create and manage pricing configurations; apply a bulk percentage markup or push a list straight to live inventory.
 
 ![Price Lists](files/img/scr-price-lists.png)
 
 ---
 
-### Suppliers
-Supplier CRM with contact details, star rating, linked inventory items, and open purchase order count per supplier.
-
-![Suppliers](files/img/scr-suppliers.png)
-
----
-
 ### Returns
-Process returns with RESTOCK or WRITE_OFF actions. Automatically reverses the original transaction and records the refund amount.
+Process returns with RESTOCK or WRITE_OFF actions — reverses the original transaction and records the refund amount.
 
 ![Returns](files/img/scr-returns.png)
 
 ---
 
-### Admin Panel — Shop Settings
-14-panel admin dialog covering shop info, categories, part types, models, scan config, backup, import/export, DB tools, suppliers, locations, customers, and about.
-
-![Admin Panel](files/img/scr-admin.png)
-
----
-
-### Admin Panel — About
-Live system info including schema version (V14), DB size, Python and PyQt6 build details, and an interactive Update Banner preview.
-
-![Admin About](files/img/scr-admin-about.png)
-
----
-
-### Matrix View
-Grid-based bulk operations across model × part-type × colour combinations — the core workflow for phone repair shops.
-
-![Matrix View](files/img/scr-displays.png)
-
----
-
 ### Quick Scan
-USB barcode scanner interception with command barcodes (TAKEOUT / INSERT / CONFIRM) for hands-free stock counting.
+USB barcode-scanner interception with command barcodes (TAKEOUT / INSERT / CONFIRM) for hands-free stock counting.
 
 ![Quick Scan](files/img/scr-quickscan.png)
 
 ---
 
 ### Barcode Generator
-Generate and export Code128 / EAN barcodes for any product. Batch-print multiple barcodes for labelling new stock.
+Generate and export Code128 / EAN barcodes; batch-print labels for new stock.
 
 ![Barcode Generator](files/img/scr-barcode.png)
 
@@ -271,7 +267,7 @@ Build time ~3–5 minutes. Output ~180 MB (includes Python runtime, PyQt6, all d
 ├──────────────────────────────────────────────────────────────┤
 │  Core Layer  —  app/core/                                    │
 │  Database · Theme · i18n · Config · Logger · Colors         │
-│  SQLite WAL · Schema V14 · 23 tables                        │
+│  SQLite WAL · Schema V23 · 27 tables · optional Turso sync  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -304,9 +300,9 @@ QTimer.singleShot(0, lambda: self._apply_ss(root, stylesheet))
 | `BulkOpsController` | Bulk edit, bulk price change |
 | `InventoryOpsController` | Inventory filter, selection, detail bar sync |
 
-### Database — Schema V14
+### Database — Schema V23
 
-Full automatic migration chain from V1 through V14 runs on every startup:
+Full automatic migration chain from V1 through V23 runs on every startup:
 
 | Migration | What was added |
 |---|---|
@@ -322,8 +318,14 @@ Full automatic migration chain from V1 through V14 runs on every startup:
 | V12 | `suppliers` with rating; `supplier_items`; `inventory_audits`; `audit_lines`; `price_lists`; `price_list_items` |
 | V13 | `model_part_type_colors` — per-model product colour overrides |
 | V14 | Performance indexes on `inventory_items` (active, stock, model+pt, model+pt+color) |
+| V15 | `part_types.default_price`; `scan_invoices`, `scan_invoice_items` (Quick Scan invoice history) |
+| V16 | `cost_price` on `inventory_items` (cost-basis valuation) |
+| V18 | Hot-path indexes (`phone_models.brand`, `part_type_colors`, `model_part_type_colors`) |
+| V19–V21 | Barcode round-trip fixes for German (QWERTZ) keyboards (`+`→`P`, `Y`↔`Z`, `/`→`-`) with data migrations |
+| V22 | `phones` — IMEI-tracked phone units |
+| V23 | `phone_transactions` — phone-unit audit log |
 
-**23 tables total:** `app_config`, `categories`, `part_types`, `phone_models`, `part_type_colors`, `model_part_type_colors`, `inventory_items`, `inventory_transactions`, `suppliers`, `supplier_items`, `locations`, `location_stock`, `stock_transfers`, `customers`, `sales`, `sale_items`, `purchase_orders`, `purchase_order_lines`, `returns`, `inventory_audits`, `audit_lines`, `price_lists`, `price_list_items`
+**27 tables total:** `app_config`, `categories`, `part_types`, `phone_models`, `part_type_colors`, `model_part_type_colors`, `inventory_items`, `inventory_transactions`, `suppliers`, `supplier_items`, `locations`, `location_stock`, `stock_transfers`, `customers`, `sales`, `sale_items`, `purchase_orders`, `purchase_order_lines`, `returns`, `inventory_audits`, `audit_lines`, `price_lists`, `price_list_items`, `scan_invoices`, `scan_invoice_items`, `phones`, `phone_transactions`
 
 ---
 
@@ -339,7 +341,7 @@ Stock-manager/
         ├── requirements.txt
         ├── app/
         │   ├── core/
-        │   │   ├── database.py           # Schema V14, migrations V1→V14
+        │   │   ├── database.py           # Schema V23, migrations V1→V23, Turso HTTP client
         │   │   ├── theme.py              # 4 themes, zero-freeze deferred apply
         │   │   ├── i18n.py               # EN / DE / AR translations
         │   │   ├── colors.py             # 24-colour PALETTE
@@ -617,7 +619,7 @@ Access: `Ctrl+Alt+A` · or the ⚙ icon in the header bar
 | **Suppliers** | Supplier CRUD in admin context |
 | **Locations** | Warehouse bin / shelf location management |
 | **Customers** | Customer profile management |
-| **About** | App version, schema V14, DB size, OS info, update check |
+| **About** | App version, schema V23, DB size, OS info, update check |
 
 ---
 
@@ -640,7 +642,7 @@ All data stays on your machine:
 ```
 
 - No internet connection required (update check is opt-in)
-- No telemetry, no cloud sync, no user tracking
+- No telemetry, no user tracking; cloud sync is strictly opt-in (your own Turso database)
 - Complete audit log of every stock movement
 - Automatic backup every 5 minutes with configurable retention
 - SQLite WAL mode for crash safety
@@ -704,71 +706,19 @@ The async engine ensures the UI never blocks regardless of database size. If you
 
 ---
 
-## 📈 Version History
+## 📈 Releases
 
-### v2.3.4 — April 2026 (current)
+**Current release: v2.6.0** · [Full changelog →](CHANGELOG.md)
 
-**Matrix & Navigation:**
-- Sticky frozen model column when scrolling horizontally
-- Part-type banner bar above column headers
-- Per-brand sections in "All Brands" view — each brand gets own columns and sticky headers
-- Excel-like zoom (50-200%) with Ctrl+Scroll, footer slider, auto-reset on page switch
-- Per-model product colours — right-click model or Admin → Part Types → Model Colors
-- "No Colors" option — remove all colour variants, keep only the base product
-- Series separators between model groups (X-series, A0x, A1x, S2x)
-- Collapsible matrix toolbar (inventory-style section header)
-- Auto-fit model column width to longest name
-- Expanded colour palette (Black, Blue, Silver, Gold, Green, Purple, White, Red, Pink, Yellow, Orange)
+Every release is built, signed, and published automatically by CI (`.github/workflows/release.yml`) on each `v*.*.*` tag — stamping the version across `version.py`, the installer files, this README, and `update_manifest.json`. The complete, per-version history lives in **[CHANGELOG.md](CHANGELOG.md)**.
 
-**UI & UX:**
-- Professional splash screen with geometric cube icon + dynamic version badge
-- Custom isometric cube app icon (.ico multi-resolution + .png)
-- Slim dropdown style across entire app (minimal bottom-line, no box borders)
-- Compact filter bar (26px, inline category, icon reset)
-- Full actions toolbar (New Product, Export, Import, Report, Bulk Edit, Refresh)
-- Live clock in footer bar
-- Quick +1/-1 now shows undo toast and updates detail bar instantly
-- Model reorder buttons (up/down) in Admin → Models panel
-
-**Performance:**
-- Thread-local connection pooling (reuses connections per thread)
-- Optimised SQLite pragmas (synchronous=NORMAL, cache_size=20MB, temp_store=MEMORY)
-- 5 new performance indexes on inventory_items (Schema V14)
-- Batch INSERT via executemany() in ensure_matrix_entries (10-50x faster)
-- Matrix rendering: pre-indexed item_map O(1) lookup + setUpdatesEnabled
-- Deferred health checks to background thread
-- Lazy theme loading (only active theme QSS at startup)
-
-**Update Pipeline:**
-- Theme toggle now persists to database (no revert on admin close)
-- UAC rejection detection — app stays open if user cancels
-- Download cancel button + persistent installer cache
-- Pre-release version parsing, manifest validation, min_version enforcement
-- CI/CD: release branch → PR → auto-merge to main with retry
-- CI: auto-stamps version.py, file_version_info.txt, .iss, README badge
-
-**Schema V14** — performance indexes + model_part_type_colors table
-
-### v2.3.0 — April 2026
-- Zero-freeze async engine via `WorkerPool` (QThreadPool + keyed cancellation)
-- `main_window.py` decomposed 2,263 → 572 lines via 7 controllers
-- Schema V12 with 22 tables — 7 new migration paths since v2.2
-- Full business suite: Sales/POS, Purchase Orders, Returns, Suppliers, Audit, Price Lists, Customers, Locations
-- 22 new UI components, 11 pages, 3 async workers
-- 30+ pytest modules with in-memory SQLite fixtures
-- Manifest-based auto-updater with download progress
-- Undo transactions, image attachments, expiry/warranty tracking
-- 14-panel admin dialog with Locations, Customers, Suppliers, DB Tools, Backup, Import/Export, About
-
-### v2.2.0 — April 2026
-- Colour dimension in matrix (model × part type × colour)
-- Natural sorting, scrollable UI improvements, barcode fixes
-
-### v2.1.0 — April 2026
-- Barcode generator, Quick Scan workflow, professional UI overhaul
-
-### v1.0.0 — 2025
-- Core inventory management, basic barcode scanning, multilingual interface, offline SQLite
+| Milestone | Highlights |
+|---|---|
+| **2.6.0** | Cloud-sync enable fix, dashboard stock-health accuracy, refreshed README + screenshots |
+| **2.5.x** | 📱 Phones (IMEI) module, optional cloud sync (Turso), 14 professional PDF reports, German-keyboard barcode round-trip fixes |
+| **2.3.x** | Zero-freeze async engine, controller refactor, full business suite (POS, Purchase Orders, Returns, Suppliers, Audit, Price Lists, Customers, Locations) |
+| **2.1 – 2.2** | Colour dimension in the matrix, barcode generator, Quick Scan workflow |
+| **1.0.0** | Core inventory, barcode scanning, multilingual interface, offline SQLite |
 
 ---
 

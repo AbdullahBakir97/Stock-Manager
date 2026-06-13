@@ -254,6 +254,12 @@ jobs:
               f"Version-{version}-10B981",
               content,
           )
+          # 4a-ii. "Current release: vX.Y.Z" line in the Releases section
+          content = re.sub(
+              r"Current release: v\d+\.\d+\.\d+",
+              f"Current release: v{version}",
+              content,
+          )
           # 4b. Blue SQLite schema badge — extract _SCHEMA_VERSION from
           #     database.py (single source of truth) and stamp the badge
           #     so README always shows the current schema generation.

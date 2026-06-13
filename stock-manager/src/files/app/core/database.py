@@ -1622,8 +1622,9 @@ def _ensure_columns(conn) -> None:
     DB whose schema_version already says they should exist — e.g. a database
     created directly from _DDL (a fresh cloud DB, or an inconsistent local one)
     rather than walking the migration chain. Cheap and safe to run on every
-    startup. Skipped silently for the Turso HTTP connection (PRAGMA returns
-    nothing there; fresh cloud DBs get the column from _DDL instead)."""
+    startup — including over the Turso HTTP connection, where PRAGMA returns
+    nothing, so we attempt the ALTER directly and ignore the 'duplicate column'
+    error that means the column was already present."""
     ensure = {
         "inventory_items": [("cost_price", "REAL")],
     }
@@ -1632,15 +1633,19 @@ def _ensure_columns(conn) -> None:
             existing = {r[1] for r in conn.execute(
                 f"PRAGMA table_info({table})").fetchall()}
         except Exception:
-            continue
-        if not existing:
-            continue  # table absent or PRAGMA unsupported (HTTP) — skip
+            existing = set()
         for col, decl in columns:
-            if col not in existing:
-                try:
-                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-                    _log.info("Ensured %s.%s column", table, col)
-                except Exception as exc:
+            if existing and col in existing:
+                continue  # introspected and already present
+            # Either the column is missing, or we couldn't introspect (Turso
+            # HTTP ignores PRAGMA). Attempt the ALTER; ignore the benign
+            # "duplicate column" error that means it already exists.
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                _log.info("Ensured %s.%s column", table, col)
+            except Exception as exc:
+                m = str(exc).lower()
+                if "duplicate column" not in m and "already exists" not in m:
                     _log.warning("Could not add %s.%s: %s", table, col, exc)
 
 

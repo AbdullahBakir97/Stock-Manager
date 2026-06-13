@@ -122,9 +122,15 @@ class ItemRepository(BaseRepository):
                 SELECT
                     COUNT(CASE WHEN model_id IS NULL THEN 1 END)  AS total_products,
                     SUM(stock)                                      AS total_units,
+                    -- "Managed" = items the shop actively restocks (min_stock set).
+                    -- The matrix seeds a zero-stock placeholder row for every
+                    -- model×part×colour combo; those have min_stock=0 and must
+                    -- NOT count as "out of stock" or skew the stock-health donut.
+                    SUM(CASE WHEN min_stock > 0 THEN 1 ELSE 0 END) AS managed_count,
                     SUM(CASE WHEN min_stock > 0 AND stock <= min_stock THEN 1 ELSE 0 END)
                                                                     AS low_stock_count,
-                    SUM(CASE WHEN stock = 0 THEN 1 ELSE 0 END)    AS out_of_stock_count,
+                    SUM(CASE WHEN stock = 0 AND min_stock > 0 THEN 1 ELSE 0 END)
+                                                                    AS out_of_stock_count,
                     -- Stock value = cost basis (what the stock is worth to the
                     -- shop), using cost_price. Falls back to sell_price only when
                     -- no cost has been entered, so the figure is never blank.

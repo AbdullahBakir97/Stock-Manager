@@ -13,6 +13,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2.6.0] - 2026-06-13
 
+### Fixed — Dashboard "Out of stock" was massively inflated; stock-health donut read "Out 100%"
+- The matrix seeds a zero-stock placeholder row for every model × part × colour combo. `out_of_stock_count` counted *all* zero-stock rows (so a small shop showed "1,438 out of stock"), and the analytics stock-health donut used a standalone-products total against an all-items low/out count — rendering as a meaningless solid-red "Out 100%".
+- **Fix**: "out of stock" now counts only actively-managed items (those with a min-stock threshold set), and the donut is computed over that same managed population, so its slices (Healthy / Low / Out) are consistent and accurate. Added a `managed_count` to the summary for this.
+
+### Changed — Phones page KPI cards now match the Analytics dashboard
+- The Phones page KPI metrics (total / in stock / sold / avg battery / stock value) were unstyled floating text. They're now proper framed tiles with uppercase labels, large values and colour-coded accent underlines, and the page no longer leaves a large empty gap between the cards and the grid.
+
+### Changed — README refreshed for 2.6.0 with new screenshots
+- README updated for the Phones (IMEI) module, optional cloud sync, and the 14 PDF reports; schema badge/section bumped to V23 (27 tables); all app screenshots regenerated from a populated demo dataset, with new Phones and Reports shots.
+
+### Added — Schema column-ensure now works over the cloud connection
+- The startup `cost_price` column-ensure now also applies over the Turso HTTP connection (attempt-and-ignore-duplicate), so an existing cloud database missing the column is healed on next launch rather than failing reports/analytics with `no such column: cost_price`.
+
 ### Fixed — "Save and enable cloud sync settings first" kept appearing after enabling
 - **User-visible symptom**: after ticking *Enable cloud sync*, entering credentials and clicking *Save Settings*, the *Initialize as Primary/Replica* and *Sync Now* actions still complained "Save and enable cloud sync settings first."
 - **Root cause**: `ShopConfig` was read and written through the cloud-aware connection dispatcher. The instant cloud sync was toggled on in memory, *saving* the settings was routed to the cloud database, while the reload fell back to the local database — which never received the flag — so the app always read cloud sync as still disabled (a circular bootstrap).

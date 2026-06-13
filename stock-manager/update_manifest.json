@@ -1,7 +1,7 @@
 {
-  "version": "2.6.3",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.3/StockManagerPro-2.6.3-setup.exe",
-  "release_notes": "**User-visible symptom**: \"Initialize as Primary\" continued to fail with foreign key constraint errors even after fixing the deletion order and attempting to disable FK constraints via PRAGMA.; **Root cause**: Turso's HTTP API ignores all PRAGMA statements (including `PRAGMA foreign_keys=OFF`), so FK constraints cannot be disabled. The DELETE approach still violated FK constraints because Turso enforces them differently than local SQLite.; **Fix**: changed approach from DELETE to DROP TABLE IF EXISTS for all synced tables before recreating the schema. Dropping tables completely removes FK constraints, then recreating the schema with `executescript(_DDL)` ensures clean tables. Data is then inserted in forward order (parents before children) to satisfy FK constraints. This approach works reliably with Turso's HTTP API.",
+  "version": "2.6.4",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.4/StockManagerPro-2.6.4-setup.exe",
+  "release_notes": "**User-visible symptom**: \"Initialize as Primary\" kept failing with `FOREIGN KEY constraint failed` on `model_part_type_colors`, even after the earlier delete-order and DROP/recreate fixes.; **Root cause**: the earlier fixes only addressed *delete* order \u2014 the *insert* order was wrong. `_SYNCED_TABLES` listed `model_part_type_colors` and `inventory_items` (which reference `phone_models`) **before** `phone_models`, so their rows were inserted while the parent table was still empty.; **Fix**: reordered `_SYNCED_TABLES` so `phone_models` is pushed before everything that references it, and the cloud schema is now dropped children-first then recreated from the current `_DDL`. A new CI gate (`test_synced_tables_are_in_fk_dependency_order`) parses the schema's foreign keys and fails if any table is pushed before a table it references \u2014 so this can't regress.",
   "release_date": "2026-06-13",
-  "checksum_sha256": "bde5b3fb07a866141e4e7101eb27f818e2cd11517187f990e5f95b3bdafafd40"
+  "checksum_sha256": "328edca9921b7491d25ed98253e8ce482b17a9c80a24ce5a680d33f0bb5abbeb"
 }

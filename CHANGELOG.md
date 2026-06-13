@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-06-13
+
+### Fixed — Persistent foreign key constraint errors during cloud upload
+- **User-visible symptom**: "Initialize as Primary" continued to fail with foreign key constraint errors even after fixing the deletion order.
+- **Root cause**: Turso's HTTP API handles foreign key constraints differently than local SQLite. Even with correct deletion order (children before parents) and insertion order (parents before children), the remote database still enforced FK constraints during the bulk delete/insert cycle, causing failures.
+- **Fix**: disable foreign key constraints on the remote database via `PRAGMA foreign_keys=OFF` during the bulk delete/insert operations, then re-enable them with `PRAGMA foreign_keys=ON` after completion. Added comprehensive error handling for each table operation with detailed logging. This ensures the cloud upload completes successfully regardless of FK constraint enforcement differences between local SQLite and Turso.
+
 ## [2.6.1] - 2026-06-13
 
 ### Fixed — Cloud upload ("Initialize as Primary") failed with foreign key constraint error

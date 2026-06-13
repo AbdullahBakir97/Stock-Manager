@@ -282,6 +282,21 @@ def get_connection():
     return _get_sqlite_connection()
 
 
+def get_local_connection():
+    """Always return the LOCAL SQLite connection, regardless of cloud-sync
+    settings.
+
+    Bootstrap config (ShopConfig — including the cloud-sync on/off flag and
+    Turso credentials) MUST live on this PC: it's what decides whether data is
+    routed to the cloud at all. Reading/writing it through get_connection()
+    would be circular — enabling cloud sync would route the very 'enabled' flag
+    to the cloud, while the next reload reads the local DB and never sees it,
+    so the setting appears to never take effect. ShopConfig therefore persists
+    here, locally, always.
+    """
+    return _get_sqlite_connection()
+
+
 def sync_to_remote() -> str:
     """Health-check ping to Turso.  With the HTTP API each write already goes
     directly to the cloud, so there is nothing to 'sync' — we just verify

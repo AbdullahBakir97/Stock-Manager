@@ -11,6 +11,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [2.6.0] - 2026-06-13
+
+### Fixed — "Save and enable cloud sync settings first" kept appearing after enabling
+- **User-visible symptom**: after ticking *Enable cloud sync*, entering credentials and clicking *Save Settings*, the *Initialize as Primary/Replica* and *Sync Now* actions still complained "Save and enable cloud sync settings first."
+- **Root cause**: `ShopConfig` was read and written through the cloud-aware connection dispatcher. The instant cloud sync was toggled on in memory, *saving* the settings was routed to the cloud database, while the reload fell back to the local database — which never received the flag — so the app always read cloud sync as still disabled (a circular bootstrap).
+- **Fix**: bootstrap config (the cloud-sync on/off flag, Turso URL/token, and all shop settings) now always persists to and loads from the **local** database via a dedicated `get_local_connection()`. Enabling cloud sync takes effect immediately, so the Initialize/Sync actions work.
+
 ## [2.5.10] - 2026-06-12
 
 ### Fixed — Cloud upload ("Initialize as Primary") failed with a Turso parse error

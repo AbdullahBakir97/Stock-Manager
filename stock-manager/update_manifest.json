@@ -1,7 +1,7 @@
 {
-  "version": "2.6.2",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.2/StockManagerPro-2.6.2-setup.exe",
-  "release_notes": "Fixed cloud sync foreign key errors and data loss issues: (1) Fixed foreign key constraint error in cloud upload by disabling FK constraints during bulk operations; (2) Fixed data loss after 2.6.0 update when cloud sync was enabled by checking sync_role in get_connection(); (3) Fixed 'Initialize as Primary' wiping cloud DB with empty local data by adding safety check; (4) Fixed persistent foreign key constraint errors during cloud upload with PRAGMA foreign_keys=OFF/ON.",
+  "version": "2.6.3",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.3/StockManagerPro-2.6.3-setup.exe",
+  "release_notes": "Fixed persistent foreign key constraint errors during cloud upload by changing from DELETE to DROP TABLE approach, since Turso HTTP API ignores PRAGMA statements. Also fixed data loss after 2.6.0 update when cloud sync was enabled by checking sync_role in get_connection(), and added safety check to prevent wiping cloud DB with empty local data.",
   "release_date": "2026-06-13",
   "checksum_sha256": ""
 }

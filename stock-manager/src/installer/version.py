@@ -10,7 +10,7 @@ To release a new version:
 from __future__ import annotations
 
 # ── Current version ────────────────────────────────────────────────────────────
-APP_VERSION = "2.6.2"
+APP_VERSION = "2.6.3"
 
 
 # ── Update manifest URL ────────────────────────────────────────────────────────

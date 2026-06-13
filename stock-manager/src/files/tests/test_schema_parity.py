@@ -55,6 +55,34 @@ class TestSchemaParity(unittest.TestCase):
             "built directly from the schema (fresh/cloud) include them.",
         )
 
+    def test_synced_tables_are_in_fk_dependency_order(self):
+        """Every table in _SYNCED_TABLES must appear AFTER every table it
+        references with a FOREIGN KEY, so push_local_to_turso() inserts parents
+        before children and never hits 'FOREIGN KEY constraint failed'."""
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(db_mod._DDL)
+        order = {name: i for i, name in enumerate(db_mod._SYNCED_TABLES)}
+
+        problems = []
+        for table in db_mod._SYNCED_TABLES:
+            try:
+                fks = conn.execute(
+                    f"PRAGMA foreign_key_list({table})").fetchall()
+            except sqlite3.OperationalError:
+                continue
+            for fk in fks:
+                parent = fk[2]  # referenced table
+                if parent in order and order[parent] > order[table]:
+                    problems.append(f"{table} -> {parent} (parent pushed later)")
+        conn.close()
+
+        self.assertEqual(
+            problems, [],
+            "_SYNCED_TABLES violates FK dependency order: "
+            + "; ".join(problems)
+            + ". Move the referenced (parent) table earlier in the tuple.",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

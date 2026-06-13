@@ -13,6 +13,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [2.6.0] - 2026-06-13
 
+### Added — CI workflow with release-readiness tests
+- New `.github/workflows/ci.yml` runs on every push / PR to `dev` and `main`: a ruff lint plus two new, properly-isolated tests that target the exact bugs hit this cycle —
+  - **Schema parity** (`tests/test_schema_parity.py`): asserts the base `_DDL` already contains every column any migration adds via `ALTER TABLE`, so a database built directly from the schema (fresh/cloud) is never missing a column. This would have caught `no such column: cost_price`.
+  - **Report smoke** (`tests/test_report_smoke.py`): generates every PDF report against a seeded multi-page dataset and asserts no exception, pages > 0, and no blank pages.
+- The release README now carries an auto-stamped **"Current release: vX.Y.Z"** line (the action updates it alongside the version badge), and the stale hand-written version history was replaced with a milestones table + a link to this changelog as the single source of truth.
+
+### Fixed — `suppliers.rating` / `updated_at` missing from fresh databases (schema drift)
+- Caught by the new schema-parity test: `_DDL` had two `CREATE TABLE IF NOT EXISTS suppliers` definitions, and the older one (without `rating`/`updated_at`) won — so a fresh or cloud database lacked those columns even though the migration chain adds them. The base definition now matches the canonical one.
+
 ### Fixed — Dashboard "Out of stock" was massively inflated; stock-health donut read "Out 100%"
 - The matrix seeds a zero-stock placeholder row for every model × part × colour combo. `out_of_stock_count` counted *all* zero-stock rows (so a small shop showed "1,438 out of stock"), and the analytics stock-health donut used a standalone-products total against an all-items low/out count — rendering as a meaningless solid-red "Out 100%".
 - **Fix**: "out of stock" now counts only actively-managed items (those with a min-stock threshold set), and the donut is computed over that same managed population, so its slices (Healthy / Low / Out) are consistent and accurate. Added a `managed_count` to the summary for this.

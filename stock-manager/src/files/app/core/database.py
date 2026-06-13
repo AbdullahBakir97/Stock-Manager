@@ -123,7 +123,11 @@ class _TursoHTTPConnection:
         for item in data.get("results", []):
             if item.get("type") == "error":
                 msg = item.get("error", {}).get("message", str(item))
-                raise RuntimeError(f"Turso SQL error: {msg}")
+                # Raise the sqlite3 exception type, not a bare RuntimeError, so
+                # callers that handle sqlite3.OperationalError (e.g. "no such
+                # column" fallbacks) behave the same over the cloud connection
+                # as they do against local SQLite.
+                raise sqlite3.OperationalError(f"Turso SQL error: {msg}")
             if item.get("type") == "ok":
                 results.append(item.get("response", {}).get("result", {}))
         return results
@@ -521,7 +525,8 @@ _DDL = """
         timestamp    TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Suppliers
+    -- Suppliers  (columns must match the canonical V12 definition below — a
+    -- fresh/cloud DB builds from THIS one, so rating/updated_at live here too)
     CREATE TABLE IF NOT EXISTS suppliers (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         name         TEXT NOT NULL,
@@ -530,8 +535,10 @@ _DDL = """
         email        TEXT NOT NULL DEFAULT '',
         address      TEXT NOT NULL DEFAULT '',
         notes        TEXT NOT NULL DEFAULT '',
+        rating       INTEGER NOT NULL DEFAULT 0,
         is_active    INTEGER NOT NULL DEFAULT 1,
-        created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Supplier ↔ Item price mapping

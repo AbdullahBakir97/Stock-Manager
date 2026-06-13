@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.6.4] - 2026-06-13
+
+### Fixed — Cloud upload still failed with FOREIGN KEY constraint (the actual cause)
+- **User-visible symptom**: "Initialize as Primary" kept failing with `FOREIGN KEY constraint failed` on `model_part_type_colors`, even after the earlier delete-order and DROP/recreate fixes.
+- **Root cause**: the earlier fixes only addressed *delete* order — the *insert* order was wrong. `_SYNCED_TABLES` listed `model_part_type_colors` and `inventory_items` (which reference `phone_models`) **before** `phone_models`, so their rows were inserted while the parent table was still empty.
+- **Fix**: reordered `_SYNCED_TABLES` so `phone_models` is pushed before everything that references it, and the cloud schema is now dropped children-first then recreated from the current `_DDL`. A new CI gate (`test_synced_tables_are_in_fk_dependency_order`) parses the schema's foreign keys and fails if any table is pushed before a table it references — so this can't regress.
+
+### Fixed — App crashed on startup in replica mode (Turso exception type)
+- **User-visible symptom**: `RuntimeError: Turso SQL error: … no such column: updated_at` crashed startup when running against the cloud (replica mode).
+- **Root cause**: the Turso HTTP client raised a bare `RuntimeError` for every SQL error, so `sqlite3.OperationalError` fallbacks (e.g. the matrix-fingerprint "table has no updated_at" path) never triggered over the cloud connection.
+- **Fix**: the Turso client now raises the matching `sqlite3` exception type (`IntegrityError` for constraint violations, `OperationalError` otherwise), so sqlite3 error handling behaves identically over the cloud connection.
+
 ## [2.6.3] - 2026-06-13
 
 ### Fixed — Persistent foreign key constraint errors during cloud upload

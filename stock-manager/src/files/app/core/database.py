@@ -123,10 +123,13 @@ class _TursoHTTPConnection:
         for item in data.get("results", []):
             if item.get("type") == "error":
                 msg = item.get("error", {}).get("message", str(item))
-                # Raise the sqlite3 exception type, not a bare RuntimeError, so
-                # callers that handle sqlite3.OperationalError (e.g. "no such
-                # column" fallbacks) behave the same over the cloud connection
-                # as they do against local SQLite.
+                # Raise the matching sqlite3 exception type — NOT a bare
+                # RuntimeError — so code that handles sqlite3 errors behaves the
+                # same over the cloud connection as against local SQLite
+                # (e.g. "no such column" fallbacks, duplicate-key handling).
+                low = msg.lower()
+                if "constraint" in low:
+                    raise sqlite3.IntegrityError(f"Turso SQL error: {msg}")
                 raise sqlite3.OperationalError(f"Turso SQL error: {msg}")
             if item.get("type") == "ok":
                 results.append(item.get("response", {}).get("result", {}))
@@ -323,10 +326,14 @@ def sync_to_remote() -> str:
 
 
 # Tables in dependency order (parents before children) — used by
-# push_local_to_turso() for both schema creation order and bulk insert order.
+# push_local_to_turso() for bulk insert order. Every table must appear AFTER
+# every table it references with a FOREIGN KEY, otherwise the cloud insert
+# fails "FOREIGN KEY constraint failed". In particular phone_models must come
+# before part_type_colors / model_part_type_colors / inventory_items, and
+# inventory_items before everything that links to a line item.
 _SYNCED_TABLES = (
-    "app_config", "categories", "part_types", "part_type_colors",
-    "model_part_type_colors", "phone_models", "inventory_items",
+    "app_config", "categories", "part_types", "phone_models",
+    "part_type_colors", "model_part_type_colors", "inventory_items",
     "inventory_transactions", "suppliers", "supplier_items",
     "locations", "location_stock", "stock_transfers",
     "customers", "sales", "sale_items",
@@ -374,9 +381,11 @@ def push_local_to_turso(progress_cb=None) -> dict:
 
     counts: dict[str, int] = {}
 
-    # Drop all tables first to avoid FK constraints (Turso HTTP ignores PRAGMA)
-    # This is safer than DELETE because it completely removes FK constraints
-    for table in _SYNCED_TABLES:
+    # Drop all tables first so the cloud schema is recreated fresh from the
+    # CURRENT _DDL (no stale/missing columns from an earlier push). Drop in
+    # REVERSE dependency order — children before parents — so the drops succeed
+    # even when foreign keys are enforced.
+    for table in reversed(_SYNCED_TABLES):
         try:
             remote.execute(f"DROP TABLE IF EXISTS {table}")
         except Exception as e:

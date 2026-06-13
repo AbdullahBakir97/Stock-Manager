@@ -334,11 +334,13 @@ class CloudSyncPanel(QWidget):
             return
         reply = QMessageBox.question(
             self, "Initialize as Primary",
-            "This will UPLOAD all local data to the cloud database.\n\n"
-            "Any data already in the cloud database will be REPLACED with "
-            "this PC's data.\n\n"
-            "Use this on the PC that already holds the shop's data — do "
-            "this only ONCE.\n\nContinue?",
+            "This is the ONE-TIME setup for the PC that already holds the "
+            "shop's data.\n\n"
+            "It will UPLOAD all of this PC's data to the cloud database "
+            "(replacing anything already there), and then switch this PC to "
+            "work DIRECTLY on the shared cloud database — so from now on it "
+            "stays in sync with every other PC.\n\n"
+            "Run this on only ONE PC. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
@@ -349,11 +351,16 @@ class CloudSyncPanel(QWidget):
             from app.core.database import push_local_to_turso
             counts = push_local_to_turso()
             cfg = ShopConfig.get()
-            cfg.sync_role = "primary"
+            # After seeding, this PC works on the cloud like every other PC, so
+            # all machines share one live dataset and stay in sync. (The local
+            # DB is left untouched as a backup of the pre-sync data.)
+            cfg.sync_role = "replica"
             cfg.save()
             ShopConfig.invalidate()
             total = sum(counts.values())
-            self._set_test_result(f"✓  Uploaded {total} rows across {len(counts)} tables", error=False)
+            self._set_test_result(
+                f"✓  Uploaded {total} rows — this PC now works on the shared "
+                f"cloud database (synced with all PCs)", error=False)
             self._refresh_status()
         except Exception as exc:
             self._set_test_result(f"✕  Upload failed: {exc}", error=True)

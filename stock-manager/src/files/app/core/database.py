@@ -375,6 +375,10 @@ def push_local_to_turso(progress_cb=None) -> dict:
     # Make sure the cloud DB has the current schema.
     _executescript(remote, _DDL)
 
+    # Disable foreign key constraints on remote during bulk operations
+    # to avoid FK violations during delete/insert cycle
+    remote.execute("PRAGMA foreign_keys=OFF")
+
     counts: dict[str, int] = {}
 
     # Delete in REVERSE order (children before parents) to avoid FK violations
@@ -383,7 +387,10 @@ def push_local_to_turso(progress_cb=None) -> dict:
             "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
         ).fetchone()
         if exists:
-            remote.execute(f"DELETE FROM {table}")
+            try:
+                remote.execute(f"DELETE FROM {table}")
+            except Exception as e:
+                _log.warning(f"Failed to delete from {table}: {e}")
 
     # Insert in forward order (parents before children) to satisfy FK constraints
     for table in _SYNCED_TABLES:
@@ -403,10 +410,17 @@ def push_local_to_turso(progress_cb=None) -> dict:
         if rows:
             placeholders = ",".join("?" * len(cols))
             seq = [tuple(r[c] for c in cols) for r in rows]
-            remote.executemany(
-                f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", seq
-            )
+            try:
+                remote.executemany(
+                    f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", seq
+                )
+            except Exception as e:
+                _log.error(f"Failed to insert into {table}: {e}")
+                raise RuntimeError(f"Failed to insert data into {table}: {e}")
         counts[table] = len(rows)
+
+    # Re-enable foreign key constraints after bulk operations
+    remote.execute("PRAGMA foreign_keys=ON")
 
     return counts
 

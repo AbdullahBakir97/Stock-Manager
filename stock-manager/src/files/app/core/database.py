@@ -270,8 +270,9 @@ def _get_sqlite_connection() -> sqlite3.Connection:
 
 
 def get_connection():
-    """Dispatcher: returns Turso HTTP connection when cloud sync is enabled,
-    otherwise returns a plain sqlite3 connection.
+    """Dispatcher: returns Turso HTTP connection when cloud sync is enabled
+    and the user is in replica mode (cloud as primary), otherwise returns a
+    plain sqlite3 connection.
 
     All repositories call this via BaseRepository._conn() and are unaffected
     by which connection type is returned.
@@ -279,7 +280,9 @@ def get_connection():
     try:
         from app.core.config import ShopConfig
         cfg = ShopConfig.get()
-        if cfg.cloud_sync_enabled == "1" and cfg.turso_url:
+        # Only use cloud connection if sync is enabled AND role is replica
+        # (primary mode uses local DB and pushes to cloud on-demand)
+        if cfg.cloud_sync_enabled == "1" and cfg.turso_url and cfg.sync_role == "replica":
             return _get_turso_connection()
     except Exception:
         pass  # config unavailable before init_db — use sqlite3
@@ -346,14 +349,43 @@ def push_local_to_turso(progress_cb=None) -> dict:
     Existing rows in each Turso table are deleted first (the cloud DB is
     assumed to be freshly created / empty). Returns a dict of
     {table: row_count} for the tables that were pushed.
+
+    Raises RuntimeError if local database is empty to prevent data loss.
     """
     local = _get_sqlite_connection()
     remote = _get_turso_connection()
+
+    # Safety check: verify local database has meaningful data before wiping cloud
+    total_local_rows = 0
+    for table in _SYNCED_TABLES:
+        exists = local.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists:
+            count = local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            total_local_rows += count
+
+    if total_local_rows == 0:
+        raise RuntimeError(
+            "Cannot push to cloud: local database is empty. "
+            "This would wipe your cloud database. "
+            "Ensure your local database contains your data before running 'Initialize as Primary'."
+        )
 
     # Make sure the cloud DB has the current schema.
     _executescript(remote, _DDL)
 
     counts: dict[str, int] = {}
+
+    # Delete in REVERSE order (children before parents) to avoid FK violations
+    for table in reversed(_SYNCED_TABLES):
+        exists = local.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists:
+            remote.execute(f"DELETE FROM {table}")
+
+    # Insert in forward order (parents before children) to satisfy FK constraints
     for table in _SYNCED_TABLES:
         # Skip tables that don't exist locally (e.g. older DBs pre-migration).
         exists = local.execute(
@@ -368,8 +400,6 @@ def push_local_to_turso(progress_cb=None) -> dict:
         if progress_cb:
             progress_cb(table, len(rows))
 
-        # Clear any existing rows on the cloud side, then bulk-insert.
-        remote.execute(f"DELETE FROM {table}")
         if rows:
             placeholders = ",".join("?" * len(cols))
             seq = [tuple(r[c] for c in cols) for r in rows]

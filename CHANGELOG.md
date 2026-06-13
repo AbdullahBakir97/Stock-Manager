@@ -7,7 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-> Add your next changes here before tagging a release.
+## [2.6.1] - 2026-06-13
+
+### Fixed — Cloud upload ("Initialize as Primary") failed with foreign key constraint error
+- **User-visible symptom**: uploading a PC's data to the cloud (Admin → Cloud Sync → **Initialize as Primary**) failed with `Upload failed: Turso SQL error: SQLite error: FOREIGN KEY constraint failed`.
+- **Root cause**: `push_local_to_turso()` deleted tables in the same order as insertion (parents first, then children). This violates foreign key constraints when child rows still reference parent rows that are being deleted.
+- **Fix**: delete tables in **reverse order** (children before parents) to avoid FK violations, while keeping insert order as-is (parents before children) to satisfy FK constraints.
+
+### Fixed — Data loss after updating to 2.6.0 when cloud sync was enabled
+- **User-visible symptom**: after updating to 2.6.0, all data appeared to be gone for users who had cloud sync enabled.
+- **Root cause**: the 2.6.0 fix for cloud sync settings changed `ShopConfig` to always use `get_local_connection()`, but `get_connection()` still routed to the cloud database whenever `cloud_sync_enabled == "1"`. This caused the app to read config from the local database (which might be empty or outdated) while routing data operations to the cloud database. If the local DB was initialized as fresh, users would see an empty database while their actual data remained in the cloud.
+- **Fix**: `get_connection()` now checks the `sync_role` setting and only routes to the cloud database when the role is "replica" (cloud as primary). In "primary" mode, it uses the local database and pushes to the cloud on-demand via "Initialize as Primary". This ensures data is never lost during updates.
+
+### Fixed — "Initialize as Primary" could wipe cloud database with empty local data
+- **User-visible symptom**: running "Initialize as Primary" with an empty or incomplete local database would wipe the cloud database, causing permanent data loss.
+- **Root cause**: `push_local_to_turso()` deleted all rows from the cloud database before inserting local data, without checking if the local database actually contained meaningful data.
+- **Fix**: added a safety check that verifies the local database has data before wiping the cloud. If the local database is empty, the function now raises a RuntimeError with a clear error message, preventing accidental data loss.
 
 ---
 

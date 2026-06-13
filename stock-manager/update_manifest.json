@@ -1,7 +1,7 @@
 {
   "version": "2.6.3",
   "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.3/StockManagerPro-2.6.3-setup.exe",
-  "release_notes": "Fixed persistent foreign key constraint errors during cloud upload by changing from DELETE to DROP TABLE approach, since Turso HTTP API ignores PRAGMA statements. Also fixed data loss after 2.6.0 update when cloud sync was enabled by checking sync_role in get_connection(), and added safety check to prevent wiping cloud DB with empty local data.",
+  "release_notes": "**User-visible symptom**: \"Initialize as Primary\" continued to fail with foreign key constraint errors even after fixing the deletion order and attempting to disable FK constraints via PRAGMA.; **Root cause**: Turso's HTTP API ignores all PRAGMA statements (including `PRAGMA foreign_keys=OFF`), so FK constraints cannot be disabled. The DELETE approach still violated FK constraints because Turso enforces them differently than local SQLite.; **Fix**: changed approach from DELETE to DROP TABLE IF EXISTS for all synced tables before recreating the schema. Dropping tables completely removes FK constraints, then recreating the schema with `executescript(_DDL)` ensures clean tables. Data is then inserted in forward order (parents before children) to satisfy FK constraints. This approach works reliably with Turso's HTTP API.",
   "release_date": "2026-06-13",
-  "checksum_sha256": "954db3d6d83f46dc5c62f7c1ba6bbea236920364fbe843296f1e14189a8b3452"
+  "checksum_sha256": "bde5b3fb07a866141e4e7101eb27f818e2cd11517187f990e5f95b3bdafafd40"
 }

@@ -11,6 +11,7 @@ from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QFont, QColor
 
 from app.core.i18n import t
+from app.core.theme import THEME
 from app.models.phone_unit import PhoneUnit
 from app.repositories.phone_repo import PhoneRepository
 from app.services.undo_manager import UNDO, Command
@@ -61,6 +62,10 @@ class PhonesPage(QWidget):
         self._detail_container.setVisible(False)
         root.addWidget(self._detail_container)
 
+        # Absorb leftover vertical space at the bottom so the KPI cards, filter
+        # row and grid stay packed at the top instead of being spread apart.
+        root.addStretch(1)
+
     def _build_kpi_row(self) -> QWidget:
         frame = QFrame()
         frame.setObjectName("kpi_row")
@@ -68,38 +73,59 @@ class PhonesPage(QWidget):
         lay.setContentsMargins(0, 0, 0, 4)
         lay.setSpacing(8)
 
-        self._kpi_total  = self._kpi_card(t("ph_kpi_total"), "0")
-        self._kpi_stock  = self._kpi_card(t("ph_kpi_in_stock"), "0")
-        self._kpi_sold   = self._kpi_card(t("ph_kpi_sold"), "0")
-        self._kpi_batt   = self._kpi_card(t("ph_kpi_avg_battery"), "—")
-        self._kpi_value  = self._kpi_card(t("ph_kpi_stock_value"), "€0")
+        tk = THEME.tokens
+        self._kpi_total  = self._kpi_card(t("ph_kpi_total"),       "0",  tk.blue)
+        self._kpi_stock  = self._kpi_card(t("ph_kpi_in_stock"),    "0",  tk.green)
+        self._kpi_sold   = self._kpi_card(t("ph_kpi_sold"),        "0",  tk.red)
+        self._kpi_batt   = self._kpi_card(t("ph_kpi_avg_battery"), "—",  tk.orange)
+        self._kpi_value  = self._kpi_card(t("ph_kpi_stock_value"), "€0", tk.green)
 
         for w in (self._kpi_total, self._kpi_stock, self._kpi_sold,
                   self._kpi_batt, self._kpi_value):
-            lay.addWidget(w)
-        lay.addStretch()
+            lay.addWidget(w, 1)   # expand evenly across the row
         return frame
 
-    def _kpi_card(self, label: str, value: str) -> QFrame:
+    def _kpi_card(self, label: str, value: str, accent: str = "") -> QFrame:
+        """Professional KPI card matching the Analytics dashboard tiles:
+        framed surface, small uppercase label, large value, accent underline."""
+        tk = THEME.tokens
+        accent = accent or tk.green
         card = QFrame()
-        card.setObjectName("kpi_card")
-        card.setFixedHeight(64)
-        card.setMinimumWidth(110)
+        card.setObjectName("kpi_tile")          # reuse the styled tile frame
+        card.setFixedHeight(80)
+        card.setMinimumWidth(150)
+        card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         lay = QVBoxLayout(card)
-        lay.setContentsMargins(12, 6, 12, 6)
-        lay.setSpacing(2)
+        lay.setContentsMargins(14, 11, 14, 11)
+        lay.setSpacing(3)
+
+        lbl = QLabel(label.upper())
+        lbl.setObjectName("kpi_label")
+        lbl.setStyleSheet(
+            f"color:{tk.t3}; font-size:10px; font-weight:700;"
+            f"letter-spacing:0.08em; background:transparent;"
+        )
+
         val_lbl = QLabel(value)
         val_lbl.setObjectName("kpi_value")
-        val_lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        f = QFont(); f.setBold(True); f.setPointSize(16)
-        val_lbl.setFont(f)
-        lbl = QLabel(label)
-        lbl.setObjectName("kpi_label")
-        lbl.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        lay.addWidget(val_lbl)
+        val_lbl.setStyleSheet(
+            f"color:{tk.t1}; font-size:22px; font-weight:800; background:transparent;"
+        )
+
+        underline = QFrame()
+        underline.setFixedHeight(3)
+        underline.setStyleSheet(
+            f"background:{accent}; border:none; border-radius:1px;"
+        )
+
         lay.addWidget(lbl)
+        lay.addWidget(val_lbl)
+        lay.addStretch()
+        lay.addWidget(underline)
+
         card._val_lbl = val_lbl
         card._lbl = lbl
+        card._accent_label = label   # original (un-cased) label for retranslate
         return card
 
     def _build_filter_row(self) -> QWidget:
@@ -238,12 +264,12 @@ class PhonesPage(QWidget):
         POOL.submit("phones_grid", self._fetch_data, self._apply_data)
 
     def retranslate(self) -> None:
-        # KPI cards
-        self._kpi_total._lbl.setText(t("ph_kpi_total"))
-        self._kpi_stock._lbl.setText(t("ph_kpi_in_stock"))
-        self._kpi_sold._lbl.setText(t("ph_kpi_sold"))
-        self._kpi_batt._lbl.setText(t("ph_kpi_avg_battery"))
-        self._kpi_value._lbl.setText(t("ph_kpi_stock_value"))
+        # KPI cards (labels rendered uppercase to match the Analytics tiles)
+        self._kpi_total._lbl.setText(t("ph_kpi_total").upper())
+        self._kpi_stock._lbl.setText(t("ph_kpi_in_stock").upper())
+        self._kpi_sold._lbl.setText(t("ph_kpi_sold").upper())
+        self._kpi_batt._lbl.setText(t("ph_kpi_avg_battery").upper())
+        self._kpi_value._lbl.setText(t("ph_kpi_stock_value").upper())
 
         # Filter row
         self._brand_combo.setItemText(0, t("ph_filter_all_brands"))

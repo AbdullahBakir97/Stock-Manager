@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Optional
-from app.core.database import get_connection
+from app.core.database import get_local_connection
 
 
 @dataclass
@@ -156,7 +156,7 @@ class ShopConfig:
         cfg = cls()
         try:
             placeholders = ",".join("?" * len(cls._KEYS))
-            with get_connection() as conn:
+            with get_local_connection() as conn:
                 rows = conn.execute(
                     f"SELECT key, value FROM app_config WHERE key IN ({placeholders})",
                     cls._KEYS,
@@ -169,7 +169,7 @@ class ShopConfig:
         return cfg
 
     def save(self) -> None:
-        with get_connection() as conn:
+        with get_local_connection() as conn:
             for k in self._KEYS:
                 conn.execute(
                     "INSERT OR REPLACE INTO app_config (key, value) VALUES (?,?)",

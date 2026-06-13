@@ -123,7 +123,11 @@ class _TursoHTTPConnection:
         for item in data.get("results", []):
             if item.get("type") == "error":
                 msg = item.get("error", {}).get("message", str(item))
-                raise RuntimeError(f"Turso SQL error: {msg}")
+                # Raise the sqlite3 exception type, not a bare RuntimeError, so
+                # callers that handle sqlite3.OperationalError (e.g. "no such
+                # column" fallbacks) behave the same over the cloud connection
+                # as they do against local SQLite.
+                raise sqlite3.OperationalError(f"Turso SQL error: {msg}")
             if item.get("type") == "ok":
                 results.append(item.get("response", {}).get("result", {}))
         return results
@@ -279,6 +283,21 @@ def get_connection():
             return _get_turso_connection()
     except Exception:
         pass  # config unavailable before init_db — use sqlite3
+    return _get_sqlite_connection()
+
+
+def get_local_connection():
+    """Always return the LOCAL SQLite connection, regardless of cloud-sync
+    settings.
+
+    Bootstrap config (ShopConfig — including the cloud-sync on/off flag and
+    Turso credentials) MUST live on this PC: it's what decides whether data is
+    routed to the cloud at all. Reading/writing it through get_connection()
+    would be circular — enabling cloud sync would route the very 'enabled' flag
+    to the cloud, while the next reload reads the local DB and never sees it,
+    so the setting appears to never take effect. ShopConfig therefore persists
+    here, locally, always.
+    """
     return _get_sqlite_connection()
 
 
@@ -506,7 +525,8 @@ _DDL = """
         timestamp    TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Suppliers
+    -- Suppliers  (columns must match the canonical V12 definition below — a
+    -- fresh/cloud DB builds from THIS one, so rating/updated_at live here too)
     CREATE TABLE IF NOT EXISTS suppliers (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         name         TEXT NOT NULL,
@@ -515,8 +535,10 @@ _DDL = """
         email        TEXT NOT NULL DEFAULT '',
         address      TEXT NOT NULL DEFAULT '',
         notes        TEXT NOT NULL DEFAULT '',
+        rating       INTEGER NOT NULL DEFAULT 0,
         is_active    INTEGER NOT NULL DEFAULT 1,
-        created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Supplier ↔ Item price mapping
@@ -1607,8 +1629,9 @@ def _ensure_columns(conn) -> None:
     DB whose schema_version already says they should exist — e.g. a database
     created directly from _DDL (a fresh cloud DB, or an inconsistent local one)
     rather than walking the migration chain. Cheap and safe to run on every
-    startup. Skipped silently for the Turso HTTP connection (PRAGMA returns
-    nothing there; fresh cloud DBs get the column from _DDL instead)."""
+    startup — including over the Turso HTTP connection, where PRAGMA returns
+    nothing, so we attempt the ALTER directly and ignore the 'duplicate column'
+    error that means the column was already present."""
     ensure = {
         "inventory_items": [("cost_price", "REAL")],
     }
@@ -1617,15 +1640,19 @@ def _ensure_columns(conn) -> None:
             existing = {r[1] for r in conn.execute(
                 f"PRAGMA table_info({table})").fetchall()}
         except Exception:
-            continue
-        if not existing:
-            continue  # table absent or PRAGMA unsupported (HTTP) — skip
+            existing = set()
         for col, decl in columns:
-            if col not in existing:
-                try:
-                    conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
-                    _log.info("Ensured %s.%s column", table, col)
-                except Exception as exc:
+            if existing and col in existing:
+                continue  # introspected and already present
+            # Either the column is missing, or we couldn't introspect (Turso
+            # HTTP ignores PRAGMA). Attempt the ALTER; ignore the benign
+            # "duplicate column" error that means it already exists.
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                _log.info("Ensured %s.%s column", table, col)
+            except Exception as exc:
+                m = str(exc).lower()
+                if "duplicate column" not in m and "already exists" not in m:
                     _log.warning("Could not add %s.%s: %s", table, col, exc)
 
 

@@ -1,7 +1,7 @@
 {
-  "version": "2.6.0",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.0/StockManagerPro-2.6.0-setup.exe",
-  "release_notes": "New `.github/workflows/ci.yml` runs on every push / PR to `dev` and `main`: a ruff lint plus two new, properly-isolated tests that target the exact bugs hit this cycle \u2014; **Schema parity** (`tests/test_schema_parity.py`): asserts the base `_DDL` already contains every column any migration adds via `ALTER TABLE`, so a database built directly from the schema (fresh/cloud) is never missing a column. This would have caught `no such column: cost_price`.; **Report smoke** (`tests/test_report_smoke.py`): generates every PDF report against a seeded multi-page dataset and asserts no exception, pages > 0, and no blank pages.",
+  "version": "2.6.2",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.2/StockManagerPro-2.6.2-setup.exe",
+  "release_notes": "Fixed cloud sync foreign key errors and data loss issues: (1) Fixed foreign key constraint error in cloud upload by disabling FK constraints during bulk operations; (2) Fixed data loss after 2.6.0 update when cloud sync was enabled by checking sync_role in get_connection(); (3) Fixed 'Initialize as Primary' wiping cloud DB with empty local data by adding safety check; (4) Fixed persistent foreign key constraint errors during cloud upload with PRAGMA foreign_keys=OFF/ON.",
   "release_date": "2026-06-13",
-  "checksum_sha256": "0d4c2e2eeaa20e571f80d7f5c3524af37c68135092de53cef6bcb908c9ddc4c3"
+  "checksum_sha256": ""
 }

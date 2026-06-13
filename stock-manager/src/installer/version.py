@@ -12,6 +12,7 @@ from __future__ import annotations
 # ── Current version ────────────────────────────────────────────────────────────
 APP_VERSION = "2.6.2"
 
+
 # ── Update manifest URL ────────────────────────────────────────────────────────
 # UpdateService fetches this JSON on startup to check for new versions.
 # Set to "" to disable update checks (e.g. air-gapped enterprise deployments).

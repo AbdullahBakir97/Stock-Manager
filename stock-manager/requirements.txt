@@ -21,4 +21,9 @@ pywin32-ctypes==0.2.3
 setuptools==82.0.1
 zipp==3.23.0
 zxing-cpp==3.0.0
-# Cloud sync uses Turso HTTP API (stdlib urllib) — no extra package needed
+# Cloud sync:
+#  - libSQL embedded replica (a local DB that syncs with the Turso primary).
+#    Native package; wheels exist for cp39-cp313, so it's pinned only for
+#    Python < 3.14 (the release build uses 3.11). On a Python without a wheel
+#    the app falls back to the pure-stdlib Turso HTTP client automatically.
+libsql>=0.1.11; python_version < "3.14"

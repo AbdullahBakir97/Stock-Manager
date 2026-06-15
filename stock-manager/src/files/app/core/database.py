@@ -113,7 +113,7 @@ class _TursoHTTPConnection:
         body = json.dumps(payload).encode()
         req = urllib.request.Request(self._url, data=body, headers=self._headers)
         try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 data = json.loads(resp.read())
         except urllib.error.HTTPError as exc:
             body_text = exc.read().decode(errors="replace")
@@ -175,8 +175,19 @@ class _TursoHTTPConnection:
         return _TursoCursor(rows, lastrowid)
 
     def executemany(self, sql: str, seq) -> None:
-        stmts = [{"sql": sql, "args": [self._enc(p) for p in params]} for params in seq]
-        if stmts:
+        seq = list(seq)
+        if not seq:
+            return
+        # Turso runs the whole pipeline in ONE HTTP round-trip, so a single
+        # executemany over thousands of rows builds a giant request that the
+        # server can't process before the read timeout fires ("The read
+        # operation timed out"). Send the rows in batches instead.
+        BATCH = 400
+        for i in range(0, len(seq), BATCH):
+            stmts = [
+                {"sql": sql, "args": [self._enc(p) for p in params]}
+                for params in seq[i:i + BATCH]
+            ]
             self._post(stmts)
 
     def executescript(self, script: str) -> None:
@@ -211,8 +222,148 @@ class _TursoHTTPConnection:
     def __exit__(self, *_):   pass
 
 
-# Module-level Turso connection — HTTP is stateless so no thread-local needed.
+# ── libSQL embedded replica ───────────────────────────────────────────────────
+# A LOCAL SQLite file the app reads/writes instantly, kept in step with the
+# Turso primary by sync(). This is the offline-first model: reads are served
+# from the local replica, writes go to the primary, sync() exchanges changes.
+# Requires the native `libsql` package (Windows/Linux/macOS wheels for cp39-13);
+# where it's unavailable (e.g. a newer Python with no wheel) the dispatcher
+# falls back to the pure-HTTP connection so the app still works.
+
+class _LibsqlCursor:
+    """Adapts a libsql cursor to the _DictRow interface the repos expect."""
+
+    def __init__(self, cur) -> None:
+        self._cur = cur
+        self.lastrowid = getattr(cur, "lastrowid", 0) or 0
+        self.rowcount = getattr(cur, "rowcount", -1)
+        desc = getattr(cur, "description", None)
+        self._cols = [c[0] for c in desc] if desc else []
+
+    def _wrap(self, row):
+        if row is None:
+            return None
+        return _DictRow(zip(self._cols, row))
+
+    def fetchone(self):
+        return self._wrap(self._cur.fetchone())
+
+    def fetchall(self):
+        return [self._wrap(r) for r in self._cur.fetchall()]
+
+    def fetchmany(self, size: int = 1):
+        return [self._wrap(r) for r in self._cur.fetchmany(size)]
+
+
+class _LibsqlReplicaConnection:
+    """sqlite3-compatible wrapper over a libSQL embedded replica.
+
+    A single connection guarded by a re-entrant lock: the lock is held for the
+    whole `with conn:` block so a transaction on a worker thread isn't
+    interleaved by another thread. Reads hit the local replica file (fast);
+    writes go to the Turso primary; sync() pulls the primary's latest changes
+    into the local file.
+    """
+
+    def __init__(self, replica_path: str, url: str, token: str) -> None:
+        import libsql  # native extension — only where a wheel is installed
+        self._lock = threading.RLock()
+        # libsql wants the libsql:// (or https://) URL as the sync target.
+        self._conn = libsql.connect(
+            replica_path, sync_url=url, auth_token=token,
+        )
+        self.row_factory = None  # ignored; we always return _DictRow
+        with self._lock:
+            try:
+                self._conn.sync()  # pull the latest so first reads are fresh
+            except Exception as exc:
+                _log.warning("Initial libsql replica sync failed: %s", exc)
+
+    def execute(self, sql: str, params=()) -> _LibsqlCursor:
+        cur = self._conn.execute(sql, tuple(params) if params else ())
+        return _LibsqlCursor(cur)
+
+    def executemany(self, sql: str, seq) -> None:
+        self._conn.executemany(sql, [tuple(p) for p in seq])
+
+    def executescript(self, script: str) -> None:
+        self._conn.executescript(script)
+
+    def sync(self) -> None:
+        """Exchange changes with the Turso primary (pull latest into local)."""
+        with self._lock:
+            self._conn.sync()
+
+    def ping(self) -> bool:
+        try:
+            with self._lock:
+                self._conn.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+    def commit(self) -> None:
+        try:
+            self._conn.commit()
+        except Exception:
+            pass
+
+    def close(self) -> None:
+        try:
+            self._conn.close()
+        except Exception:
+            pass
+
+    # Hold the lock for the whole transaction block, commit on clean exit.
+    def __enter__(self):
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, *_):
+        try:
+            if exc_type is None:
+                self._conn.commit()
+            else:
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+        finally:
+            self._lock.release()
+
+
+def libsql_available() -> bool:
+    """True if the native libsql embedded-replica client can be imported."""
+    try:
+        import libsql  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _replica_path() -> str:
+    """Local file backing the embedded replica (kept next to the main DB)."""
+    if DB_PATH.endswith(".db"):
+        return DB_PATH[:-3] + "_replica.db"
+    return DB_PATH + "_replica"
+
+
+# Module-level Turso HTTP connection — HTTP is stateless so no thread-local.
 _turso_conn: Optional[_TursoHTTPConnection] = None
+# Module-level libSQL embedded-replica connection (single, internally locked).
+_libsql_conn: Optional["_LibsqlReplicaConnection"] = None
+
+
+def _get_libsql_connection() -> "_LibsqlReplicaConnection":
+    """Return the cached embedded-replica connection, building it on first use."""
+    global _libsql_conn
+    from app.core.config import ShopConfig
+    cfg = ShopConfig.get()
+    if _libsql_conn is None:
+        _libsql_conn = _LibsqlReplicaConnection(
+            _replica_path(), cfg.turso_url, cfg.turso_auth_token,
+        )
+    return _libsql_conn
 
 
 def _get_turso_connection() -> _TursoHTTPConnection:
@@ -273,19 +424,29 @@ def _get_sqlite_connection() -> sqlite3.Connection:
 
 
 def get_connection():
-    """Dispatcher: returns Turso HTTP connection when cloud sync is enabled
-    and the user is in replica mode (cloud as primary), otherwise returns a
-    plain sqlite3 connection.
+    """Dispatcher for the active connection.
 
-    All repositories call this via BaseRepository._conn() and are unaffected
-    by which connection type is returned.
+    In cloud + replica mode it prefers the **libSQL embedded replica** (the app
+    reads/writes a local replica file and sync() exchanges changes with the
+    Turso primary). Where the native libsql wheel isn't available (e.g. a newer
+    Python with no wheel yet) it falls back to the pure-HTTP Turso connection so
+    the app still works. Otherwise (primary / no cloud) it returns a plain
+    local sqlite3 connection.
+
+    All repositories call this via BaseRepository._conn() and are unaffected by
+    which connection type is returned.
     """
     try:
         from app.core.config import ShopConfig
         cfg = ShopConfig.get()
-        # Only use cloud connection if sync is enabled AND role is replica
-        # (primary mode uses local DB and pushes to cloud on-demand)
+        # Use the cloud only when sync is enabled AND this PC is a replica
+        # (primary mode works on the local DB and pushes on-demand).
         if cfg.cloud_sync_enabled == "1" and cfg.turso_url and cfg.sync_role == "replica":
+            if libsql_available():
+                try:
+                    return _get_libsql_connection()
+                except Exception as exc:
+                    _log.warning("Embedded replica unavailable, using HTTP: %s", exc)
             return _get_turso_connection()
     except Exception:
         pass  # config unavailable before init_db — use sqlite3
@@ -308,9 +469,12 @@ def get_local_connection():
 
 
 def sync_to_remote() -> str:
-    """Health-check ping to Turso.  With the HTTP API each write already goes
-    directly to the cloud, so there is nothing to 'sync' — we just verify
-    the connection is alive and return an ISO timestamp.
+    """Exchange changes with the Turso primary and return an ISO timestamp.
+
+    In embedded-replica mode this performs a real sync() (pull the primary's
+    latest changes into the local replica file). With the pure-HTTP fallback
+    each write already goes straight to the cloud, so there's nothing to pull —
+    we just verify the connection is alive.
     """
     from datetime import datetime, timezone
     with _sync_lock:
@@ -318,10 +482,12 @@ def sync_to_remote() -> str:
             from app.core.config import ShopConfig
             cfg = ShopConfig.get()
             if cfg.cloud_sync_enabled == "1" and cfg.turso_url:
-                conn = _get_turso_connection()
-                conn.ping()
+                if cfg.sync_role == "replica" and libsql_available():
+                    _get_libsql_connection().sync()   # real pull/exchange
+                else:
+                    _get_turso_connection().ping()     # HTTP — liveness only
         except Exception as exc:
-            raise RuntimeError(f"Turso ping failed: {exc}") from exc
+            raise RuntimeError(f"Turso sync failed: {exc}") from exc
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -425,8 +591,9 @@ def push_local_to_turso(progress_cb=None) -> dict:
 
 
 def close_all_connections() -> None:
-    """Close thread-local sqlite3 connection and reset Turso HTTP handle."""
-    global _turso_conn
+    """Close the local sqlite3 connection and reset the Turso HTTP + libSQL
+    embedded-replica handles (so the next call rebuilds with fresh config)."""
+    global _turso_conn, _libsql_conn
     conn = getattr(_sqlite_local, "conn", None)
     if conn is not None:
         try:
@@ -435,6 +602,12 @@ def close_all_connections() -> None:
             pass
         _sqlite_local.conn = None
     _turso_conn = None
+    if _libsql_conn is not None:
+        try:
+            _libsql_conn.close()
+        except Exception:
+            pass
+        _libsql_conn = None
 
 
 # ── Schema DDL ────────────────────────────────────────────────────────────────
@@ -1702,6 +1875,20 @@ def _ensure_columns(conn) -> None:
 def init_db() -> None:
     """Create schema, run migrations, seed reference data."""
     _log.info("Initializing database")
+
+    # Embedded-replica (cloud replica) mode: the schema and data live on the
+    # Turso primary, which was seeded by 'Initialize as Primary'. This PC must
+    # NOT run the DDL/migrations/seed itself (that would fight the primary) —
+    # it just pulls the latest down into the local replica.
+    active = get_connection()
+    if isinstance(active, _LibsqlReplicaConnection):
+        try:
+            active.sync()
+            _log.info("Embedded replica synced from cloud primary")
+        except Exception as exc:
+            _log.warning("Replica sync on startup failed: %s", exc)
+        return
+
     with get_connection() as conn:
         _executescript(conn, _DDL)
         _ensure_columns(conn)

@@ -7,12 +7,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added — Offline-first cloud sync via libSQL embedded replicas
+- **What**: in cloud (replica) mode the app now reads and writes a **local SQLite replica file** (instant, no per-query network round-trip) and `sync()`s it with the Turso primary, instead of sending every query over HTTP. This is the architecture for a travelling-owner + shop-PC setup: every PC keeps a local copy that stays in step with the one shared cloud database.
+- **How**: a new `_LibsqlReplicaConnection` (single connection, lock-held per transaction) presents the same `_DictRow` interface as the existing connections, so repositories are unchanged. `get_connection()` prefers it in replica mode; the periodic Sync Now / background tick performs a real `sync()`; on startup the replica pulls the latest from the primary.
+- **Graceful fallback**: the native `libsql` package only ships wheels for cp39–cp313, so where it isn't available (e.g. Python 3.14) the app automatically falls back to the pure-stdlib Turso HTTP client — nothing breaks, you just don't get the local cache there.
+- **Verified in CI**: a new `tests/test_embedded_replica.py` runs the full write → sync → read-back round-trip against a throwaway Turso database (via `TURSO_TEST_URL` / `TURSO_TEST_TOKEN` secrets) and gates the release, so a broken sync can never ship. It skips cleanly when the secrets aren't set.
+
 ## [2.6.4] - 2026-06-13
 
 ### Fixed — Cloud upload still failed with FOREIGN KEY constraint (the actual cause)
 - **User-visible symptom**: "Initialize as Primary" kept failing with `FOREIGN KEY constraint failed` on `model_part_type_colors`, even after the earlier delete-order and DROP/recreate fixes.
 - **Root cause**: the earlier fixes only addressed *delete* order — the *insert* order was wrong. `_SYNCED_TABLES` listed `model_part_type_colors` and `inventory_items` (which reference `phone_models`) **before** `phone_models`, so their rows were inserted while the parent table was still empty.
 - **Fix**: reordered `_SYNCED_TABLES` so `phone_models` is pushed before everything that references it, and the cloud schema is now dropped children-first then recreated from the current `_DDL`. A new CI gate (`test_synced_tables_are_in_fk_dependency_order`) parses the schema's foreign keys and fails if any table is pushed before a table it references — so this can't regress.
+
+### Fixed — Cloud upload timed out on large tables ("The read operation timed out")
+- **User-visible symptom**: after the FK-order fix, "Initialize as Primary" failed on `model_part_type_colors` with `The read operation timed out`.
+- **Root cause**: `executemany` sent every row of a table in a **single** HTTP pipeline request; Turso runs the whole pipeline in one round-trip, so a table with thousands of rows couldn't be processed before the 30 s read timeout fired.
+- **Fix**: the Turso client now inserts rows in batches of 400 per request (so no single request is huge), and the HTTP read timeout was raised to 60 s.
+
+### Changed — A PC stays on the shared cloud after "Initialize as Primary"
+- "Initialize as Primary" now switches the PC to work **directly on the cloud** after the one-time upload (it previously stayed on its local DB). Combined with the other PCs running "Initialize as Replica", **all machines share one live dataset and stay in sync** — which is what a travelling-owner + shop-PC setup needs. The local DB is left untouched as a pre-sync backup.
 
 ### Fixed — App crashed on startup in replica mode (Turso exception type)
 - **User-visible symptom**: `RuntimeError: Turso SQL error: … no such column: updated_at` crashed startup when running against the cloud (replica mode).

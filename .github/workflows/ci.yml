@@ -55,3 +55,15 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python tests/test_report_smoke.py
+
+      # Gate 3 — libSQL embedded-replica round-trip against a THROWAWAY Turso
+      # database (write -> sync -> read-back, dict row access, executemany).
+      # This is the only place the cloud-sync data layer can actually be tested
+      # (no Python-3.14 wheel on dev). Skips cleanly if the secrets aren't set.
+      - name: Embedded-replica round-trip (cloud sync)
+        working-directory: stock-manager/src/files
+        env:
+          QT_QPA_PLATFORM: offscreen
+          TURSO_TEST_URL: ${{ secrets.TURSO_TEST_URL }}
+          TURSO_TEST_TOKEN: ${{ secrets.TURSO_TEST_TOKEN }}
+        run: python tests/test_embedded_replica.py

@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# PyInstaller spec for Stock Manager Pro v2.6.3
+# PyInstaller spec for Stock Manager Pro v2.6.4
 # Build: cd src && pyinstaller StockManagerPro.spec --noconfirm --clean
 
 import glob, os

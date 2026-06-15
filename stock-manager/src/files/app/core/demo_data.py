@@ -1,5 +1,5 @@
 """
-app/core/demo_data.py — Optional Galaxy@Phone demo seed data.
+app/core/demo_data.py — Optional demo seed data.
 
 Display part types are brand-specific:
   Apple  → JK incell, DD Soft-OLED, DD Diagnose, ORG-Pulled, ORG-Diagnose USED

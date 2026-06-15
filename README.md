@@ -77,98 +77,98 @@ Stock Manager Pro is a professional, offline-first desktop inventory management 
 ### Analytics Dashboard
 Real-time KPI cards (stock value at cost, revenue, transactions, low stock), a stock-health donut, value-by-brand bars, and a brand × part-type valuation pivot — all loaded asynchronously off the UI thread.
 
-![Analytics Dashboard](files/img/scr-dashboard.png)
+![Analytics Dashboard](stock-manager/src/files/img/scr-dashboard.png)
 
 ---
 
 ### Matrix View
 The core workflow — spreadsheet-style bulk stock across model × part-type × colour, with a frozen model column, per-part-type value totals, and Low / Out / Reorder filters.
 
-![Matrix View](files/img/scr-displays.png)
+![Matrix View](stock-manager/src/files/img/scr-displays.png)
 
 ---
 
 ### Inventory
 Searchable, filterable product table with KPI overview cards (units, low / out of stock, inventory value), status badges, and inline +1 / −1 quick-stock actions.
 
-![Inventory](files/img/scr-inventory-v2.png)
+![Inventory](stock-manager/src/files/img/scr-inventory-v2.png)
 
 ---
 
 ### Phones — IMEI tracking
 Whole-device inventory tracked by IMEI: a brand × model stock grid by storage, KPIs (total / in stock / sold / avg battery / stock value), scan-to-sell, reserve, and barcode labels. *(Optional white-label module.)*
 
-![Phones](files/img/scr-phones.png)
+![Phones](stock-manager/src/files/img/scr-phones.png)
 
 ---
 
 ### Sales & POS
 Cart-based point-of-sale with product picker, customer lookup, discounts, automatic PDF receipts, and edit / void with stock reversal.
 
-![Sales & POS](files/img/scr-sales.png)
+![Sales & POS](stock-manager/src/files/img/scr-sales.png)
 
 ---
 
 ### Reports
 14 professional, branded PDF reports for **parts and phones** — inventory, valuation (at cost), low stock, transactions, sales, category performance, audit sheets, phone inventory & sold history, expiring stock, and barcode labels.
 
-![Reports](files/img/scr-reports.png)
+![Reports](stock-manager/src/files/img/scr-reports.png)
 
 ---
 
 ### Transactions
 Paginated stock-movement audit log with an IN / OUT / ADJUST / Net summary strip, debounced filters, and Load-More pagination.
 
-![Transactions](files/img/scr-transactions.png)
+![Transactions](stock-manager/src/files/img/scr-transactions.png)
 
 ---
 
 ### Purchase Orders
 Full PO lifecycle from DRAFT through SENT → PARTIAL → RECEIVED. Receiving a PO automatically triggers a stock-in.
 
-![Purchase Orders](files/img/scr-purchase-orders.png)
+![Purchase Orders](stock-manager/src/files/img/scr-purchase-orders.png)
 
 ---
 
 ### Suppliers
 Supplier CRM with contact details, rating, linked inventory items, and open purchase-order count per supplier.
 
-![Suppliers](files/img/scr-suppliers.png)
+![Suppliers](stock-manager/src/files/img/scr-suppliers.png)
 
 ---
 
 ### Audit & Stocktake
 Cycle-based stocktake with item-by-item counted-qty entry, system-vs-counted variance reporting, and a completion summary.
 
-![Audit](files/img/scr-audit.png)
+![Audit](stock-manager/src/files/img/scr-audit.png)
 
 ---
 
 ### Price Lists
 Create and manage pricing configurations; apply a bulk percentage markup or push a list straight to live inventory.
 
-![Price Lists](files/img/scr-price-lists.png)
+![Price Lists](stock-manager/src/files/img/scr-price-lists.png)
 
 ---
 
 ### Returns
 Process returns with RESTOCK or WRITE_OFF actions — reverses the original transaction and records the refund amount.
 
-![Returns](files/img/scr-returns.png)
+![Returns](stock-manager/src/files/img/scr-returns.png)
 
 ---
 
 ### Quick Scan
 USB barcode-scanner interception with command barcodes (TAKEOUT / INSERT / CONFIRM) for hands-free stock counting.
 
-![Quick Scan](files/img/scr-quickscan.png)
+![Quick Scan](stock-manager/src/files/img/scr-quickscan.png)
 
 ---
 
 ### Barcode Generator
 Generate and export Code128 / EAN barcodes; batch-print labels for new stock.
 
-![Barcode Generator](files/img/scr-barcode.png)
+![Barcode Generator](stock-manager/src/files/img/scr-barcode.png)
 
 ---
 

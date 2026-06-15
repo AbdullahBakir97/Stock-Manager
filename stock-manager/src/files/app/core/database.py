@@ -2052,7 +2052,7 @@ def init_db() -> None:
 
 def load_demo_data() -> None:
     """
-    Seed the Galaxy@Phone demo data.
+    Seed the demo data.
     Safe to call multiple times — uses INSERT OR IGNORE.
     Display part types are brand-specific (Apple has 5 types, Samsung has 2).
     """

@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+> Add your next changes here before tagging a release.
+
+---
+
+## [2.7.0] - 2026-06-15
+
 ### Added — Offline-first cloud sync via libSQL embedded replicas
 - **What**: in cloud (replica) mode the app now reads and writes a **local SQLite replica file** (instant, no per-query network round-trip) and `sync()`s it with the Turso primary, instead of sending every query over HTTP. This is the architecture for a travelling-owner + shop-PC setup: every PC keeps a local copy that stays in step with the one shared cloud database.
 - **How**: a new `_LibsqlReplicaConnection` (single connection, lock-held per transaction) presents the same `_DictRow` interface as the existing connections, so repositories are unchanged. `get_connection()` prefers it in replica mode; the periodic Sync Now / background tick performs a real `sync()`; on startup the replica pulls the latest from the primary.

@@ -72,7 +72,7 @@ Stock Manager Pro is a professional, offline-first desktop inventory management 
 
 ## 📸 Screenshots
 
-> Screenshots use a demo **Galaxy@Phone** dataset.
+> Screenshots use a demo dataset.
 
 ### Analytics Dashboard
 Real-time KPI cards (stock value at cost, revenue, transactions, low stock), a stock-health donut, value-by-brand bars, and a brand × part-type valuation pivot — all loaded asynchronously off the UI thread.

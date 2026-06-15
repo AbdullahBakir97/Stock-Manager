@@ -15,7 +15,7 @@ stock-manager/
 
 The app uses a strict layered architecture — **UI → Services → Repositories → Models → Core**.
 UI never imports repositories directly; services never import UI. See
-[`stock-manager/CLAUDE.md`](stock-manager/CLAUDE.md) for the full architecture guide.
+the **Architecture** section of the [README](README.md#-architecture) for the full layer breakdown.
 
 ## Local setup
 

@@ -1158,9 +1158,9 @@ _TR: dict[str, dict[str, str]] = {
         "AR": "تحميل بيانات تجريبية",
     },
     "demo_load_body": {
-        "EN": "Add Galaxy@Phone demo data (42 Apple/Samsung models, 6 categories)?\nExisting data is preserved.",
-        "DE": "Galaxy@Phone Demo-Daten hinzufügen (42 Apple/Samsung-Modelle, 6 Kategorien)?\nBestehende Daten bleiben erhalten.",
-        "AR": "إضافة بيانات Galaxy@Phone التجريبية (42 طراز، 6 فئات)؟\nالبيانات الموجودة ستبقى.",
+        "EN": "Add demo data (42 Apple/Samsung models, 6 categories)?\nExisting data is preserved.",
+        "DE": "Demo-Daten hinzufügen (42 Apple/Samsung-Modelle, 6 Kategorien)?\nBestehende Daten bleiben erhalten.",
+        "AR": "إضافة بيانات تجريبية (42 طراز، 6 فئات)؟\nالبيانات الموجودة ستبقى.",
     },
     "demo_loaded": {
         "EN": "Demo data loaded.",

@@ -39,6 +39,7 @@ def _nav_items() -> list[tuple[str, str]]:
         ("nav_reports",         "📊"),
         ("nav_analytics",       "📈"),
         ("nav_phones",          "📱"),
+        ("nav_logs",            "📜"),
     ]
     if not ShopConfig.get().is_phones_module_enabled:
         items = [i for i in items if i[0] != "nav_phones"]
@@ -105,6 +106,7 @@ class Sidebar(QFrame):
             "nav_reports":         "Generate PDF reports and audit sheets",
             "nav_analytics":       "Dashboard with charts and KPIs",
             "nav_phones":          "Phone inventory — track devices by IMEI",
+            "nav_logs":            "Application logs — diagnostics & sync health",
         }
         for key, icon in nav_items:
             btn = QPushButton(f"  {icon}   {t(key)}")

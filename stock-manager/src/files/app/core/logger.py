@@ -9,6 +9,8 @@ from __future__ import annotations
 import os
 import sys
 import logging
+import threading
+from collections import deque
 from logging.handlers import RotatingFileHandler
 
 
@@ -18,6 +20,81 @@ _LOG_FORMAT = "[%(asctime)s] [%(levelname)-5s] [%(name)s] %(message)s"
 _DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 _MAX_BYTES = 5 * 1024 * 1024  # 5 MB per file
 _BACKUP_COUNT = 5  # Keep 5 rotated backups
+_RING_CAPACITY = 5000  # in-memory records kept for the in-app log viewer
+
+
+# ── In-memory ring buffer for the in-app log viewer ─────────────────────────────
+# Deliberately framework-free (no PyQt6) — logging starts before QApplication.
+# The UI layer registers a listener that marshals records onto the Qt thread.
+
+class LogRecordView:
+    """A lightweight, picklable snapshot of a log record for the UI."""
+    __slots__ = ("time", "level", "levelno", "name", "message")
+
+    def __init__(self, time: str, level: str, levelno: int,
+                 name: str, message: str) -> None:
+        self.time = time
+        self.level = level
+        self.levelno = levelno
+        self.name = name
+        self.message = message
+
+
+class RingBufferHandler(logging.Handler):
+    """Keeps the last N records in memory and notifies listeners on each emit.
+
+    Listeners are plain callables invoked (on the logging thread) with a single
+    LogRecordView. They must be cheap and thread-safe — the UI listener simply
+    emits a queued Qt signal, doing the real work on the main thread.
+    """
+
+    def __init__(self, capacity: int = _RING_CAPACITY) -> None:
+        super().__init__(level=logging.DEBUG)
+        self._buf: deque[LogRecordView] = deque(maxlen=capacity)
+        self._listeners: list = []
+        self._lock = threading.Lock()
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            view = LogRecordView(
+                time=self.format_time(record),
+                level=record.levelname,
+                levelno=record.levelno,
+                name=record.name,
+                message=record.getMessage(),
+            )
+        except Exception:
+            return
+        with self._lock:
+            self._buf.append(view)
+            listeners = list(self._listeners)
+        for cb in listeners:
+            try:
+                cb(view)
+            except Exception:
+                pass  # never let a UI listener break logging
+
+    @staticmethod
+    def format_time(record: logging.LogRecord) -> str:
+        import time as _t
+        return _t.strftime(_DATE_FORMAT, _t.localtime(record.created))
+
+    def snapshot(self) -> list:
+        with self._lock:
+            return list(self._buf)
+
+    def add_listener(self, cb) -> None:
+        with self._lock:
+            if cb not in self._listeners:
+                self._listeners.append(cb)
+
+    def remove_listener(self, cb) -> None:
+        with self._lock:
+            if cb in self._listeners:
+                self._listeners.remove(cb)
+
+
+_ring_handler: "RingBufferHandler | None" = None
 
 
 # ── Log path resolution ────────────────────────────────────────────────────────
@@ -60,7 +137,7 @@ def _init_root_logger() -> None:
     Initialize the root logger with rotating file handler and console handler.
     Called once on first get_logger() call.
     """
-    global _INITIALIZED
+    global _INITIALIZED, _ring_handler
     if _INITIALIZED:
         return
 
@@ -97,6 +174,11 @@ def _init_root_logger() -> None:
         console_handler.setLevel(logging.DEBUG)
         root.addHandler(console_handler)
 
+    # ── In-memory ring buffer (feeds the in-app log viewer) ────────────────────
+    _ring_handler = RingBufferHandler()
+    _ring_handler.setLevel(logging.DEBUG)
+    root.addHandler(_ring_handler)
+
     _INITIALIZED = True
 
 
@@ -114,3 +196,58 @@ def get_logger(name: str) -> logging.Logger:
     """
     _init_root_logger()
     return logging.getLogger(name)
+
+
+# ── In-app log viewer support ───────────────────────────────────────────────────
+
+def get_log_buffer() -> list:
+    """Return a snapshot of the recent in-memory log records (LogRecordView)."""
+    _init_root_logger()
+    return _ring_handler.snapshot() if _ring_handler else []
+
+
+def add_log_listener(callback) -> None:
+    """Register a callable invoked with each new LogRecordView (any thread).
+
+    Keep it cheap and thread-safe — the UI listener should only emit a queued
+    Qt signal and do the real work on the main thread.
+    """
+    _init_root_logger()
+    if _ring_handler:
+        _ring_handler.add_listener(callback)
+
+
+def remove_log_listener(callback) -> None:
+    _init_root_logger()
+    if _ring_handler:
+        _ring_handler.remove_listener(callback)
+
+
+def log_file_path() -> str:
+    """Absolute path of the active rotating log file."""
+    return _LOG_PATH
+
+
+def log_dir() -> str:
+    """Directory holding the log files."""
+    return _LOG_DIR
+
+
+def set_verbose(enabled: bool) -> None:
+    """Temporarily lower/raise the root level so the viewer can show DEBUG.
+
+    In production the root level is INFO, so DEBUG records are never emitted;
+    turning this on raises verbosity to DEBUG while troubleshooting, off
+    restores the default for the current build (INFO frozen / DEBUG dev).
+    """
+    _init_root_logger()
+    if enabled:
+        logging.getLogger().setLevel(logging.DEBUG)
+    else:
+        logging.getLogger().setLevel(
+            logging.INFO if getattr(sys, "frozen", False) else logging.DEBUG
+        )
+
+
+def is_verbose() -> bool:
+    return logging.getLogger().getEffectiveLevel() <= logging.DEBUG

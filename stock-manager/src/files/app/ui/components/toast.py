@@ -97,9 +97,26 @@ class Toast(QFrame):
         close_btn.clicked.connect(self._dismiss)
         lay.addWidget(close_btn)
 
+        # Fade-in on first show for a polished, professional appearance.
+        self._fx = QGraphicsOpacityEffect(self)
+        self.setGraphicsEffect(self._fx)
+        self._fx.setOpacity(0.0)
+        self._fade = QPropertyAnimation(self._fx, b"opacity", self)
+        self._fade.setDuration(180)
+        self._fade.setStartValue(0.0)
+        self._fade.setEndValue(1.0)
+        self._fade.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._fade_started = False
+
         # Auto-dismiss timer
         if duration > 0:
             QTimer.singleShot(duration, self._dismiss)
+
+    def showEvent(self, e):  # noqa: N802 (Qt override)
+        super().showEvent(e)
+        if not self._fade_started:
+            self._fade_started = True
+            self._fade.start()
 
     def _dismiss(self):
         """Hide, emit dismissed signal, then schedule C++ object deletion."""

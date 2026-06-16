@@ -95,15 +95,28 @@ class SyncService(QObject):
         """Trigger an immediate bidirectional sync (non-blocking, via POOL)."""
         if self._is_syncing or not self.is_configured:
             return
+        import time
         from app.ui.workers.worker_pool import POOL
         self._is_syncing = True
+        self._sync_t0 = time.monotonic()
         self.sync_started.emit()
+        _log.info("Cloud sync started (%s)", self._mode_str())
         POOL.submit(
             "cloud_sync",
             self._do_sync,
             self._on_sync_done,
             self._on_sync_error,
         )
+
+    @staticmethod
+    def _mode_str() -> str:
+        """Short, secrets-free description of the active connection mode."""
+        try:
+            from app.core.database import connection_mode
+            info = connection_mode()
+            return f"{info['mode']} · {info['role']}"
+        except Exception:
+            return "unknown"
 
     # ── Internal (runs on POOL worker thread) ─────────────────────────────────
 
@@ -117,11 +130,14 @@ class SyncService(QObject):
     # ── Callbacks (main thread, via POOL signal delivery) ─────────────────────
 
     def _on_sync_done(self, timestamp: str) -> None:
+        import time
         self._is_syncing = False
         self._last_sync  = datetime.fromisoformat(timestamp)
         self._last_error = None
         self.sync_completed.emit(timestamp)
-        _log.debug("Cloud sync completed at %s", timestamp)
+        elapsed_ms = (time.monotonic() - getattr(self, "_sync_t0", time.monotonic())) * 1000
+        # INFO (not DEBUG) so successful syncs are visible in production logs.
+        _log.info("Cloud sync completed in %.0f ms (%s)", elapsed_ms, self._mode_str())
 
     def _on_sync_error(self, error_msg: str) -> None:
         self._is_syncing = False

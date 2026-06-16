@@ -44,38 +44,570 @@ DB_PATH: str = _db_path()
 
 # ── Connection (thread-local pool) ────────────────────────────────────────────
 
+import json
 import threading
-_local = threading.local()
+import urllib.request
+import urllib.error
+
+_sqlite_local = threading.local()
+_sync_lock    = threading.Lock()
 
 
-def get_connection() -> sqlite3.Connection:
-    """Return a thread-local cached connection.
-    Reuses the same connection per thread to avoid the overhead of
-    sqlite3.connect() + PRAGMA setup on every query (~15ms saved per call).
+# ── Row factory ──────────────────────────────────────────────────────────────
+
+class _DictRow(dict):
+    """dict subclass that also supports integer index access, matching sqlite3.Row."""
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return list(self.values())[key]
+        return super().__getitem__(key)
+
+
+def _dict_row_factory(cursor, row):
+    return _DictRow(zip([d[0] for d in cursor.description], row))
+
+
+# ── Turso HTTP API wrapper ────────────────────────────────────────────────────
+# Pure Python stdlib — no Rust, no compilation, no extra packages.
+# Presents the same execute()/executemany()/executescript() interface as
+# sqlite3 so all 14+ repositories work without modification.
+
+class _TursoCursor:
+    """Minimal cursor-like object returned by TursoHTTPConnection.execute()."""
+
+    def __init__(self, rows: list[dict], lastrowid: Optional[int] = None) -> None:
+        self._rows = [_DictRow(r) for r in rows]
+        self.lastrowid: int = lastrowid or 0
+        self.rowcount: int = len(self._rows)
+
+    def fetchall(self) -> list[_DictRow]:
+        return self._rows
+
+    def fetchone(self) -> Optional[_DictRow]:
+        return self._rows[0] if self._rows else None
+
+
+class _TursoHTTPConnection:
+    """Minimal sqlite3-compatible wrapper over the Turso HTTP pipeline API.
+
+    Uses only Python's stdlib urllib — no pip packages required.
+    All queries are auto-committed (Turso's HTTP API is implicitly transactional).
     """
-    conn = getattr(_local, "conn", None)
+
+    def __init__(self, url: str, token: str) -> None:
+        # Normalise libsql:// → https://
+        self._url = url.replace("libsql://", "https://") + "/v2/pipeline"
+        self._headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+        self.row_factory = None  # ignored; we always return _DictRow
+
+    # ── Internal HTTP POST ────────────────────────────────────────────────
+
+    def _post(self, stmts: list[dict]) -> list[dict]:
+        """POST a pipeline of SQL statements to Turso.  Returns one result dict per statement."""
+        payload = {
+            "requests": [{"type": "execute", "stmt": s} for s in stmts] + [{"type": "close"}]
+        }
+        body = json.dumps(payload).encode()
+        req = urllib.request.Request(self._url, data=body, headers=self._headers)
+        try:
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                data = json.loads(resp.read())
+        except urllib.error.HTTPError as exc:
+            body_text = exc.read().decode(errors="replace")
+            raise RuntimeError(f"Turso HTTP {exc.code}: {body_text}") from exc
+
+        results = []
+        for item in data.get("results", []):
+            if item.get("type") == "error":
+                msg = item.get("error", {}).get("message", str(item))
+                # Raise the matching sqlite3 exception type — NOT a bare
+                # RuntimeError — so code that handles sqlite3 errors behaves the
+                # same over the cloud connection as against local SQLite
+                # (e.g. "no such column" fallbacks, duplicate-key handling).
+                low = msg.lower()
+                if "constraint" in low:
+                    raise sqlite3.IntegrityError(f"Turso SQL error: {msg}")
+                raise sqlite3.OperationalError(f"Turso SQL error: {msg}")
+            if item.get("type") == "ok":
+                results.append(item.get("response", {}).get("result", {}))
+        return results
+
+    # ── Arg / row codec ───────────────────────────────────────────────────
+
+    @staticmethod
+    def _enc(v) -> dict:
+        if v is None:               return {"type": "null"}
+        if isinstance(v, bool):     return {"type": "integer", "value": str(int(v))}
+        if isinstance(v, int):      return {"type": "integer", "value": str(v)}
+        if isinstance(v, float):    return {"type": "float",   "value": v}
+        if isinstance(v, bytes):    return {"type": "blob",    "base64": v.hex()}
+        return {"type": "text", "value": str(v)}
+
+    @staticmethod
+    def _decode_rows(result: dict) -> tuple[list[_DictRow], Optional[int]]:
+        cols = [c["name"] for c in result.get("cols", [])]
+        rows: list[_DictRow] = []
+        for raw_row in result.get("rows", []):
+            d: dict = {}
+            for col, cell in zip(cols, raw_row):
+                t = cell.get("type", "text")
+                v = cell.get("value")
+                if   t == "null":    v = None
+                elif t == "integer": v = int(v)
+                elif t == "float":   v = float(v)
+                d[col] = v
+            rows.append(_DictRow(d))
+        last = result.get("last_insert_rowid")
+        return rows, (int(last) if last else None)
+
+    # ── Public sqlite3-compatible interface ───────────────────────────────
+
+    def execute(self, sql: str, params=()) -> _TursoCursor:
+        # Skip PRAGMA statements — they don't apply over HTTP
+        if sql.strip().upper().startswith("PRAGMA"):
+            return _TursoCursor([])
+        stmt = {"sql": sql, "args": [self._enc(p) for p in params]}
+        results = self._post([stmt])
+        rows, lastrowid = self._decode_rows(results[0] if results else {})
+        return _TursoCursor(rows, lastrowid)
+
+    def executemany(self, sql: str, seq) -> None:
+        seq = list(seq)
+        if not seq:
+            return
+        # Turso runs the whole pipeline in ONE HTTP round-trip, so a single
+        # executemany over thousands of rows builds a giant request that the
+        # server can't process before the read timeout fires ("The read
+        # operation timed out"). Send the rows in batches instead.
+        BATCH = 400
+        for i in range(0, len(seq), BATCH):
+            stmts = [
+                {"sql": sql, "args": [self._enc(p) for p in params]}
+                for params in seq[i:i + BATCH]
+            ]
+            self._post(stmts)
+
+    def executescript(self, script: str) -> None:
+        # Strip SQL line comments BEFORE splitting on ';'. The schema has a
+        # ';' inside a '-- ...' comment; splitting first would cut a statement
+        # in half, and Turso parses each ';'-separated chunk independently —
+        # the comment-only fragment fails with "unexpected end of input".
+        # (Safe here: the DDL never contains '--' inside a string literal.)
+        cleaned = "\n".join(
+            line.split("--", 1)[0] for line in script.splitlines()
+        )
+        stmts = [
+            {"sql": s.strip()}
+            for s in cleaned.split(";")
+            if s.strip() and not s.strip().upper().startswith("PRAGMA")
+        ]
+        if stmts:
+            self._post(stmts)
+
+    def ping(self) -> bool:
+        """Return True if the cloud database is reachable."""
+        try:
+            self._post([{"sql": "SELECT 1"}])
+            return True
+        except Exception:
+            return False
+
+    # Context manager — no-op (HTTP is stateless)
+    def commit(self) -> None: pass
+    def close(self)  -> None: pass
+    def __enter__(self):      return self
+    def __exit__(self, *_):   pass
+
+
+# ── libSQL embedded replica ───────────────────────────────────────────────────
+# A LOCAL SQLite file the app reads/writes instantly, kept in step with the
+# Turso primary by sync(). This is the offline-first model: reads are served
+# from the local replica, writes go to the primary, sync() exchanges changes.
+# Requires the native `libsql` package (Windows/Linux/macOS wheels for cp39-13);
+# where it's unavailable (e.g. a newer Python with no wheel) the dispatcher
+# falls back to the pure-HTTP connection so the app still works.
+
+class _LibsqlCursor:
+    """Adapts a libsql cursor to the _DictRow interface the repos expect."""
+
+    def __init__(self, cur) -> None:
+        self._cur = cur
+        self.lastrowid = getattr(cur, "lastrowid", 0) or 0
+        self.rowcount = getattr(cur, "rowcount", -1)
+        desc = getattr(cur, "description", None)
+        self._cols = [c[0] for c in desc] if desc else []
+
+    def _wrap(self, row):
+        if row is None:
+            return None
+        return _DictRow(zip(self._cols, row))
+
+    def fetchone(self):
+        return self._wrap(self._cur.fetchone())
+
+    def fetchall(self):
+        return [self._wrap(r) for r in self._cur.fetchall()]
+
+    def fetchmany(self, size: int = 1):
+        return [self._wrap(r) for r in self._cur.fetchmany(size)]
+
+
+class _LibsqlReplicaConnection:
+    """sqlite3-compatible wrapper over a libSQL embedded replica.
+
+    A single connection guarded by a re-entrant lock: the lock is held for the
+    whole `with conn:` block so a transaction on a worker thread isn't
+    interleaved by another thread. Reads hit the local replica file (fast);
+    writes go to the Turso primary; sync() pulls the primary's latest changes
+    into the local file.
+    """
+
+    def __init__(self, replica_path: str, url: str, token: str) -> None:
+        import libsql  # native extension — only where a wheel is installed
+        self._lock = threading.RLock()
+        # libsql wants the libsql:// (or https://) URL as the sync target.
+        self._conn = libsql.connect(
+            replica_path, sync_url=url, auth_token=token,
+        )
+        self.row_factory = None  # ignored; we always return _DictRow
+        with self._lock:
+            try:
+                self._conn.sync()  # pull the latest so first reads are fresh
+            except Exception as exc:
+                _log.warning("Initial libsql replica sync failed: %s", exc)
+
+    def execute(self, sql: str, params=()) -> _LibsqlCursor:
+        cur = self._conn.execute(sql, tuple(params) if params else ())
+        return _LibsqlCursor(cur)
+
+    def executemany(self, sql: str, seq) -> None:
+        self._conn.executemany(sql, [tuple(p) for p in seq])
+
+    def executescript(self, script: str) -> None:
+        self._conn.executescript(script)
+
+    def sync(self) -> None:
+        """Exchange changes with the Turso primary (pull latest into local)."""
+        with self._lock:
+            self._conn.sync()
+
+    def ping(self) -> bool:
+        try:
+            with self._lock:
+                self._conn.execute("SELECT 1")
+            return True
+        except Exception:
+            return False
+
+    def commit(self) -> None:
+        try:
+            self._conn.commit()
+        except Exception:
+            pass
+
+    def close(self) -> None:
+        try:
+            self._conn.close()
+        except Exception:
+            pass
+
+    # Hold the lock for the whole transaction block, commit on clean exit.
+    def __enter__(self):
+        self._lock.acquire()
+        return self
+
+    def __exit__(self, exc_type, *_):
+        try:
+            if exc_type is None:
+                self._conn.commit()
+            else:
+                try:
+                    self._conn.rollback()
+                except Exception:
+                    pass
+        finally:
+            self._lock.release()
+
+
+def libsql_available() -> bool:
+    """True if the native libsql embedded-replica client can be imported."""
+    try:
+        import libsql  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _replica_path() -> str:
+    """Local file backing the embedded replica (kept next to the main DB)."""
+    if DB_PATH.endswith(".db"):
+        return DB_PATH[:-3] + "_replica.db"
+    return DB_PATH + "_replica"
+
+
+# Module-level Turso HTTP connection — HTTP is stateless so no thread-local.
+_turso_conn: Optional[_TursoHTTPConnection] = None
+# Module-level libSQL embedded-replica connection (single, internally locked).
+_libsql_conn: Optional["_LibsqlReplicaConnection"] = None
+
+
+def _get_libsql_connection() -> "_LibsqlReplicaConnection":
+    """Return the cached embedded-replica connection, building it on first use."""
+    global _libsql_conn
+    from app.core.config import ShopConfig
+    cfg = ShopConfig.get()
+    if _libsql_conn is None:
+        _libsql_conn = _LibsqlReplicaConnection(
+            _replica_path(), cfg.turso_url, cfg.turso_auth_token,
+        )
+    return _libsql_conn
+
+
+def _get_turso_connection() -> _TursoHTTPConnection:
+    """Return the cached Turso HTTP connection, rebuilding if credentials changed."""
+    global _turso_conn
+    from app.core.config import ShopConfig
+    cfg = ShopConfig.get()
+    if _turso_conn is None or _turso_conn._url != (cfg.turso_url.replace("libsql://", "https://") + "/v2/pipeline"):
+        _turso_conn = _TursoHTTPConnection(cfg.turso_url, cfg.turso_auth_token)
+    return _turso_conn
+
+
+# ── DDL script executor ───────────────────────────────────────────────────────
+
+def _executescript(conn, script: str) -> None:
+    """Execute a SQL script on any connection type."""
+    if isinstance(conn, _TursoHTTPConnection):
+        conn.executescript(script)
+    elif hasattr(conn, "executescript"):
+        conn.executescript(script)
+    else:
+        for stmt in script.split(";"):
+            stmt = stmt.strip()
+            if stmt:
+                try:
+                    conn.execute(stmt)
+                except Exception as exc:
+                    _log.warning("DDL statement skipped: %s — %s", stmt[:80], exc)
+
+
+def _apply_pragmas(conn) -> None:
+    """Apply standard performance PRAGMAs (sqlite3 only — skipped for HTTP)."""
+    if isinstance(conn, _TursoHTTPConnection):
+        return  # pragmas don't apply over HTTP API
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
+    conn.execute("PRAGMA cache_size = -32768")
+    conn.execute("PRAGMA temp_store = MEMORY")
+    conn.execute("PRAGMA mmap_size = 134217728")
+
+
+def _get_sqlite_connection() -> sqlite3.Connection:
+    """Return a thread-local cached plain sqlite3 connection."""
+    conn = getattr(_sqlite_local, "conn", None)
     if conn is not None:
         try:
-            conn.execute("SELECT 1")  # verify connection is alive
+            conn.execute("SELECT 1")
             return conn
         except (sqlite3.ProgrammingError, sqlite3.OperationalError):
             conn = None
 
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute("PRAGMA synchronous = NORMAL")     # safe with WAL, 2x faster writes
-    conn.execute("PRAGMA cache_size = -32768")       # 32MB page cache (was 20MB)
-    conn.execute("PRAGMA temp_store = MEMORY")       # temp tables in RAM
-    # Memory-map up to 128MB of the DB for read-heavy hot paths (matrix
-    # refresh, barcode generation). On Windows this maps the file into the
-    # process address space so SQLite can skip the read() syscall + buffer
-    # copy on cached pages — ~20-40% faster on read-heavy workloads, no
-    # cost when the DB is small enough that everything fits in page cache.
-    conn.execute("PRAGMA mmap_size = 134217728")
-    _local.conn = conn
+    _apply_pragmas(conn)
+    _sqlite_local.conn = conn
     return conn
+
+
+def get_connection():
+    """Dispatcher for the active connection.
+
+    In cloud + replica mode it prefers the **libSQL embedded replica** (the app
+    reads/writes a local replica file and sync() exchanges changes with the
+    Turso primary). Where the native libsql wheel isn't available (e.g. a newer
+    Python with no wheel yet) it falls back to the pure-HTTP Turso connection so
+    the app still works. Otherwise (primary / no cloud) it returns a plain
+    local sqlite3 connection.
+
+    All repositories call this via BaseRepository._conn() and are unaffected by
+    which connection type is returned.
+    """
+    try:
+        from app.core.config import ShopConfig
+        cfg = ShopConfig.get()
+        # Use the cloud only when sync is enabled AND this PC is a replica
+        # (primary mode works on the local DB and pushes on-demand).
+        if cfg.cloud_sync_enabled == "1" and cfg.turso_url and cfg.sync_role == "replica":
+            if libsql_available():
+                try:
+                    return _get_libsql_connection()
+                except Exception as exc:
+                    _log.warning("Embedded replica unavailable, using HTTP: %s", exc)
+            return _get_turso_connection()
+    except Exception:
+        pass  # config unavailable before init_db — use sqlite3
+    return _get_sqlite_connection()
+
+
+def get_local_connection():
+    """Always return the LOCAL SQLite connection, regardless of cloud-sync
+    settings.
+
+    Bootstrap config (ShopConfig — including the cloud-sync on/off flag and
+    Turso credentials) MUST live on this PC: it's what decides whether data is
+    routed to the cloud at all. Reading/writing it through get_connection()
+    would be circular — enabling cloud sync would route the very 'enabled' flag
+    to the cloud, while the next reload reads the local DB and never sees it,
+    so the setting appears to never take effect. ShopConfig therefore persists
+    here, locally, always.
+    """
+    return _get_sqlite_connection()
+
+
+def sync_to_remote() -> str:
+    """Exchange changes with the Turso primary and return an ISO timestamp.
+
+    In embedded-replica mode this performs a real sync() (pull the primary's
+    latest changes into the local replica file). With the pure-HTTP fallback
+    each write already goes straight to the cloud, so there's nothing to pull —
+    we just verify the connection is alive.
+    """
+    from datetime import datetime, timezone
+    with _sync_lock:
+        try:
+            from app.core.config import ShopConfig
+            cfg = ShopConfig.get()
+            if cfg.cloud_sync_enabled == "1" and cfg.turso_url:
+                if cfg.sync_role == "replica" and libsql_available():
+                    _get_libsql_connection().sync()   # real pull/exchange
+                else:
+                    _get_turso_connection().ping()     # HTTP — liveness only
+        except Exception as exc:
+            raise RuntimeError(f"Turso sync failed: {exc}") from exc
+    return datetime.now(timezone.utc).isoformat()
+
+
+# Tables in dependency order (parents before children) — used by
+# push_local_to_turso() for bulk insert order. Every table must appear AFTER
+# every table it references with a FOREIGN KEY, otherwise the cloud insert
+# fails "FOREIGN KEY constraint failed". In particular phone_models must come
+# before part_type_colors / model_part_type_colors / inventory_items, and
+# inventory_items before everything that links to a line item.
+_SYNCED_TABLES = (
+    "app_config", "categories", "part_types", "phone_models",
+    "part_type_colors", "model_part_type_colors", "inventory_items",
+    "inventory_transactions", "suppliers", "supplier_items",
+    "locations", "location_stock", "stock_transfers",
+    "customers", "sales", "sale_items",
+    "purchase_orders", "purchase_order_lines", "returns",
+    "inventory_audits", "audit_lines",
+    "price_lists", "price_list_items",
+    "scan_invoices", "scan_invoice_items",
+    "phones", "phone_transactions",
+)
+
+
+def push_local_to_turso(progress_cb=None) -> dict:
+    """One-time bulk push of all local SQLite data into the Turso cloud DB.
+
+    Used by 'Initialize as Primary' in the Cloud Sync admin panel — the PC
+    that already holds the shop's data exports it to the (empty) Turso
+    database so every other PC can start reading/writing the same dataset
+    over the HTTP API.
+
+    Existing rows in each Turso table are deleted first (the cloud DB is
+    assumed to be freshly created / empty). Returns a dict of
+    {table: row_count} for the tables that were pushed.
+
+    Raises RuntimeError if local database is empty to prevent data loss.
+    """
+    local = _get_sqlite_connection()
+    remote = _get_turso_connection()
+
+    # Safety check: verify local database has meaningful data before wiping cloud
+    total_local_rows = 0
+    for table in _SYNCED_TABLES:
+        exists = local.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if exists:
+            count = local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+            total_local_rows += count
+
+    if total_local_rows == 0:
+        raise RuntimeError(
+            "Cannot push to cloud: local database is empty. "
+            "This would wipe your cloud database. "
+            "Ensure your local database contains your data before running 'Initialize as Primary'."
+        )
+
+    counts: dict[str, int] = {}
+
+    # Drop all tables first so the cloud schema is recreated fresh from the
+    # CURRENT _DDL (no stale/missing columns from an earlier push). Drop in
+    # REVERSE dependency order — children before parents — so the drops succeed
+    # even when foreign keys are enforced.
+    for table in reversed(_SYNCED_TABLES):
+        try:
+            remote.execute(f"DROP TABLE IF EXISTS {table}")
+        except Exception as e:
+            _log.warning(f"Failed to drop table {table}: {e}")
+
+    # Recreate schema with all tables
+    _executescript(remote, _DDL)
+
+    # Insert in forward order (parents before children) to satisfy FK constraints
+    for table in _SYNCED_TABLES:
+        # Skip tables that don't exist locally (e.g. older DBs pre-migration).
+        exists = local.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if not exists:
+            continue
+
+        rows = local.execute(f"SELECT * FROM {table}").fetchall()
+        cols = [d[0] for d in local.execute(f"SELECT * FROM {table} LIMIT 0").description]
+
+        if progress_cb:
+            progress_cb(table, len(rows))
+
+        if rows:
+            placeholders = ",".join("?" * len(cols))
+            seq = [tuple(r[c] for c in cols) for r in rows]
+            try:
+                remote.executemany(
+                    f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", seq
+                )
+            except Exception as e:
+                _log.error(f"Failed to insert into {table}: {e}")
+                raise RuntimeError(f"Failed to insert data into {table}: {e}")
+        counts[table] = len(rows)
+
+    return counts
+
+
+def close_all_connections() -> None:
+    """Close the local sqlite3 connection and reset the Turso HTTP + libSQL
+    embedded-replica handles (so the next call rebuilds with fresh config)."""
+    global _turso_conn, _libsql_conn
+    conn = getattr(_sqlite_local, "conn", None)
+    if conn is not None:
+        try:
+            conn.close()
+        except Exception:
+            pass
+        _sqlite_local.conn = None
+    _turso_conn = None
+    if _libsql_conn is not None:
+        try:
+            _libsql_conn.close()
+        except Exception:
+            pass
+        _libsql_conn = None
 
 
 # ── Schema DDL ────────────────────────────────────────────────────────────────
@@ -182,6 +714,7 @@ _DDL = """
         sku          TEXT,
         barcode      TEXT    UNIQUE,
         sell_price   REAL,
+        cost_price   REAL,
         stock        INTEGER NOT NULL DEFAULT 0 CHECK(stock >= 0),
         min_stock    INTEGER NOT NULL DEFAULT 0,
         inventur     INTEGER,
@@ -208,7 +741,8 @@ _DDL = """
         timestamp    TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
-    -- Suppliers
+    -- Suppliers  (columns must match the canonical V12 definition below — a
+    -- fresh/cloud DB builds from THIS one, so rating/updated_at live here too)
     CREATE TABLE IF NOT EXISTS suppliers (
         id           INTEGER PRIMARY KEY AUTOINCREMENT,
         name         TEXT NOT NULL,
@@ -217,8 +751,10 @@ _DDL = """
         email        TEXT NOT NULL DEFAULT '',
         address      TEXT NOT NULL DEFAULT '',
         notes        TEXT NOT NULL DEFAULT '',
+        rating       INTEGER NOT NULL DEFAULT 0,
         is_active    INTEGER NOT NULL DEFAULT 1,
-        created_at   TEXT NOT NULL DEFAULT (datetime('now'))
+        created_at   TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at   TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     -- Supplier ↔ Item price mapping
@@ -424,9 +960,49 @@ _DDL = """
     );
     CREATE INDEX IF NOT EXISTS idx_pli_list ON price_list_items(price_list_id);
     CREATE INDEX IF NOT EXISTS idx_pli_item ON price_list_items(item_id);
+
+    -- Phone units inventory (V22)
+    CREATE TABLE IF NOT EXISTS phones (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        model_id    INTEGER NOT NULL REFERENCES phone_models(id) ON DELETE RESTRICT,
+        imei        TEXT UNIQUE,
+        storage     TEXT NOT NULL DEFAULT '',
+        condition   TEXT NOT NULL DEFAULT 'used',
+        battery_pct INTEGER,
+        buy_price   REAL,
+        sell_price  REAL,
+        status      TEXT NOT NULL DEFAULT 'in_stock',
+        notes       TEXT NOT NULL DEFAULT '',
+        created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_phones_model  ON phones(model_id);
+    CREATE INDEX IF NOT EXISTS idx_phones_status ON phones(status);
+    CREATE INDEX IF NOT EXISTS idx_phones_imei   ON phones(imei);
+
+    -- Phone unit transaction / audit log (V23) — mirrors inventory_transactions
+    -- but for individual IMEI-tracked phone units. Denormalized snapshot
+    -- columns (imei/model_brand/model_name/storage/sell_price) keep the
+    -- history readable even after the phone unit itself is deleted.
+    CREATE TABLE IF NOT EXISTS phone_transactions (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        phone_id      INTEGER NOT NULL,
+        operation     TEXT NOT NULL,   -- CREATE | EDIT | SOLD | RESERVED | IN_STOCK | DELETE
+        status_before TEXT NOT NULL DEFAULT '',
+        status_after  TEXT NOT NULL DEFAULT '',
+        imei          TEXT NOT NULL DEFAULT '',
+        model_brand   TEXT NOT NULL DEFAULT '',
+        model_name    TEXT NOT NULL DEFAULT '',
+        storage       TEXT NOT NULL DEFAULT '',
+        sell_price    REAL,
+        note          TEXT NOT NULL DEFAULT '',
+        timestamp     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_phone_tx_phone ON phone_transactions(phone_id);
+    CREATE INDEX IF NOT EXISTS idx_phone_tx_op    ON phone_transactions(operation);
+    CREATE INDEX IF NOT EXISTS idx_phone_tx_ts    ON phone_transactions(timestamp);
 """
 
-_SCHEMA_VERSION = "21"
+_SCHEMA_VERSION = "23"
 
 
 # ── V2 → V3 migration ────────────────────────────────────────────────────────
@@ -1049,6 +1625,55 @@ def _migrate_v20_to_v21(conn: sqlite3.Connection) -> None:
     )
 
 
+def _migrate_v21_to_v22(conn) -> None:
+    """V22: Add the phones table for tracking individual phone units by IMEI."""
+    _log.info("Migrating database schema from V21 to V22 (phones table)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS phones (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            model_id    INTEGER NOT NULL REFERENCES phone_models(id) ON DELETE RESTRICT,
+            imei        TEXT UNIQUE,
+            storage     TEXT NOT NULL DEFAULT '',
+            condition   TEXT NOT NULL DEFAULT 'used',
+            battery_pct INTEGER,
+            buy_price   REAL,
+            sell_price  REAL,
+            status      TEXT NOT NULL DEFAULT 'in_stock',
+            notes       TEXT NOT NULL DEFAULT '',
+            created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phones_model  ON phones(model_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phones_status ON phones(status)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phones_imei   ON phones(imei)")
+    _log.info("V21 to V22 migration completed")
+
+
+def _migrate_v22_to_v23(conn) -> None:
+    """V23: Add phone_transactions audit log for phone unit history."""
+    _log.info("Migrating database schema from V22 to V23 (phone_transactions table)")
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS phone_transactions (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            phone_id      INTEGER NOT NULL,
+            operation     TEXT NOT NULL,
+            status_before TEXT NOT NULL DEFAULT '',
+            status_after  TEXT NOT NULL DEFAULT '',
+            imei          TEXT NOT NULL DEFAULT '',
+            model_brand   TEXT NOT NULL DEFAULT '',
+            model_name    TEXT NOT NULL DEFAULT '',
+            storage       TEXT NOT NULL DEFAULT '',
+            sell_price    REAL,
+            note          TEXT NOT NULL DEFAULT '',
+            timestamp     TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%S','now'))
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phone_tx_phone ON phone_transactions(phone_id)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phone_tx_op    ON phone_transactions(operation)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_phone_tx_ts    ON phone_transactions(timestamp)")
+    _log.info("V22 to V23 migration completed")
+
+
 def _migrate_v16_to_v17(conn: sqlite3.Connection) -> None:
     """V17: Drop the scanner-mark prefix from saved barcodes.
 
@@ -1215,11 +1840,58 @@ def _migrate_v1_transactions(conn: sqlite3.Connection) -> None:
 
 # ── Public init ───────────────────────────────────────────────────────────────
 
+def _ensure_columns(conn) -> None:
+    """Idempotently add migration-introduced columns that may be missing on a
+    DB whose schema_version already says they should exist — e.g. a database
+    created directly from _DDL (a fresh cloud DB, or an inconsistent local one)
+    rather than walking the migration chain. Cheap and safe to run on every
+    startup — including over the Turso HTTP connection, where PRAGMA returns
+    nothing, so we attempt the ALTER directly and ignore the 'duplicate column'
+    error that means the column was already present."""
+    ensure = {
+        "inventory_items": [("cost_price", "REAL")],
+    }
+    for table, columns in ensure.items():
+        try:
+            existing = {r[1] for r in conn.execute(
+                f"PRAGMA table_info({table})").fetchall()}
+        except Exception:
+            existing = set()
+        for col, decl in columns:
+            if existing and col in existing:
+                continue  # introspected and already present
+            # Either the column is missing, or we couldn't introspect (Turso
+            # HTTP ignores PRAGMA). Attempt the ALTER; ignore the benign
+            # "duplicate column" error that means it already exists.
+            try:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                _log.info("Ensured %s.%s column", table, col)
+            except Exception as exc:
+                m = str(exc).lower()
+                if "duplicate column" not in m and "already exists" not in m:
+                    _log.warning("Could not add %s.%s: %s", table, col, exc)
+
+
 def init_db() -> None:
     """Create schema, run migrations, seed reference data."""
     _log.info("Initializing database")
+
+    # Embedded-replica (cloud replica) mode: the schema and data live on the
+    # Turso primary, which was seeded by 'Initialize as Primary'. This PC must
+    # NOT run the DDL/migrations/seed itself (that would fight the primary) —
+    # it just pulls the latest down into the local replica.
+    active = get_connection()
+    if isinstance(active, _LibsqlReplicaConnection):
+        try:
+            active.sync()
+            _log.info("Embedded replica synced from cloud primary")
+        except Exception as exc:
+            _log.warning("Replica sync on startup failed: %s", exc)
+        return
+
     with get_connection() as conn:
-        conn.executescript(_DDL)
+        _executescript(conn, _DDL)
+        _ensure_columns(conn)
 
         # Detect schema version
         version = conn.execute(
@@ -1359,6 +2031,14 @@ def init_db() -> None:
                 _migrate_v20_to_v21(conn)
                 current = "21"
 
+            if current == "21":
+                _migrate_v21_to_v22(conn)
+                current = "22"
+
+            if current == "22":
+                _migrate_v22_to_v23(conn)
+                current = "23"
+
             # Always persist the final version after migrations
             conn.execute(
                 "INSERT OR REPLACE INTO app_config (key, value) VALUES ('schema_version', ?)",
@@ -1372,7 +2052,7 @@ def init_db() -> None:
 
 def load_demo_data() -> None:
     """
-    Seed the Galaxy@Phone demo data.
+    Seed the demo data.
     Safe to call multiple times — uses INSERT OR IGNORE.
     Display part types are brand-specific (Apple has 5 types, Samsung has 2).
     """

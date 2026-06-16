@@ -12,7 +12,7 @@ Built with Python 3.11 · PyQt6 · SQLite · Offline-first · Optional cloud syn
 [![PyQt6](https://img.shields.io/badge/PyQt6-6.10-41CD52?style=flat-square)](https://riverbankcomputing.com/software/pyqt/)
 [![SQLite](https://img.shields.io/badge/SQLite-Schema_V23-003B57?style=flat-square&logo=sqlite)](https://sqlite.org)
 [![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-2.6.5-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
+[![Version](https://img.shields.io/badge/Version-2.6.6-10B981?style=flat-square)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 [![Platform](https://img.shields.io/badge/Platform-Windows_10%2F11-0078D4?style=flat-square&logo=windows)](https://github.com/AbdullahBakir97/Stock-manager/releases)
 
 [Features](#-features) · [Screenshots](#-screenshots) · [Installation](#-installation) · [Architecture](#-architecture) · [Project Structure](#-project-structure) · [Contributing](#-contributing)
@@ -72,7 +72,7 @@ Stock Manager Pro is a professional, offline-first desktop inventory management 
 
 ## 📸 Screenshots
 
-> Screenshots use a demo **Galaxy@Phone** dataset.
+> Screenshots use a demo dataset.
 
 ### Analytics Dashboard
 Real-time KPI cards (stock value at cost, revenue, transactions, low stock), a stock-health donut, value-by-brand bars, and a brand × part-type valuation pivot — all loaded asynchronously off the UI thread.
@@ -708,7 +708,7 @@ The async engine ensures the UI never blocks regardless of database size. If you
 
 ## 📈 Releases
 
-**Current release: v2.6.5** · [Full changelog →](CHANGELOG.md)
+**Current release: v2.6.6** · [Full changelog →](CHANGELOG.md)
 
 Every release is built, signed, and published automatically by CI (`.github/workflows/release.yml`) on each `v*.*.*` tag — stamping the version across `version.py`, the installer files, this README, and `update_manifest.json`. The complete, per-version history lives in **[CHANGELOG.md](CHANGELOG.md)**.
 

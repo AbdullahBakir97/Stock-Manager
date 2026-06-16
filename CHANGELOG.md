@@ -7,7 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-> Add your next changes here before tagging a release.
+## [2.6.6] - 2026-06-16
+
+
+### Added — Professional in-app logging & diagnostics
+- **What**: a dedicated **Logs** screen (sidebar tab + a pop-out window you can keep open on a second monitor) that shows everything the app does in real time — colour-coded by level, with filters for level, source, and free-text search, a verbose (DEBUG) toggle for troubleshooting, pause/resume live tail, and one-click **Copy**, **Export**, **Open log file**, and **Open folder**.
+- **How**: logging now feeds an in-memory ring buffer (last 5,000 records) alongside the existing rotating log file, so any message logged anywhere in the app appears in the viewer instantly without touching disk. The buffer is framework-free and thread-safe; the UI marshals records onto the main thread via a queued Qt signal.
+- **Passive awareness**: a professional health indicator in the footer (an ECG/pulse glyph) stays green when all is well and turns amber/red with a count when unseen warnings or errors arrive. Clicking it opens the logs and clears the counter. Errors also surface as a toast (throttled, with a "View logs" action), including inside the pop-out log window.
+- **Access**: available to everyone; fully translated (EN/DE/AR).
+
+### Added — Cloud-sync observability
+- **What**: the Logs screen now has a **cloud-sync diagnostics card** showing live status (OK / in progress / error), the active **mode · role · host** (e.g. `Embedded replica · Replica · …` or `HTTP API · Replica · …`), a **Sync now** button, and a **Cloud sync only** filter to audit the full sync timeline without noise.
+- **How**: successful syncs are now logged at **INFO** (previously DEBUG, so they were invisible in production) with the elapsed time and connection mode; failures remain ERROR. A new secrets-free `connection_mode()` reporter describes the active connection for display.
+
+### Fixed — Startup health check falsely reported UNHEALTHY in cloud mode
+- **User-visible symptom**: on a cloud-synced PC the startup health check failed with `Integrity check error: 'NoneType' object is not subscriptable` (now visible thanks to the new Logs screen).
+- **Root cause**: `PRAGMA integrity_check` returns no row over the Turso HTTP connection, so `fetchone()[0]` dereferenced `None`. It only ever worked because local SQLite always returns a row.
+- **Fix**: the integrity check now guards the result and treats "no row" as *unverifiable (OK)* over a remote connection instead of a hard failure, so cloud-sync mode is no longer reported UNHEALTHY.
 
 ---
 

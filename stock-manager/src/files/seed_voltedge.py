@@ -1280,26 +1280,26 @@ def print_summary() -> None:
 # ── Phone Models & Units ───────────────────────────────────────────────────────────
 
 PHONE_MODELS = [
-    {"brand": "Apple", "name": "iPhone 16 Pro", "release_year": 2024},
-    {"brand": "Apple", "name": "iPhone 16 Pro Max", "release_year": 2024},
-    {"brand": "Apple", "name": "iPhone 16", "release_year": 2024},
-    {"brand": "Apple", "name": "iPhone 16 Plus", "release_year": 2024},
-    {"brand": "Apple", "name": "iPhone 15 Pro", "release_year": 2023},
-    {"brand": "Apple", "name": "iPhone 15 Pro Max", "release_year": 2023},
-    {"brand": "Samsung", "name": "Galaxy S25 Ultra", "release_year": 2025},
-    {"brand": "Samsung", "name": "Galaxy S25+", "release_year": 2025},
-    {"brand": "Samsung", "name": "Galaxy S25", "release_year": 2025},
-    {"brand": "Samsung", "name": "Galaxy S24 Ultra", "release_year": 2024},
-    {"brand": "Samsung", "name": "Galaxy S24+", "release_year": 2024},
-    {"brand": "Samsung", "name": "Galaxy Z Fold 6", "release_year": 2024},
-    {"brand": "Samsung", "name": "Galaxy Z Flip 6", "release_year": 2024},
-    {"brand": "Google", "name": "Pixel 9 Pro", "release_year": 2024},
-    {"brand": "Google", "name": "Pixel 9 Pro XL", "release_year": 2024},
-    {"brand": "Google", "name": "Pixel 8 Pro", "release_year": 2023},
-    {"brand": "Xiaomi", "name": "14 Ultra", "release_year": 2024},
-    {"brand": "Xiaomi", "name": "14 Pro", "release_year": 2024},
-    {"brand": "OnePlus", "name": "12", "release_year": 2024},
-    {"brand": "OnePlus", "name": "12R", "release_year": 2024},
+    {"brand": "Apple", "name": "iPhone 16 Pro"},
+    {"brand": "Apple", "name": "iPhone 16 Pro Max"},
+    {"brand": "Apple", "name": "iPhone 16"},
+    {"brand": "Apple", "name": "iPhone 16 Plus"},
+    {"brand": "Apple", "name": "iPhone 15 Pro"},
+    {"brand": "Apple", "name": "iPhone 15 Pro Max"},
+    {"brand": "Samsung", "name": "Galaxy S25 Ultra"},
+    {"brand": "Samsung", "name": "Galaxy S25+"},
+    {"brand": "Samsung", "name": "Galaxy S25"},
+    {"brand": "Samsung", "name": "Galaxy S24 Ultra"},
+    {"brand": "Samsung", "name": "Galaxy S24+"},
+    {"brand": "Samsung", "name": "Galaxy Z Fold 6"},
+    {"brand": "Samsung", "name": "Galaxy Z Flip 6"},
+    {"brand": "Google", "name": "Pixel 9 Pro"},
+    {"brand": "Google", "name": "Pixel 9 Pro XL"},
+    {"brand": "Google", "name": "Pixel 8 Pro"},
+    {"brand": "Xiaomi", "name": "14 Ultra"},
+    {"brand": "Xiaomi", "name": "14 Pro"},
+    {"brand": "OnePlus", "name": "12"},
+    {"brand": "OnePlus", "name": "12R"},
 ]
 
 
@@ -1311,8 +1311,8 @@ def seed_phones() -> None:
     model_ids: dict[str, int] = {}
     for model in PHONE_MODELS:
         cursor = conn.execute(
-            "INSERT INTO phone_models (brand, name, release_year) VALUES (?, ?, ?)",
-            (model["brand"], model["name"], model["release_year"])
+            "INSERT INTO phone_models (brand, name) VALUES (?, ?)",
+            (model["brand"], model["name"])
         )
         model_ids[f"{model['brand']} {model['name']}"] = cursor.lastrowid
     print(f"  → Inserted {len(PHONE_MODELS)} phone models")
@@ -1331,7 +1331,7 @@ def seed_phones() -> None:
         for i in range(num_units):
             storage = RNG.choice(STORAGE_OPTIONS)
             condition = RNG.choice(CONDITION_OPTIONS)
-            status = RNG.choice(STATUS_OPTIONS, weights=[0.5, 0.1, 0.3, 0.1])[0]
+            status = RNG.choices(STATUS_OPTIONS, weights=[0.5, 0.1, 0.3, 0.1])[0]
 
             # Generate realistic IMEI (15 digits, starts with valid TAC)
             # Real IMEIs start with manufacturer-specific TAC codes
@@ -1357,18 +1357,18 @@ def seed_phones() -> None:
             condition_multiplier = {"new": 1.0, "like_new": 0.95, "used": 0.85, "refurbished": 0.8}[condition]
             sell_price = round(base_price * storage_multiplier * condition_multiplier, 2)
 
-            battery_health = RNG.randint(75, 100) if condition != "new" else 100
+            battery_pct = RNG.randint(75, 100) if condition != "new" else 100
 
             phone_units.append((
-                model_id, imei, storage, condition, status,
-                sell_price, battery_health, "",  # notes
+                model_id, imei, storage, condition, battery_pct, None,
+                sell_price, status, "",  # notes
             ))
             total_units += 1
 
     # Batch insert phone units
     conn.executemany(
-        """INSERT INTO phones (model_id, imei, storage, condition, status, sell_price, battery_health, notes)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        """INSERT INTO phones (model_id, imei, storage, condition, battery_pct, buy_price, sell_price, status, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         phone_units
     )
     conn.commit()

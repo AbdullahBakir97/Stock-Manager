@@ -33,6 +33,7 @@ from app.repositories.category_repo import CategoryRepository
 from app.repositories.item_repo import ItemRepository
 from app.services.stock_service import StockService
 from app.services.backup_scheduler import BackupScheduler
+from app.services.sync_service import SyncService
 from app.models.item import InventoryItem
 
 from app.ui.components.header_bar import HeaderBar
@@ -152,6 +153,11 @@ class MainWindow(QMainWindow):
 
         self._backup_scheduler = BackupScheduler(parent=self)
         self._backup_scheduler.start()
+
+        self._sync_service = SyncService(parent=self)
+        if ShopConfig.get().is_cloud_sync_enabled:
+            self._sync_service.start()
+            QTimer.singleShot(3000, self._sync_service.sync_now)
 
         self._upd_ctrl.start_auto_check(ShopConfig.get().is_update_auto_check_enabled)
 
@@ -518,7 +524,7 @@ class MainWindow(QMainWindow):
             if pin != cfg_pre.admin_pin:
                 QMessageBox.warning(self, t("pin_title"), t("pin_wrong")); return
 
-        dlg = AdminDialog(self)
+        dlg = AdminDialog(self, sync_service=self._sync_service)
         dlg.preview_banner_requested.connect(self._upd_ctrl.show_banner)
         # Track the live admin dialog so the zoom dispatcher can reach
         # any QTableWidget inside admin panels

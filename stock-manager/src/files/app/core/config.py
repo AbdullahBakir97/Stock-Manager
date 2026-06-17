@@ -34,6 +34,12 @@ class ShopConfig:
     # grand-total card at the end of the cards strip.
     show_sell_totals:           str = "1"
     show_color_totals:          str = "1"
+    # Cloud sync (Turso) settings
+    turso_url:                  str = ""
+    turso_auth_token:           str = ""
+    cloud_sync_enabled:         str = "0"   # "1" = enabled, "0" = disabled
+    sync_interval_minutes:      str = "5"   # sync interval in minutes
+    sync_role:                  str = ""   # "primary" | "replica" | ""
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -45,6 +51,11 @@ class ShopConfig:
         "ui_scale",
         "show_sell_totals",
         "show_color_totals",
+        "turso_url",
+        "turso_auth_token",
+        "cloud_sync_enabled",
+        "sync_interval_minutes",
+        "sync_role",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -88,6 +99,20 @@ class ShopConfig:
     @property
     def is_show_color_totals(self) -> bool:
         return (self.show_color_totals or "1") != "0"
+
+    @property
+    def is_cloud_sync_enabled(self) -> bool:
+        try:
+            return getattr(self, 'cloud_sync_enabled', '0') == "1"
+        except Exception:
+            return False
+
+    @property
+    def sync_interval_minutes_int(self) -> int:
+        try:
+            return max(1, int(getattr(self, 'sync_interval_minutes', '5')))
+        except (ValueError, TypeError):
+            return 5
 
     @property
     def ui_scale_factor(self) -> float:

@@ -173,7 +173,9 @@ class PartTypesPanel(QWidget):
         # toggle handler. Avoids the fragile disconnect/reconnect dance.
         self._mc_building = False
         self._build_ui()
-        self._load_categories()
+        # Defer category loading to avoid blocking during panel creation
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._load_categories)
 
     def _build_ui(self) -> None:
         scroll = QScrollArea()

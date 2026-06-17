@@ -155,7 +155,9 @@ class CategoriesPanel(QWidget):
         self._cats: list[CategoryConfig] = []
         self._current_id: int | None = None
         self._build_ui()
-        self._refresh()
+        # Defer refresh to avoid blocking during panel creation
+        from PyQt6.QtCore import QTimer
+        QTimer.singleShot(0, self._refresh)
 
     def _build_ui(self) -> None:
         # ── Root scroll area ───────────────────────────────────────────────────

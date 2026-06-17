@@ -96,15 +96,23 @@ class SyncService(QObject):
         """Trigger an immediate bidirectional sync (non-blocking, via POOL)."""
         if self._is_syncing or not self.is_configured:
             return
-        from app.ui.workers.worker_pool import POOL
+        try:
+            from app.ui.workers.worker_pool import POOL
+        except Exception:
+            _log.warning("Worker pool not available, sync skipped")
+            return
         self._is_syncing = True
         self.sync_started.emit()
-        POOL.submit(
-            "cloud_sync",
-            self._do_sync,
-            self._on_sync_done,
-            self._on_sync_error,
-        )
+        try:
+            POOL.submit(
+                "cloud_sync",
+                self._do_sync,
+                self._on_sync_done,
+                self._on_sync_error,
+            )
+        except Exception as exc:
+            self._is_syncing = False
+            _log.error("Failed to submit sync task: %s", exc)
 
     # ── Internal (runs on POOL worker thread) ─────────────────────────────────
 

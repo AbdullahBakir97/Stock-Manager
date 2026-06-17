@@ -154,10 +154,15 @@ class MainWindow(QMainWindow):
         self._backup_scheduler = BackupScheduler(parent=self)
         self._backup_scheduler.start()
 
-        self._sync_service = SyncService(parent=self)
-        if ShopConfig.get().is_cloud_sync_enabled:
-            self._sync_service.start()
-            QTimer.singleShot(3000, self._sync_service.sync_now)
+        try:
+            self._sync_service = SyncService(parent=self)
+            if ShopConfig.get().is_cloud_sync_enabled:
+                self._sync_service.start()
+                QTimer.singleShot(3000, self._sync_service.sync_now)
+        except Exception as exc:
+            _log = __import__('logging').getLogger(__name__)
+            _log.error("Failed to initialize sync service: %s", exc)
+            self._sync_service = None
 
         self._upd_ctrl.start_auto_check(ShopConfig.get().is_update_auto_check_enabled)
 
@@ -524,7 +529,7 @@ class MainWindow(QMainWindow):
             if pin != cfg_pre.admin_pin:
                 QMessageBox.warning(self, t("pin_title"), t("pin_wrong")); return
 
-        dlg = AdminDialog(self, sync_service=self._sync_service)
+        dlg = AdminDialog(self, sync_service=getattr(self, '_sync_service', None))
         dlg.preview_banner_requested.connect(self._upd_ctrl.show_banner)
         # Track the live admin dialog so the zoom dispatcher can reach
         # any QTableWidget inside admin panels

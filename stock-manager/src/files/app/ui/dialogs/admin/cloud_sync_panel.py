@@ -41,7 +41,8 @@ class CloudSyncPanel(QWidget):
         super().__init__(parent)
         self._svc = sync_service
         self._build_ui()
-        self._load()
+        # Defer _load to avoid blocking during panel creation
+        QTimer.singleShot(0, self._load)
         if self._svc is not None:
             self._svc.sync_started.connect(self._on_sync_started)
             self._svc.sync_completed.connect(self._on_sync_done)
@@ -309,15 +310,27 @@ class CloudSyncPanel(QWidget):
             return
         self._test_btn.setEnabled(False)
         self._set_test_result("Testing…", error=False)
-        try:
-            from app.core.database import _TursoHTTPConnection
-            conn = _TursoHTTPConnection(url, token)
-            conn.execute("SELECT 1")
-            self._set_test_result("✓  Connection successful", error=False)
-        except Exception as exc:
-            self._set_test_result(f"✕  {exc}", error=True)
-        finally:
+        
+        # Run network test in background to avoid UI freeze
+        from app.ui.workers.worker_pool import POOL
+        def _test_worker():
+            try:
+                from app.core.database import _TursoHTTPConnection
+                conn = _TursoHTTPConnection(url, token)
+                conn.execute("SELECT 1")
+                return (True, None)
+            except Exception as exc:
+                return (False, str(exc))
+        
+        def _on_done(result):
+            success, error = result
+            if success:
+                self._set_test_result("✓  Connection successful", error=False)
+            else:
+                self._set_test_result(f"✕  {error}", error=True)
             self._test_btn.setEnabled(True)
+        
+        POOL.submit("cloud_sync_test", _test_worker, _on_done, _on_done)
 
     def _sync_now(self) -> None:
         if self._svc is None:

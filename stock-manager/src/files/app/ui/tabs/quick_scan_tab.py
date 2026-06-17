@@ -485,8 +485,8 @@ class QuickScanTab(QWidget):
                 f" font-family:'JetBrains Mono', monospace;"
             )
         else:
-            self._subtotal_lbl.setText("SUBTOTAL  —")
-            self._total_lbl.setText("GRAND TOTAL  —")
+            self._subtotal_lbl.setText(t("qscan_subtotal"))
+            self._total_lbl.setText(t("qscan_grand_total"))
             self._total_lbl.setStyleSheet(
                 f"color:{tk.t3}; font-size:16px; font-weight:800;"
                 f" font-family:'JetBrains Mono', monospace;"

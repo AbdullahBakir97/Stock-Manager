@@ -608,10 +608,8 @@ class BarcodeGenPage(QWidget):
         self._btn_export.setEnabled(False)
         self._btn_export_yp.setEnabled(False)
         self._btn_print.setEnabled(False)
-        self._status.setText("Generating barcodes…")
-        self._preview_label.setText(
-            "Generated. Click 'Export PDF' or 'Print' to render the PDF."
-        )
+        self._status.setText(t("bcgen_generating"))
+        self._preview_label.setText(t("bcgen_generated_msg"))
 
         from app.ui.workers.worker_pool import POOL
 
@@ -654,7 +652,7 @@ class BarcodeGenPage(QWidget):
 
         def _on_error(msg: str):
             self._btn_generate.setEnabled(True)
-            self._status.setText("Generation failed.")
+            self._status.setText(t("bcgen_generation_failed"))
             QMessageBox.critical(self, "Error", str(msg))
 
         POOL.submit("barcode_gen", _stage1_worker, _on_stage1, _on_error)
@@ -683,7 +681,7 @@ class BarcodeGenPage(QWidget):
         }
         entries = self._entries
 
-        self._status.setText("Rendering PDF…")
+        self._status.setText(t("bcgen_rendering_pdf"))
         from app.ui.workers.worker_pool import POOL
 
         def _stage2_worker():
@@ -700,7 +698,7 @@ class BarcodeGenPage(QWidget):
         def _on_stage2(payload):
             err = payload.get("error")
             if err:
-                self._status.setText("PDF render failed.")
+                self._status.setText(t("bcgen_pdf_render_failed"))
                 QMessageBox.critical(self, "Error", err)
                 return
             self._pdf_bytes = payload.get("pdf", b"")
@@ -712,7 +710,7 @@ class BarcodeGenPage(QWidget):
             on_ready()
 
         def _on_err(msg):
-            self._status.setText("PDF render failed.")
+            self._status.setText(t("bcgen_pdf_render_failed"))
             QMessageBox.critical(self, "Error", str(msg))
 
         POOL.submit("barcode_gen_pdf", _stage2_worker, _on_stage2, _on_err)
@@ -1119,7 +1117,7 @@ class BarcodeGenPage(QWidget):
         regenerated batch before deciding whether to assign-and-save."""
         if not self._entries:
             return
-        self._status.setText("Verifying barcodes…")
+        self._status.setText(t("bcgen_verifying"))
         # Synchronous — typical batch validates in < 1s for ≤ 500 codes.
         # If it ever feels sluggish, switch to POOL.submit; the same
         # report shape works either way.
@@ -1227,7 +1225,7 @@ class BarcodeGenPage(QWidget):
                 self, "Verify scannability",
                 "No item barcodes to verify (only command/colour entries present).",
             )
-            self._status.setText("Verify: nothing to check.")
+            self._status.setText(t("bcgen_verify_nothing"))
             return
 
         pct = (passed / total * 100) if total else 0.0

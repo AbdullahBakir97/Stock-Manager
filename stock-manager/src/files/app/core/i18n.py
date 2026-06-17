@@ -5122,6 +5122,72 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Änderungen an Modulen (Tab Telefone) werden nach einem Neustart der Anwendung wirksam.",
         "AR": "ستصبح تغييرات الوحدات (تبويب الهواتف) سارية بعد إعادة تشغيل التطبيق.",
     },
+    # ── Hardcoded strings that need translation ─────────────────────────────────────
+    "bcgen_generating": {
+        "EN": "Generating barcodes…",
+        "DE": "Barcodes werden generiert…",
+        "AR": "جارٍ إنشاء الباركود…",
+    },
+    "bcgen_generated_msg": {
+        "EN": "Generated. Click 'Export PDF' or 'Print' to render the PDF.",
+        "DE": "Generiert. Klicken Sie auf 'PDF exportieren' oder 'Drucken', um das PDF zu erstellen.",
+        "AR": "تم الإنشاء. انقر على 'تصدير PDF' أو 'طباعة' لإنشاء ملف PDF.",
+    },
+    "bcgen_generation_failed": {
+        "EN": "Generation failed.",
+        "DE": "Generierung fehlgeschlagen.",
+        "AR": "فشل الإنشاء.",
+    },
+    "bcgen_rendering_pdf": {
+        "EN": "Rendering PDF…",
+        "DE": "PDF wird gerendert…",
+        "AR": "جارٍ إنشاء ملف PDF…",
+    },
+    "bcgen_pdf_render_failed": {
+        "EN": "PDF render failed.",
+        "DE": "PDF-Rendering fehlgeschlagen.",
+        "AR": "فشل إنشاء ملف PDF.",
+    },
+    "bcgen_verifying": {
+        "EN": "Verifying barcodes…",
+        "DE": "Barcodes werden überprüft…",
+        "AR": "جارٍ التحقق من الباركود…",
+    },
+    "bcgen_verify_nothing": {
+        "EN": "Verify: nothing to check.",
+        "DE": "Überprüfung: nichts zu prüfen.",
+        "AR": "التحقق: لا يوجد شيء للفحص.",
+    },
+    "pt_select_manage_colors": {
+        "EN": "Select a part type to manage colors",
+        "DE": "Wählen Sie einen Teiltyp aus, um Farben zu verwalten",
+        "AR": "اختر نوع الجزء لإدارة الألوان",
+    },
+    "pt_models_colors": {
+        "EN": "MODELS & COLORS",
+        "DE": "MODELLE & FARBEN",
+        "AR": "النماذج والألوان",
+    },
+    "pt_select_manage_model_colors": {
+        "EN": "Select a part type to manage per-model colors",
+        "DE": "Wählen Sie einen Teiltyp aus, um modellspezifische Farben zu verwalten",
+        "AR": "اختر نوع الجزء لإدارة الألوان حسب النموذج",
+    },
+    "qscan_subtotal": {
+        "EN": "SUBTOTAL  —",
+        "DE": "ZWISCHENSUMME  —",
+        "AR": "المجموع الفرعي  —",
+    },
+    "qscan_grand_total": {
+        "EN": "GRAND TOTAL  —",
+        "DE": "GESAMTSUMME  —",
+        "AR": "المجموع الكلي  —",
+    },
+    "sync_last_sync_never": {
+        "EN": "Last sync: Never",
+        "DE": "Letzte Synchronisation: Nie",
+        "AR": "آخر مزامنة: أبداً",
+    },
 }
 
 

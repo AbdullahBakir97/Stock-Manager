@@ -629,7 +629,7 @@ class PartTypesPanel(QWidget):
             self._clr_hdr.setText(
                 t("clr_title") if t("clr_title") != "clr_title" else "COLORS"
             )
-            self._clr_hint.setText("Select a part type to manage colors")
+            self._clr_hint.setText(t("pt_select_manage_colors"))
             self._clr_hint.show()
             return
 
@@ -854,8 +854,8 @@ class PartTypesPanel(QWidget):
         self._mc_model_names.clear()
 
         if not pt or not self._cat:
-            self._mc_hdr.setText("MODELS & COLORS")
-            self._mc_hint.setText("Select a part type to manage per-model colors")
+            self._mc_hdr.setText(t("pt_models_colors"))
+            self._mc_hint.setText(t("pt_select_manage_model_colors"))
             self._mc_hint.show()
             self._mc_building = False
             return

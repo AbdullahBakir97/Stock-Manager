@@ -511,7 +511,7 @@ class CloudSyncPanel(QWidget):
             t = self._svc.last_sync_time.strftime("%H:%M:%S")
             self._last_sync_lbl.setText(f"Last sync: {t}")
         else:
-            self._last_sync_lbl.setText("Last sync: Never")
+            self._last_sync_lbl.setText(t("sync_last_sync_never"))
 
     def _refresh_errors(self) -> None:
         self._error_list.clear()

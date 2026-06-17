@@ -199,7 +199,7 @@ class FooterBar(QFrame):
         self._zoom_slider.setTickInterval(25)
         self._zoom_slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._zoom_slider.setFixedSize(110, 18)
-        self._zoom_slider.setToolTip("Drag to zoom  (Ctrl+Scroll)")
+        self._zoom_slider.setToolTip(t("footer_tip_zoom"))
         self._zoom_slider.setTracking(True)
         self._is_dragging = False
         self._zoom_slider.sliderPressed.connect(self._on_slider_pressed)
@@ -229,7 +229,7 @@ class FooterBar(QFrame):
         self._zoom_preset_btn.setFixedSize(56, 22)  # locked — text never pushes layout
         self._zoom_preset_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._zoom_preset_btn.setArrowType(Qt.ArrowType.NoArrow)
-        self._zoom_preset_btn.setToolTip("Zoom presets")
+        self._zoom_preset_btn.setToolTip(t("footer_tip_zoom_presets"))
         self._build_preset_menu()
         zlay.addWidget(self._zoom_preset_btn)
 

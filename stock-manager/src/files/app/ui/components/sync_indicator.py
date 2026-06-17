@@ -107,7 +107,7 @@ class SyncIndicator(QWidget):
         self._text_lbl.setText(text)
         self._text_lbl.setStyleSheet(f"color: {color};")
         if state not in ("disabled", "error"):
-            self.setToolTip("Click to sync now")
+            self.setToolTip(t("sync_tip_click"))
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self._svc.is_configured:

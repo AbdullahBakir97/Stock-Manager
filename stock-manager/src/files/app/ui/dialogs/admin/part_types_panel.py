@@ -91,10 +91,10 @@ class _PartTypeFormDialog(QDialog):
         form.setSpacing(12)
         self._key_edit = QLineEdit(pt.key if pt else "")
         self._key_edit.setMinimumHeight(36)
-        self._key_edit.setPlaceholderText("e.g. DISPLAY, BATTERY")
+        self._key_edit.setPlaceholderText(t("pt_key_ph"))
         self._name_edit = QLineEdit(pt.name if pt else "")
         self._name_edit.setMinimumHeight(36)
-        self._name_edit.setPlaceholderText("e.g. Display, Battery")
+        self._name_edit.setPlaceholderText(t("pt_name_ph"))
         self._color_btn = ColorPickerWidget(pt.accent_color if pt else "#4A9EFF")
 
         # Default price — populated onto every item of this part type
@@ -1270,7 +1270,7 @@ class PartTypesPanel(QWidget):
         no_clr_btn = QPushButton("No Colors")
         no_clr_btn.setObjectName("btn_ghost")
         no_clr_btn.setFixedHeight(32)
-        no_clr_btn.setToolTip("Remove all colors — only the base product")
+        no_clr_btn.setToolTip(t("pt_tip_no_colors"))
         def _no_colors():
             from app.core.database import get_connection
             all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]

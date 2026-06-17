@@ -101,7 +101,7 @@ class CloudSyncPanel(QWidget):
         url_lbl.setFixedWidth(120)
         url_row.addWidget(url_lbl)
         self._url_edit = QLineEdit()
-        self._url_edit.setPlaceholderText("libsql://your-database.turso.io  (or https://...)")
+        self._url_edit.setPlaceholderText(t("cloud_url_ph"))
         url_row.addWidget(self._url_edit)
         cred_lay.addLayout(url_row)
 
@@ -111,7 +111,7 @@ class CloudSyncPanel(QWidget):
         token_row.addWidget(token_lbl)
         self._token_edit = QLineEdit()
         self._token_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._token_edit.setPlaceholderText("eyJ…")
+        self._token_edit.setPlaceholderText(t("cloud_token_ph"))
         token_row.addWidget(self._token_edit)
         cred_lay.addLayout(token_row)
 

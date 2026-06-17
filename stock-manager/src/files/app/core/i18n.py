@@ -5188,6 +5188,114 @@ _TR: dict[str, dict[str, str]] = {
         "DE": "Letzte Synchronisation: Nie",
         "AR": "آخر مزامنة: أبداً",
     },
+    # ── Placeholder texts ─────────────────────────────────────────────────────────
+    "cloud_url_ph": {
+        "EN": "libsql://your-database.turso.io  (or https://...)",
+        "DE": "libsql://ihre-datenbank.turso.io  (oder https://...)",
+        "AR": "libsql://قاعدة-البيانات.turso.io  (أو https://...)",
+    },
+    "cloud_token_ph": {
+        "EN": "eyJ…",
+        "DE": "eyJ…",
+        "AR": "eyJ…",
+    },
+    "currency_ph": {
+        "EN": "€",
+        "DE": "€",
+        "AR": "€",
+    },
+    "pin_ph": {
+        "EN": "····",
+        "DE": "····",
+        "AR": "····",
+    },
+    "audit_name_ph": {
+        "EN": "Monthly Count - April 2026",
+        "DE": "Monatszählung - April 2026",
+        "AR": "الجرد الشهري - أبريل 2026",
+    },
+    "audit_notes_ph": {
+        "EN": "Location, reason, etc.",
+        "DE": "Standort, Grund, etc.",
+        "AR": "الموقع، السبب، إلخ.",
+    },
+    "pt_key_ph": {
+        "EN": "e.g. DISPLAY, BATTERY",
+        "DE": "z.B. DISPLAY, BATTERY",
+        "AR": "مثال: DISPLAY, BATTERY",
+    },
+    "pt_name_ph": {
+        "EN": "e.g. Display, Battery",
+        "DE": "z.B. Display, Battery",
+        "AR": "مثال: Display, Battery",
+    },
+    # ── Tooltips ─────────────────────────────────────────────────────────────────
+    "disp_tip_total_colors": {
+        "EN": "Total across all colors",
+        "DE": "Gesamt über alle Farben",
+        "AR": "المجموع عبر جميع الألوان",
+    },
+    "disp_tip_no_colors": {
+        "EN": "Remove all colors — only the base product (no color variants)",
+        "DE": "Alle Farben entfernen — nur das Basisprodukt (keine Farbvarianten)",
+        "AR": "إزالة جميع الألوان — المنتج الأساسي فقط (بدون متغيرات اللون)",
+    },
+    "disp_tip_reset_colors": {
+        "EN": "Remove override — use global part type colors",
+        "DE": "Überschreibung entfernen — globale Teiltypfarben verwenden",
+        "AR": "إزالة التجاوز — استخدام ألوان نوع الجزء العامة",
+    },
+    "disp_tip_set_cost": {
+        "EN": "Double-click to set cost price",
+        "DE": "Doppelklick, um Einkaufspreis festzulegen",
+        "AR": "انقر مرتين لتعيين سعر التكلفة",
+    },
+    "footer_tip_zoom": {
+        "EN": "Drag to zoom  (Ctrl+Scroll)",
+        "DE": "Ziehen zum Zoomen  (Strg+Scrollen)",
+        "AR": "اسحب للتكبير  (Ctrl+Scroll)",
+    },
+    "footer_tip_zoom_presets": {
+        "EN": "Zoom presets",
+        "DE": "Zoom-Voreinstellungen",
+        "AR": "إعدادات التكبير المسبقة",
+    },
+    "header_tip_undo": {
+        "EN": "Undo (Ctrl+Z)",
+        "DE": "Rückgängig (Strg+Z)",
+        "AR": "تراجع (Ctrl+Z)",
+    },
+    "header_tip_redo": {
+        "EN": "Redo (Ctrl+Y)",
+        "DE": "Wiederholen (Strg+Y)",
+        "AR": "إعادة (Ctrl+Y)",
+    },
+    "sidebar_tip_help": {
+        "EN": "Open help guide (F1)",
+        "DE": "Hilfe öffnen (F1)",
+        "AR": "فتح دليل المساعدة (F1)",
+    },
+    "sync_tip_click": {
+        "EN": "Click to sync now",
+        "DE": "Klicken zum Synchronisieren",
+        "AR": "انقر للمزامنة الآن",
+    },
+    "pt_tip_no_colors": {
+        "EN": "Remove all colors — only the base product",
+        "DE": "Alle Farben entfernen — nur das Basisprodukt",
+        "AR": "إزالة جميع الألوان — المنتج الأساسي فقط",
+    },
+    # ── Message box strings ─────────────────────────────────────────────────────
+    "msg_no_colors_defined": {
+        "EN": "No colors defined for this part type.\nAdd colors in Admin → Part Types first.",
+        "DE": "Keine Farben für diesen Teiltyp definiert.\nFügen Sie zuerst Farben unter Admin → Teiltypen hinzu.",
+        "AR": "لم يتم تعريف ألوان لنوع الجزء هذا.\nأضف ألوان أولاً في الإدارة → أنواع الأجزاء.",
+    },
+    "msg_error": {
+        "EN": "Error",
+        "DE": "Fehler",
+        "AR": "خطأ",
+    },
 }
 
 

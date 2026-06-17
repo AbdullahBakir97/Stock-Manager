@@ -146,7 +146,7 @@ class ShopSettingsPanel(QWidget):
         )
         self._currency = QLineEdit()
         self._currency.setMaxLength(4)
-        self._currency.setPlaceholderText("€")
+        self._currency.setPlaceholderText(t("currency_ph"))
         regional_card.form.addRow(t("shop_lbl_currency"), self._currency)
 
         self._cur_pos = QComboBox()
@@ -234,7 +234,7 @@ class ShopSettingsPanel(QWidget):
         )
         self._pin = QLineEdit()
         self._pin.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pin.setPlaceholderText("····")
+        self._pin.setPlaceholderText(t("pin_ph"))
         sec_card.form.addRow(t("shop_lbl_pin"), self._pin)
         outer.addWidget(sec_card)
 

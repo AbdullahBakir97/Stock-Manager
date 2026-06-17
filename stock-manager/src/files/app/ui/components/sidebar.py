@@ -138,7 +138,7 @@ class Sidebar(QFrame):
         self._help_btn = QPushButton(f"  ❓   {t('nav_help')}")
         self._help_btn.setObjectName("sidebar_btn")
         self._help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._help_btn.setToolTip("Open help guide (F1)")
+        self._help_btn.setToolTip(t("sidebar_tip_help"))
         self._help_btn.clicked.connect(lambda: self.nav_clicked.emit("nav_help"))
         sb_lay.addWidget(self._help_btn)
 

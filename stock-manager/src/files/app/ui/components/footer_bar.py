@@ -341,20 +341,30 @@ class FooterBar(QFrame):
     def set_sync_service(self, sync_service) -> None:
         """Set the sync service for the footer's sync indicator."""
         self._sync_service = sync_service
-        # Rebuild the sync indicator section
-        if hasattr(self, '_sync_indicator'):
+        # Find the layout and replace the sync indicator
+        lay = self.layout()
+        if lay is None:
+            return
+
+        # Remove existing sync indicator/label
+        if hasattr(self, '_sync_indicator') and self._sync_indicator is not None:
+            lay.removeWidget(self._sync_indicator)
             self._sync_indicator.deleteLater()
-        if hasattr(self, '_sync'):
+            self._sync_indicator = None
+        if hasattr(self, '_sync') and self._sync is not None:
+            lay.removeWidget(self._sync)
             self._sync.deleteLater()
+            self._sync = None
+
+        # Add new sync indicator or fallback label
         if self._sync_service is not None:
             from app.ui.components.sync_indicator import SyncIndicator
             self._sync_indicator = SyncIndicator(self._sync_service)
-            # Add to layout - need to find the layout and add it
-            # For now, this is a simplified version - the full implementation
-            # would need to properly manage the layout
+            lay.addWidget(self._sync_indicator)
         else:
             self._sync = QLabel(f"●  {t('footer_connected')}")
             self._sync.setObjectName("footer_sync")
+            lay.addWidget(self._sync)
 
     # ── Log health dot ───────────────────────────────────────────────────────
 

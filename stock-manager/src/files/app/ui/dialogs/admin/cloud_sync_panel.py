@@ -479,12 +479,12 @@ class CloudSyncPanel(QWidget):
 
     def _on_sync_done(self, timestamp: str) -> None:
         try:
-            t = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
+            time_str = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
         except Exception:
-            t = timestamp
+            time_str = timestamp
         self._status_lbl.setText(f"● Cloud sync active")
         self._status_lbl.setStyleSheet("color: #27AE60;")
-        self._last_sync_lbl.setText(f"Last sync: {t}")
+        self._last_sync_lbl.setText(f"Last sync: {time_str}")
         self._sync_now_btn.setEnabled(True)
         self._init_primary_btn.setEnabled(True)
         self._init_replica_btn.setEnabled(True)
@@ -508,8 +508,8 @@ class CloudSyncPanel(QWidget):
             self._status_lbl.setText("○ Cloud sync disabled")
             self._status_lbl.setStyleSheet("color: #888888;")
         if self._svc and self._svc.last_sync_time:
-            t = self._svc.last_sync_time.strftime("%H:%M:%S")
-            self._last_sync_lbl.setText(f"Last sync: {t}")
+            time_str = self._svc.last_sync_time.strftime("%H:%M:%S")
+            self._last_sync_lbl.setText(f"Last sync: {time_str}")
         else:
             self._last_sync_lbl.setText(t("sync_last_sync_never"))
 

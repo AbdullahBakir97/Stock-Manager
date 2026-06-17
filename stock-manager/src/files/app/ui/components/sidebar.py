@@ -90,21 +90,7 @@ class Sidebar(QFrame):
         nav_lay = QVBoxLayout(nav_section)
         nav_lay.setContentsMargins(8, 12, 8, 4); nav_lay.setSpacing(2)
 
-        nav_items = [
-            ("nav_inventory",       "📦"),
-            ("nav_transactions",    "📋"),
-            ("nav_quick_scan",      "⚡"),
-            ("nav_sales",           "💰"),
-            ("nav_customers",       "👥"),
-            ("nav_purchase_orders", "🛒"),
-            ("nav_returns",         "↩"),
-            ("nav_suppliers",       "🏭"),
-            ("nav_audit",           "📝"),
-            ("nav_price_lists",     "💲"),
-            ("nav_barcode_gen",     "🏷"),
-            ("nav_reports",         "📊"),
-            ("nav_analytics",       "📈"),
-        ]
+        nav_items = _nav_items()
         _tips = {
             "nav_inventory":       "Browse, add, and edit products",
             "nav_transactions":    "View all stock movement history",

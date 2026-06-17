@@ -7,6 +7,177 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.6.6] - 2026-06-16
+
+
+### Added — Professional in-app logging & diagnostics
+- **What**: a dedicated **Logs** screen (sidebar tab + a pop-out window you can keep open on a second monitor) that shows everything the app does in real time — colour-coded by level, with filters for level, source, and free-text search, a verbose (DEBUG) toggle for troubleshooting, pause/resume live tail, and one-click **Copy**, **Export**, **Open log file**, and **Open folder**.
+- **How**: logging now feeds an in-memory ring buffer (last 5,000 records) alongside the existing rotating log file, so any message logged anywhere in the app appears in the viewer instantly without touching disk. The buffer is framework-free and thread-safe; the UI marshals records onto the main thread via a queued Qt signal.
+- **Passive awareness**: a professional health indicator in the footer (an ECG/pulse glyph) stays green when all is well and turns amber/red with a count when unseen warnings or errors arrive. Clicking it opens the logs and clears the counter. Errors also surface as a toast (throttled, with a "View logs" action), including inside the pop-out log window.
+- **Access**: available to everyone; fully translated (EN/DE/AR).
+
+### Added — Cloud-sync observability
+- **What**: the Logs screen now has a **cloud-sync diagnostics card** showing live status (OK / in progress / error), the active **mode · role · host** (e.g. `Embedded replica · Replica · …` or `HTTP API · Replica · …`), a **Sync now** button, and a **Cloud sync only** filter to audit the full sync timeline without noise.
+- **How**: successful syncs are now logged at **INFO** (previously DEBUG, so they were invisible in production) with the elapsed time and connection mode; failures remain ERROR. A new secrets-free `connection_mode()` reporter describes the active connection for display.
+
+### Fixed — Startup health check falsely reported UNHEALTHY in cloud mode
+- **User-visible symptom**: on a cloud-synced PC the startup health check failed with `Integrity check error: 'NoneType' object is not subscriptable` (now visible thanks to the new Logs screen).
+- **Root cause**: `PRAGMA integrity_check` returns no row over the Turso HTTP connection, so `fetchone()[0]` dereferenced `None`. It only ever worked because local SQLite always returns a row.
+- **Fix**: the integrity check now guards the result and treats "no row" as *unverifiable (OK)* over a remote connection instead of a hard failure, so cloud-sync mode is no longer reported UNHEALTHY.
+
+---
+
+## [2.6.5] - 2026-06-15
+
+### Added — Offline-first cloud sync via libSQL embedded replicas
+- **What**: in cloud (replica) mode the app now reads and writes a **local SQLite replica file** (instant, no per-query network round-trip) and `sync()`s it with the Turso primary, instead of sending every query over HTTP. This is the architecture for a travelling-owner + shop-PC setup: every PC keeps a local copy that stays in step with the one shared cloud database.
+- **How**: a new `_LibsqlReplicaConnection` (single connection, lock-held per transaction) presents the same `_DictRow` interface as the existing connections, so repositories are unchanged. `get_connection()` prefers it in replica mode; the periodic Sync Now / background tick performs a real `sync()`; on startup the replica pulls the latest from the primary.
+- **Graceful fallback**: the native `libsql` package only ships wheels for cp39–cp313, so where it isn't available (e.g. Python 3.14) the app automatically falls back to the pure-stdlib Turso HTTP client — nothing breaks, you just don't get the local cache there.
+- **Verified in CI**: a new `tests/test_embedded_replica.py` runs the full write → sync → read-back round-trip against a throwaway Turso database (via `TURSO_TEST_URL` / `TURSO_TEST_TOKEN` secrets) and gates the release, so a broken sync can never ship. It skips cleanly when the secrets aren't set.
+
+## [2.6.4] - 2026-06-13
+
+### Fixed — Cloud upload still failed with FOREIGN KEY constraint (the actual cause)
+- **User-visible symptom**: "Initialize as Primary" kept failing with `FOREIGN KEY constraint failed` on `model_part_type_colors`, even after the earlier delete-order and DROP/recreate fixes.
+- **Root cause**: the earlier fixes only addressed *delete* order — the *insert* order was wrong. `_SYNCED_TABLES` listed `model_part_type_colors` and `inventory_items` (which reference `phone_models`) **before** `phone_models`, so their rows were inserted while the parent table was still empty.
+- **Fix**: reordered `_SYNCED_TABLES` so `phone_models` is pushed before everything that references it, and the cloud schema is now dropped children-first then recreated from the current `_DDL`. A new CI gate (`test_synced_tables_are_in_fk_dependency_order`) parses the schema's foreign keys and fails if any table is pushed before a table it references — so this can't regress.
+
+### Fixed — Cloud upload timed out on large tables ("The read operation timed out")
+- **User-visible symptom**: after the FK-order fix, "Initialize as Primary" failed on `model_part_type_colors` with `The read operation timed out`.
+- **Root cause**: `executemany` sent every row of a table in a **single** HTTP pipeline request; Turso runs the whole pipeline in one round-trip, so a table with thousands of rows couldn't be processed before the 30 s read timeout fired.
+- **Fix**: the Turso client now inserts rows in batches of 400 per request (so no single request is huge), and the HTTP read timeout was raised to 60 s.
+
+### Changed — A PC stays on the shared cloud after "Initialize as Primary"
+- "Initialize as Primary" now switches the PC to work **directly on the cloud** after the one-time upload (it previously stayed on its local DB). Combined with the other PCs running "Initialize as Replica", **all machines share one live dataset and stay in sync** — which is what a travelling-owner + shop-PC setup needs. The local DB is left untouched as a pre-sync backup.
+
+### Fixed — App crashed on startup in replica mode (Turso exception type)
+- **User-visible symptom**: `RuntimeError: Turso SQL error: … no such column: updated_at` crashed startup when running against the cloud (replica mode).
+- **Root cause**: the Turso HTTP client raised a bare `RuntimeError` for every SQL error, so `sqlite3.OperationalError` fallbacks (e.g. the matrix-fingerprint "table has no updated_at" path) never triggered over the cloud connection.
+- **Fix**: the Turso client now raises the matching `sqlite3` exception type (`IntegrityError` for constraint violations, `OperationalError` otherwise), so sqlite3 error handling behaves identically over the cloud connection.
+
+## [2.6.3] - 2026-06-13
+
+### Fixed — Persistent foreign key constraint errors during cloud upload
+- **User-visible symptom**: "Initialize as Primary" continued to fail with foreign key constraint errors even after fixing the deletion order and attempting to disable FK constraints via PRAGMA.
+- **Root cause**: Turso's HTTP API ignores all PRAGMA statements (including `PRAGMA foreign_keys=OFF`), so FK constraints cannot be disabled. The DELETE approach still violated FK constraints because Turso enforces them differently than local SQLite.
+- **Fix**: changed approach from DELETE to DROP TABLE IF EXISTS for all synced tables before recreating the schema. Dropping tables completely removes FK constraints, then recreating the schema with `executescript(_DDL)` ensures clean tables. Data is then inserted in forward order (parents before children) to satisfy FK constraints. This approach works reliably with Turso's HTTP API.
+
+## [2.6.1] - 2026-06-13
+
+### Fixed — Cloud upload ("Initialize as Primary") failed with foreign key constraint error
+- **User-visible symptom**: uploading a PC's data to the cloud (Admin → Cloud Sync → **Initialize as Primary**) failed with `Upload failed: Turso SQL error: SQLite error: FOREIGN KEY constraint failed`.
+- **Root cause**: `push_local_to_turso()` deleted tables in the same order as insertion (parents first, then children). This violates foreign key constraints when child rows still reference parent rows that are being deleted.
+- **Fix**: delete tables in **reverse order** (children before parents) to avoid FK violations, while keeping insert order as-is (parents before children) to satisfy FK constraints.
+
+### Fixed — Data loss after updating to 2.6.0 when cloud sync was enabled
+- **User-visible symptom**: after updating to 2.6.0, all data appeared to be gone for users who had cloud sync enabled.
+- **Root cause**: the 2.6.0 fix for cloud sync settings changed `ShopConfig` to always use `get_local_connection()`, but `get_connection()` still routed to the cloud database whenever `cloud_sync_enabled == "1"`. This caused the app to read config from the local database (which might be empty or outdated) while routing data operations to the cloud database. If the local DB was initialized as fresh, users would see an empty database while their actual data remained in the cloud.
+- **Fix**: `get_connection()` now checks the `sync_role` setting and only routes to the cloud database when the role is "replica" (cloud as primary). In "primary" mode, it uses the local database and pushes to the cloud on-demand via "Initialize as Primary". This ensures data is never lost during updates.
+
+### Fixed — "Initialize as Primary" could wipe cloud database with empty local data
+- **User-visible symptom**: running "Initialize as Primary" with an empty or incomplete local database would wipe the cloud database, causing permanent data loss.
+- **Root cause**: `push_local_to_turso()` deleted all rows from the cloud database before inserting local data, without checking if the local database actually contained meaningful data.
+- **Fix**: added a safety check that verifies the local database has data before wiping the cloud. If the local database is empty, the function now raises a RuntimeError with a clear error message, preventing accidental data loss.
+
+---
+
+## [2.6.0] - 2026-06-13
+
+### Added — CI workflow with release-readiness tests
+- New `.github/workflows/ci.yml` runs on every push / PR to `dev` and `main`: a ruff lint plus two new, properly-isolated tests that target the exact bugs hit this cycle —
+  - **Schema parity** (`tests/test_schema_parity.py`): asserts the base `_DDL` already contains every column any migration adds via `ALTER TABLE`, so a database built directly from the schema (fresh/cloud) is never missing a column. This would have caught `no such column: cost_price`.
+  - **Report smoke** (`tests/test_report_smoke.py`): generates every PDF report against a seeded multi-page dataset and asserts no exception, pages > 0, and no blank pages.
+- The release README now carries an auto-stamped **"Current release: vX.Y.Z"** line (the action updates it alongside the version badge), and the stale hand-written version history was replaced with a milestones table + a link to this changelog as the single source of truth.
+
+### Fixed — `suppliers.rating` / `updated_at` missing from fresh databases (schema drift)
+- Caught by the new schema-parity test: `_DDL` had two `CREATE TABLE IF NOT EXISTS suppliers` definitions, and the older one (without `rating`/`updated_at`) won — so a fresh or cloud database lacked those columns even though the migration chain adds them. The base definition now matches the canonical one.
+
+### Fixed — Dashboard "Out of stock" was massively inflated; stock-health donut read "Out 100%"
+- The matrix seeds a zero-stock placeholder row for every model × part × colour combo. `out_of_stock_count` counted *all* zero-stock rows (so a small shop showed "1,438 out of stock"), and the analytics stock-health donut used a standalone-products total against an all-items low/out count — rendering as a meaningless solid-red "Out 100%".
+- **Fix**: "out of stock" now counts only actively-managed items (those with a min-stock threshold set), and the donut is computed over that same managed population, so its slices (Healthy / Low / Out) are consistent and accurate. Added a `managed_count` to the summary for this.
+
+### Changed — Phones page KPI cards now match the Analytics dashboard
+- The Phones page KPI metrics (total / in stock / sold / avg battery / stock value) were unstyled floating text. They're now proper framed tiles with uppercase labels, large values and colour-coded accent underlines, and the page no longer leaves a large empty gap between the cards and the grid.
+
+### Changed — README refreshed for 2.6.0 with new screenshots
+- README updated for the Phones (IMEI) module, optional cloud sync, and the 14 PDF reports; schema badge/section bumped to V23 (27 tables); all app screenshots regenerated from a populated demo dataset, with new Phones and Reports shots.
+
+### Added — Schema column-ensure now works over the cloud connection
+- The startup `cost_price` column-ensure now also applies over the Turso HTTP connection (attempt-and-ignore-duplicate), so an existing cloud database missing the column is healed on next launch rather than failing reports/analytics with `no such column: cost_price`.
+
+### Fixed — "Save and enable cloud sync settings first" kept appearing after enabling
+- **User-visible symptom**: after ticking *Enable cloud sync*, entering credentials and clicking *Save Settings*, the *Initialize as Primary/Replica* and *Sync Now* actions still complained "Save and enable cloud sync settings first."
+- **Root cause**: `ShopConfig` was read and written through the cloud-aware connection dispatcher. The instant cloud sync was toggled on in memory, *saving* the settings was routed to the cloud database, while the reload fell back to the local database — which never received the flag — so the app always read cloud sync as still disabled (a circular bootstrap).
+- **Fix**: bootstrap config (the cloud-sync on/off flag, Turso URL/token, and all shop settings) now always persists to and loads from the **local** database via a dedicated `get_local_connection()`. Enabling cloud sync takes effect immediately, so the Initialize/Sync actions work.
+
+## [2.5.10] - 2026-06-12
+
+### Fixed — Cloud upload ("Initialize as Primary") failed with a Turso parse error
+- **User-visible symptom**: uploading a PC's data to the cloud (Admin → Cloud Sync → **Initialize as Primary**) failed immediately with `Upload failed: Turso SQL error: SQL string could not be parsed: unexpected end of input`.
+- **Root cause**: the Turso HTTP client builds the cloud schema by splitting the DDL on `;`, but two schema comments contain a literal `;` (e.g. `-- … for that model; when absent …`). Splitting first cut those `CREATE TABLE` statements in half, so Turso received a comment-only fragment it couldn't parse. Local SQLite ignores comments entirely, so this only ever surfaced on cloud upload.
+- **Fix**: strip SQL line comments **before** splitting the DDL into statements, so semicolons inside comments can no longer break a statement. All 68 schema statements now upload cleanly, so Initialize as Primary (and the phone-units migration that depends on it) works.
+
+### Fixed — PDF report rows overlapped into an unreadable block
+- **User-visible symptom**: in the Inventory, Low Stock, Expiring and Phone Inventory PDF reports, every row in a group (and the subtotal) rendered stacked on top of each other at the same vertical position, producing a garbled, unreadable block.
+- **Root cause**: after drawing each row's coloured status/urgency badge as an overlay, the cursor was advanced with `pdf.ln(0)`, which left the Y position at the *top* of the row just drawn instead of moving to the next line — so every subsequent row painted over the previous one.
+- **Fix**: restore the cursor to the bottom of the row (`y_before + row_height`) after the badge overlay, in all four affected tables. Verified every table's columns still sum to the 186 mm usable width.
+
+### Fixed — Arrow character rendered as "?" in PDF subtitles
+- The `→` used in report subtitles (e.g. "grouped by category → part type") showed as `?` because it wasn't in the Latin-1 substitution map. Added `→ ← ↔ ✓ ✗` mappings so they render as readable ASCII.
+
+### Fixed — Blank/near-empty pages between full pages in PDF reports
+- **User-visible symptom**: long reports (Inventory, Audit, etc.) inserted one or two nearly-empty pages after each full page, roughly doubling the page count.
+- **Root cause**: fpdf's automatic page-break fired in the *middle* of a row, then the coloured status badge — drawn as a separate overlay positioned from the row's pre-break Y — landed on yet another page, so a single row was smeared across three pages.
+- **Fix**: disabled fpdf's auto page-break and made every table do proactive page breaks (checking there's room for the next row/subtotal/group-header before drawing, and redrawing column + "(continued)" headers on each new page). A 3,200-row test report dropped from 215 pages (≈70 wasted) to 87 pages with **zero** empty pages; continuation pages now always carry their headers.
+
+### Fixed — Stock value crashed on databases without a cost_price column
+- `inventory_items.cost_price` (added by the V16 migration and used by the new cost-basis stock value) was missing from the base `_DDL`, so a database created directly from the schema — including a fresh **Turso cloud** database — lacked the column and made reports/analytics fail with `no such column: cost_price`.
+- **Fix**: added `cost_price` to the `inventory_items` DDL and an idempotent startup column-ensure, so fresh, migrated, cloud, and previously-inconsistent databases all have it.
+
+### Changed — Installer wizard now uses the cube app logo
+- The setup wizard's large banner and small corner image were regenerated from the cube app logo (`icon_cube`) — the banner shows the cube on a branded navy→emerald gradient, the corner image on white — replacing the previous placeholder art. The setup/EXE icon was already the cube icon.
+
+## [2.5.9] - 2026-06-12
+
+### Added — Phone-inventory PDF reports (Parts **and** Phones now both fully reportable)
+- Two new professional, branded PDF reports on the **Reports** tab, shown only when the **Phones** module is enabled:
+  - **📱 Phone Inventory** — every IMEI-tracked unit grouped by brand, with model / IMEI / storage / condition / battery / buy / sell and a colour-coded status badge (IN STOCK / SOLD / RESERVED). KPI header (total units, in stock, sold, **stock value at cost**, avg battery) and a grand-total bar.
+  - **💸 Phones Sold** — sold-unit history for the selected date range (sold-on, brand, model, IMEI, sale price, note) with revenue / avg-sale-price KPIs.
+- Both reuse the existing `_ReportPDF` header/footer/pagination engine, so they match the look of the 12 existing reports (inventory, valuation, low stock, transactions, summary, audit, discrepancy, sales, scan invoices, expiring, category performance, barcode labels).
+
+### Added — Move phone units between PCs (safe cross-database merge)
+- New **Export / Import phone units** actions in **Admin → Cloud Sync → Actions**. Export dumps all phone units to a portable JSON file keyed by model **name + IMEI** (not internal database IDs); Import re-creates any missing phone models by name and inserts the units, **de-duplicating by IMEI** so it is safe to re-run and never overwrites existing data.
+- Purpose: combine a PC that holds the phone units with a PC that holds the master parts/inventory **before** a one-time cloud push, so neither dataset is lost. Backed by `PhoneRepository.export_units()` / `import_units()`.
+
+### Changed — "Stock value" now reflects **cost basis**, not retail price
+- The Analytics dashboard **STOCK VALUE** card, the **Stock Valuation**, **Summary** and **Category Performance** PDF reports, and the **Phones** stock-value KPI now value on-hand stock at **cost price** (`cost_price` for parts, `buy_price` for phones), falling back to sell price only when no cost was recorded so the figure is never blank. A separate retail value remains available for parts.
+- The per-brand / per-part-type / pivot value breakdowns use the same cost basis, so every "value" figure across the app is now consistent.
+
+### Fixed — Phone detail-table action buttons were clipped
+- In the Phones page detail table, the per-row **Edit (✎)** / **Delete (🗑)** icon buttons and the panel's **✕** close button rendered cut off. Root cause: the shared `#mgmt_edit` / `#mgmt_del` style carries `padding: 3px 12px` (sized for text buttons), which left no room for the glyph inside the fixed-size icon buttons. Fixed by overriding the padding/min-size on the icon buttons, centring them, widening the Actions column (76 → 92 px) and giving rows a 34 px height.
+
+### Changed — Full EN / DE / AR translations for every phone feature
+- All user-facing strings across the Phones page, Add/Edit Phone dialog, barcode-scan action popup, Sold-Phones history dialog, phone transaction/audit labels, and the Shop Settings **Modules** card are now localised in English, German and Arabic (RTL-aware), matching the rest of the app.
+
+## [2.5.8] - 2026-06-10
+
+### Added — 📱 Phones tab: whole-device inventory tracked by IMEI
+- New **Phones** sidebar tab (opt-in per shop) for tracking individual phone units as whole devices by **IMEI**, separate from the parts matrix. Brand × model **stock grid** (storage columns 64 GB–1 TB) with colour-coded counts and a per-model **detail panel** listing every unit, plus KPI cards (total, in stock, sold, avg battery, stock value).
+- **Add / Edit Phone** dialog: model, IMEI (with duplicate detection), storage, condition (New / Used / Refurbished), battery %, buy/sell price, status (in stock / sold / reserved) and notes.
+- **Barcode labels** for phone units (IMEI / PHN-code) exportable for YunPrint, plus a **scan → Phone action popup** (Stock OUT / Mark Sold, Reserve, Back to Stock, Edit, View) when a unit's barcode is scanned from the header search.
+- **Transaction history & Sold-Phones history**: every add / edit / sell / reserve / return / delete is written to a new `phone_transactions` audit log with a denormalised snapshot (readable even after a unit is deleted) and surfaced in a Sold Phones history dialog; status changes support **undo / redo**.
+
+### Added — Cloud Sync across multiple PCs (Turso, no server required)
+- New **Cloud Sync** admin panel: enter Turso database URL + token, **Test Connection**, enable sync, choose an interval, **Sync Now**, and **Initialize as Primary / Replica** to choose which PC seeds the shared data. Connectivity uses a pure-stdlib **Turso HTTP pipeline** client (no Rust / embedded-replica dependency), so every repository reads and writes the cloud database unchanged. A header **sync indicator** shows live status.
+
+### Added — White-label module toggle
+- A new **Modules** card in Shop Settings makes the Phones tab opt-in per install, so shops that don't sell phones never see it. Requires an app restart to apply.
+
+### Changed — Database schema V21 → V23
+- **V22** adds the `phones` table (IMEI-tracked units); **V23** adds the `phone_transactions` audit table. Existing databases upgrade automatically on first launch.
+
+## [2.5.7] - 2026-05-26
+
 ### Fixed — `Yellow` (and any Y/Z) barcodes didn't scan on German keyboards
 - **User-visible symptom**: iPhone 15 / 15 Plus `Yellow` rows didn't scan — the printed sticker said `…-YL` but the scanner produced `…-ZL`, so the lookup missed.
 - **Root cause**: on a German-layout (QWERTZ) machine the physical Y key sits in the US-Z position and vice versa, so a scanner emitting the US-Y HID code produces `Z` through Windows. The DB stored the encoded character (`Y`), which never matched the scanned `Z`.

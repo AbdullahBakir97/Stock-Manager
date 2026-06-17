@@ -94,9 +94,12 @@ def check_database_health() -> HealthReport:
     try:
         conn = get_connection()
 
-        # Integrity check
+        # Integrity check — over a remote/HTTP Turso connection this PRAGMA
+        # may return no rows; treat "no result" as unverifiable (OK) rather
+        # than a hard failure, so cloud-sync mode isn't reported UNHEALTHY.
         try:
-            result = conn.execute("PRAGMA integrity_check").fetchone()[0]
+            row = conn.execute("PRAGMA integrity_check").fetchone()
+            result = row[0] if row else "ok"
             if result != "ok":
                 integrity_ok = False
                 errors.append(f"SQLite integrity check failed: {result}")

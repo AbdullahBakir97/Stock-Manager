@@ -1,7 +1,7 @@
 {
-  "version": "2.5.6",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.5.6/StockManagerPro-2.5.6-setup.exe",
-  "release_notes": "The sales-history table's actions column now carries **three** icon buttons per row: Receipt (existing), **Edit** (blue, pencil), and **Delete** (red, trash). All three share the original 36\u00d736 styling so the table's visual rhythm is unchanged; the column width grew from 50 \u2192 130 px to fit the trio.; **Edit** opens `POSDialog` in edit mode (new `edit_sale_id` constructor param). The dialog pre-loads the sale's customer, discount, note, and every line item into the cart, switches the window title to `Edit Sale #N`, and renames the primary action button to `Update Sale`. On accept it routes to the new `SaleService.update_sale` which:; Computes a stock-delta per item: `new_qty - old_qty`. Positive delta \u2192 more sold \u2192 stock down + `OUT` transaction with note `Updated sale #N`. Negative \u2192 less sold \u2192 stock up + `IN` transaction. Zero \u2192 skip (no churn for unchanged lines).",
-  "release_date": "2026-05-12",
-  "checksum_sha256": "18c3fe6092ac8c930a2a25a17b15b041d5c342ec7e61670107d2ed8adaca9ae5"
+  "version": "2.6.6",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.6/StockManagerPro-2.6.6-setup.exe",
+  "release_notes": "v2.6.6 \u2014 see changelog for details",
+  "release_date": "2026-06-16",
+  "checksum_sha256": "21751cb0b04e63bfdaa27b190c8dde31d180a9374668f671d6c5815370f52829"
 }

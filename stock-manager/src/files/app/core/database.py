@@ -491,6 +491,36 @@ def sync_to_remote() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def connection_mode() -> dict:
+    """Describe the active DB connection for diagnostics / the log viewer.
+
+    Returns a secrets-free dict:
+        cloud  — bool, cloud sync enabled
+        role   — "primary" | "replica"
+        mode   — "embedded_replica" | "http" | "local"
+        host   — Turso host for display (no scheme, no token), or ""
+    Never raises — falls back to a sane "local" description.
+    """
+    info = {"cloud": False, "role": "primary", "mode": "local", "host": ""}
+    try:
+        from app.core.config import ShopConfig
+        cfg = ShopConfig.get()
+        info["role"] = cfg.sync_role or "primary"
+        url = (cfg.turso_url or "").strip()
+        if url:
+            host = url.split("://", 1)[-1].split("?", 1)[0]
+            info["host"] = host
+        if cfg.cloud_sync_enabled == "1" and url:
+            info["cloud"] = True
+            if cfg.sync_role == "replica":
+                info["mode"] = "embedded_replica" if libsql_available() else "http"
+            else:
+                info["mode"] = "local"  # primary writes locally, pushes on demand
+    except Exception:
+        pass
+    return info
+
+
 # Tables in dependency order (parents before children) — used by
 # push_local_to_turso() for bulk insert order. Every table must appear AFTER
 # every table it references with a FOREIGN KEY, otherwise the cloud insert

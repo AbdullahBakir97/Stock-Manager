@@ -23,12 +23,101 @@ from PyQt6.QtWidgets import (
     QFrame, QHBoxLayout, QLabel, QSizePolicy, QWidget,
     QSlider, QToolButton, QMenu,
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QAction, QKeySequence
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPointF, QRectF, QSize
+from PyQt6.QtGui import (
+    QAction, QKeySequence, QPainter, QColor, QPen, QPolygonF, QFont,
+)
 
 from app.core.i18n import t
+from app.core.theme import THEME
 from app.core.version import APP_VERSION
 from app.services.zoom_service import ZOOM
+
+
+class _HealthIndicator(QToolButton):
+    """Compact, professional app-health pill for the footer.
+
+    Renders a custom-painted ECG/heartbeat glyph tinted by state — green
+    when healthy, amber on unseen warnings, red on unseen errors — with a
+    numeric badge appended when there are issues. Clicking opens the logs.
+    """
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("footer_health")
+        self.setAutoRaise(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(22)
+        self._color = THEME.tokens.green
+        self._count = ""
+        self._pulse = True  # animate a subtle "alive" beat when issues appear
+        self._update_width()
+
+    def set_state(self, warnings: int, errors: int) -> None:
+        tk = THEME.tokens
+        if errors:
+            self._color, self._count = tk.red, str(errors)
+        elif warnings:
+            self._color, self._count = tk.orange, str(warnings)
+        else:
+            self._color, self._count = tk.green, ""
+        self._update_width()
+        self.update()
+
+    def _update_width(self) -> None:
+        w = 30
+        if self._count:
+            fm = QFont(self.font()); fm.setBold(True); fm.setPointSizeF(8.0)
+            from PyQt6.QtGui import QFontMetrics
+            w += QFontMetrics(fm).horizontalAdvance(self._count) + 6
+        self.setFixedWidth(w)
+
+    def sizeHint(self) -> QSize:  # noqa: N802 (Qt override)
+        return QSize(self.width(), 22)
+
+    def paintEvent(self, _ev) -> None:  # noqa: N802 (Qt override)
+        p = QPainter(self)
+        p.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = QRectF(self.rect()).adjusted(0.5, 0.5, -0.5, -0.5)
+        color = QColor(self._color)
+        has_issue = bool(self._count)
+
+        # Subtle rounded pill behind the glyph when there is something to see.
+        if has_issue:
+            bg = QColor(color); bg.setAlpha(30)
+            br = QColor(color); br.setAlpha(90)
+            p.setBrush(bg)
+            p.setPen(QPen(br, 1.0))
+            r = rect.height() / 2.0
+            p.drawRoundedRect(rect, r, r)
+
+        # ECG / heartbeat line — universally reads as "health / monitoring".
+        pen = QPen(color, 1.7)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        p.setPen(pen)
+        box = QRectF(rect.left() + 7, rect.center().y() - 5, 15, 10)
+        x0, y, w, h = box.left(), box.center().y(), box.width(), box.height()
+        pts = [
+            QPointF(x0, y),
+            QPointF(x0 + w * 0.28, y),
+            QPointF(x0 + w * 0.42, y - h * 0.55),
+            QPointF(x0 + w * 0.56, y + h * 0.55),
+            QPointF(x0 + w * 0.70, y),
+            QPointF(x0 + w, y),
+        ]
+        p.drawPolyline(QPolygonF(pts))
+
+        # Count badge text.
+        if has_issue:
+            f = QFont(self.font()); f.setBold(True); f.setPointSizeF(8.0)
+            p.setFont(f)
+            p.setPen(color)
+            tr = QRectF(box.right() + 4, rect.top(),
+                        rect.right() - box.right() - 6, rect.height())
+            p.drawText(tr, int(Qt.AlignmentFlag.AlignVCenter
+                               | Qt.AlignmentFlag.AlignLeft), self._count)
+        p.end()
 
 
 class FooterBar(QFrame):
@@ -168,9 +257,29 @@ class FooterBar(QFrame):
         self._version.setObjectName("footer_version")
         lay.addWidget(self._version)
 
-        self._sync = QLabel(f"●  {t('footer_connected')}")
-        self._sync.setObjectName("footer_sync")
-        lay.addWidget(self._sync)
+        # ── Health indicator — ECG pulse glyph; green normally, amber on
+        # warnings, red on errors. Click opens the log window. Gives passive,
+        # professional awareness of issues without stealing attention.
+        self._log_window = None
+        self._health_btn = _HealthIndicator()
+        self._health_btn.setToolTip(t("log_health_tip"))
+        self._health_btn.clicked.connect(self._open_logs)
+        lay.addWidget(self._health_btn)
+        try:
+            from app.ui.components.log_view import log_bus
+            log_bus().counts_changed.connect(self._on_log_counts)
+        except Exception:
+            pass
+        self._on_log_counts(0, 0)
+
+        if self._sync_service is not None:
+            from app.ui.components.sync_indicator import SyncIndicator
+            self._sync_indicator = SyncIndicator(self._sync_service)
+            lay.addWidget(self._sync_indicator)
+        else:
+            self._sync = QLabel(f"●  {t('footer_connected')}")
+            self._sync.setObjectName("footer_sync")
+            lay.addWidget(self._sync)
 
         # Live clock — update every second
         self._timestamp.setText(datetime.now().strftime("%H:%M:%S"))
@@ -227,6 +336,26 @@ class FooterBar(QFrame):
     def hide_filter(self) -> None:
         """Hide the filter indicator."""
         self._filter_lbl.hide()
+
+    # ── Log health dot ───────────────────────────────────────────────────────
+
+    def _on_log_counts(self, warnings: int, errors: int) -> None:
+        """Repaint the footer health indicator from unseen warning/error counts."""
+        self._health_btn.set_state(warnings, errors)
+
+    def _open_logs(self) -> None:
+        """Open the floating log window and clear the unseen-issue counter."""
+        if self._log_window is None:
+            from app.ui.components.log_view import LogWindow
+            self._log_window = LogWindow(sync_service=self._sync_service)
+        self._log_window.show()
+        self._log_window.raise_()
+        self._log_window.activateWindow()
+        try:
+            from app.ui.components.log_view import log_bus
+            log_bus().reset_counts()
+        except Exception:
+            pass
 
     # ── Zoom ────────────────────────────────────────────────────────────────
 

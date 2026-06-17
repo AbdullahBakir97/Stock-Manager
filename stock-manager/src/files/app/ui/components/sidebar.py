@@ -18,6 +18,34 @@ from app.ui.components.collapsible_section import CollapsibleSection
 _cat_repo = CategoryRepository()
 
 
+def _nav_items() -> list[tuple[str, str]]:
+    """Main nav items, filtered by which optional modules are enabled.
+
+    Stock Manager is white-label; shop-specific modules (e.g. the phone-shop
+    "Phones" IMEI tracker) are only shown when enabled in Admin Settings.
+    """
+    items = [
+        ("nav_inventory",       "📦"),
+        ("nav_transactions",    "📋"),
+        ("nav_quick_scan",      "⚡"),
+        ("nav_sales",           "💰"),
+        ("nav_customers",       "👥"),
+        ("nav_purchase_orders", "🛒"),
+        ("nav_returns",         "↩"),
+        ("nav_suppliers",       "🏭"),
+        ("nav_audit",           "📝"),
+        ("nav_price_lists",     "💲"),
+        ("nav_barcode_gen",     "🏷"),
+        ("nav_reports",         "📊"),
+        ("nav_analytics",       "📈"),
+        ("nav_phones",          "📱"),
+        ("nav_logs",            "📜"),
+    ]
+    if not ShopConfig.get().is_phones_module_enabled:
+        items = [i for i in items if i[0] != "nav_phones"]
+    return items
+
+
 class Sidebar(QFrame):
     """192px fixed sidebar (slim default) with main nav + collapsible category tabs.
 
@@ -91,6 +119,8 @@ class Sidebar(QFrame):
             "nav_barcode_gen":     "Generate and print barcode labels",
             "nav_reports":         "Generate PDF reports and audit sheets",
             "nav_analytics":       "Dashboard with charts and KPIs",
+            "nav_phones":          "Phone inventory — track devices by IMEI",
+            "nav_logs":            "Application logs — diagnostics & sync health",
         }
         for key, icon in nav_items:
             btn = QPushButton(f"  {icon}   {t(key)}")

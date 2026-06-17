@@ -54,6 +54,7 @@ from app.ui.pages.audit_page import AuditPage
 from app.ui.pages.price_lists_page import PriceListsPage
 from app.ui.dialogs.admin.customers_panel import CustomersPanel
 from app.ui.components.toast import ToastManager
+from app.ui.components.log_view import LogsPage, log_bus
 from app.ui.workers.worker_pool import POOL
 
 # ── Module-level singletons ─────────────────────────────────────────────────
@@ -77,7 +78,9 @@ class MainWindow(QMainWindow):
     _PAGE_ANALYTICS       = 10
     _PAGE_AUDIT           = 11
     _PAGE_PRICE_LISTS     = 12
-    _PAGE_MATRIX_START    = 13
+    _PAGE_PHONES          = 13
+    _PAGE_LOGS            = 14
+    _PAGE_MATRIX_START    = 15
 
     def __init__(self, splash=None):
         super().__init__()
@@ -144,6 +147,12 @@ class MainWindow(QMainWindow):
 
         _sp(80, t("startup_ui"))
         self._toasts = ToastManager(self)
+
+        # ── In-app logs: surface ERROR-level records as a toast ────────────
+        # log_bus() lazily registers a listener on the ring-buffer handler,
+        # so touching it here starts live capture for the footer dot + toast.
+        self._last_error_toast_ts = 0.0
+        log_bus().record_logged.connect(self._on_log_record)
 
         # 60-second periodic alert refresh
         self._timer = QTimer(self)
@@ -212,12 +221,15 @@ class MainWindow(QMainWindow):
         self._analytics_page  = None
         self._audit_page      = None
         self._price_lists_page= None
+        self._phones_page     = None
+        self._logs_page       = None
 
         for _idx in (self._PAGE_SALES, self._PAGE_CUSTOMERS,
                      self._PAGE_PURCHASE_ORDERS, self._PAGE_RETURNS,
                      self._PAGE_BARCODE_GEN, self._PAGE_REPORTS,
                      self._PAGE_SUPPLIERS, self._PAGE_ANALYTICS,
-                     self._PAGE_AUDIT, self._PAGE_PRICE_LISTS):
+                     self._PAGE_AUDIT, self._PAGE_PRICE_LISTS,
+                     self._PAGE_PHONES, self._PAGE_LOGS):
             _ph = QWidget()
             _ph.setObjectName("page_placeholder")
             self._stack.addWidget(_ph)
@@ -267,6 +279,12 @@ class MainWindow(QMainWindow):
         def _build_price_lists():
             self._price_lists_page = PriceListsPage()
             return self._price_lists_page
+        def _build_phones():
+            self._phones_page = PhonesPage()
+            return self._phones_page
+        def _build_logs():
+            self._logs_page = LogsPage(sync_service=self._sync_service)
+            return self._logs_page
 
         # Register all static pages with their optional refresh callbacks.
         # Eager pages use register(); lazy pages use register_lazy().
@@ -324,6 +342,17 @@ class MainWindow(QMainWindow):
             "nav_price_lists", self._PAGE_PRICE_LISTS, _build_price_lists,
             on_activate=lambda: (self._price_lists_page.refresh()
                                  if self._price_lists_page is not None else None),
+        )
+        if ShopConfig.get().is_phones_module_enabled:
+            self._nav_ctrl.register_lazy(
+                "nav_phones", self._PAGE_PHONES, _build_phones,
+                on_activate=lambda: (self._phones_page.refresh()
+                                     if self._phones_page is not None else None),
+            )
+        self._nav_ctrl.register_lazy(
+            "nav_logs", self._PAGE_LOGS, _build_logs,
+            on_activate=lambda: (self._logs_page.refresh()
+                                 if self._logs_page is not None else None),
         )
 
         # Populate initial dynamic matrix tabs — DEFERRED to after first
@@ -997,6 +1026,33 @@ class MainWindow(QMainWindow):
 
     def _open_help(self) -> None:
         HelpDialog(self).exec()
+
+    # ── In-app logs ─────────────────────────────────────────────────────────
+    def _on_log_record(self, view) -> None:
+        """Pop a toast when an ERROR-level (or worse) record is logged.
+
+        Runs on the main thread (LogBus emits record_logged via a queued
+        connection). Throttled so an error storm can't flood the screen.
+        """
+        try:
+            import logging as _lg
+            if view.levelno < _lg.ERROR:
+                return
+            import time as _t
+            now = _t.monotonic()
+            if now - getattr(self, "_last_error_toast_ts", 0.0) < 5.0:
+                return
+            self._last_error_toast_ts = now
+            msg = view.message
+            if len(msg) > 140:
+                msg = msg[:139] + "…"
+            self._toasts.error(
+                t("log_toast_error", source=view.name, message=msg),
+                action_text=t("log_toast_view"),
+                action_callback=lambda: self._nav_ctrl.go("nav_logs"),
+            )
+        except Exception:
+            pass
 
     # ── Zoom ────────────────────────────────────────────────────────────────
 

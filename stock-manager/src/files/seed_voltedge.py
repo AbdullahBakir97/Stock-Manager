@@ -1277,55 +1277,178 @@ def print_summary() -> None:
     print()
 
 
+# ── Phone Models & Units ───────────────────────────────────────────────────────────
+
+PHONE_MODELS = [
+    {"brand": "Apple", "name": "iPhone 16 Pro", "release_year": 2024},
+    {"brand": "Apple", "name": "iPhone 16 Pro Max", "release_year": 2024},
+    {"brand": "Apple", "name": "iPhone 16", "release_year": 2024},
+    {"brand": "Apple", "name": "iPhone 16 Plus", "release_year": 2024},
+    {"brand": "Apple", "name": "iPhone 15 Pro", "release_year": 2023},
+    {"brand": "Apple", "name": "iPhone 15 Pro Max", "release_year": 2023},
+    {"brand": "Samsung", "name": "Galaxy S25 Ultra", "release_year": 2025},
+    {"brand": "Samsung", "name": "Galaxy S25+", "release_year": 2025},
+    {"brand": "Samsung", "name": "Galaxy S25", "release_year": 2025},
+    {"brand": "Samsung", "name": "Galaxy S24 Ultra", "release_year": 2024},
+    {"brand": "Samsung", "name": "Galaxy S24+", "release_year": 2024},
+    {"brand": "Samsung", "name": "Galaxy Z Fold 6", "release_year": 2024},
+    {"brand": "Samsung", "name": "Galaxy Z Flip 6", "release_year": 2024},
+    {"brand": "Google", "name": "Pixel 9 Pro", "release_year": 2024},
+    {"brand": "Google", "name": "Pixel 9 Pro XL", "release_year": 2024},
+    {"brand": "Google", "name": "Pixel 8 Pro", "release_year": 2023},
+    {"brand": "Xiaomi", "name": "14 Ultra", "release_year": 2024},
+    {"brand": "Xiaomi", "name": "14 Pro", "release_year": 2024},
+    {"brand": "OnePlus", "name": "12", "release_year": 2024},
+    {"brand": "OnePlus", "name": "12R", "release_year": 2024},
+]
+
+
+def seed_phones() -> None:
+    """Seed phone models and generate realistic phone units with IMEIs."""
+    conn = db.get_connection()
+
+    # Insert phone models
+    model_ids: dict[str, int] = {}
+    for model in PHONE_MODELS:
+        cursor = conn.execute(
+            "INSERT INTO phone_models (brand, name, release_year) VALUES (?, ?, ?)",
+            (model["brand"], model["name"], model["release_year"])
+        )
+        model_ids[f"{model['brand']} {model['name']}"] = cursor.lastrowid
+    print(f"  → Inserted {len(PHONE_MODELS)} phone models")
+
+    # Generate phone units with realistic IMEIs
+    STORAGE_OPTIONS = ["64GB", "128GB", "256GB", "512GB", "1TB"]
+    CONDITION_OPTIONS = ["new", "like_new", "used", "refurbished"]
+    STATUS_OPTIONS = ["in_stock", "reserved", "sold", "repair"]
+
+    phone_units: list[tuple] = []
+    total_units = 0
+
+    for model_key, model_id in model_ids.items():
+        # Generate 5-15 units per model
+        num_units = RNG.randint(5, 15)
+        for i in range(num_units):
+            storage = RNG.choice(STORAGE_OPTIONS)
+            condition = RNG.choice(CONDITION_OPTIONS)
+            status = RNG.choice(STATUS_OPTIONS, weights=[0.5, 0.1, 0.3, 0.1])[0]
+
+            # Generate realistic IMEI (15 digits, starts with valid TAC)
+            # Real IMEIs start with manufacturer-specific TAC codes
+            tac = "35" + str(RNG.randint(100000, 999999))  # Valid TAC format
+            serial = str(RNG.randint(100000, 999999))
+            imei = tac + serial + str(RNG.randint(0, 9))  # 15 digits total
+
+            # Generate sell price based on model and storage
+            base_price = {
+                "iPhone 16 Pro": 999, "iPhone 16 Pro Max": 1099,
+                "iPhone 16": 799, "iPhone 16 Plus": 899,
+                "iPhone 15 Pro": 899, "iPhone 15 Pro Max": 999,
+                "Galaxy S25 Ultra": 1299, "Galaxy S25+": 999,
+                "Galaxy S25": 799, "Galaxy S24 Ultra": 1199,
+                "Galaxy S24+": 899, "Galaxy Z Fold 6": 1799,
+                "Galaxy Z Flip 6": 999, "Pixel 9 Pro": 999,
+                "Pixel 9 Pro XL": 1099, "Pixel 8 Pro": 899,
+                "Xiaomi 14 Ultra": 999, "Xiaomi 14 Pro": 799,
+                "OnePlus 12": 799, "OnePlus 12R": 599,
+            }.get(model_key, 699)
+
+            storage_multiplier = {"64GB": 1.0, "128GB": 1.1, "256GB": 1.2, "512GB": 1.35, "1TB": 1.5}[storage]
+            condition_multiplier = {"new": 1.0, "like_new": 0.95, "used": 0.85, "refurbished": 0.8}[condition]
+            sell_price = round(base_price * storage_multiplier * condition_multiplier, 2)
+
+            battery_health = RNG.randint(75, 100) if condition != "new" else 100
+
+            phone_units.append((
+                model_id, imei, storage, condition, status,
+                sell_price, battery_health, "",  # notes
+            ))
+            total_units += 1
+
+    # Batch insert phone units
+    conn.executemany(
+        """INSERT INTO phones (model_id, imei, storage, condition, status, sell_price, battery_health, notes)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        phone_units
+    )
+    conn.commit()
+    print(f"  → Inserted {total_units} phone units with IMEIs")
+
+    # Link some inventory items to phone models for parts compatibility
+    # Get display part types
+    display_pt_id = conn.execute("SELECT id FROM part_types WHERE key='displays'").fetchone()
+    if display_pt_id:
+        display_pt_id = display_pt_id[0]
+
+        # Link iPhone models to specific display colors
+        iphone_models = [mid for key, mid in model_ids.items() if "iPhone" in key]
+        for model_id in iphone_models[:3]:  # Link first 3 iPhone models
+            conn.execute(
+                """INSERT INTO model_part_type_colors (model_id, part_type_id, color_name)
+                   VALUES (?, ?, ?)""",
+                (model_id, display_pt_id, "Black")
+            )
+            conn.execute(
+                """INSERT INTO model_part_type_colors (model_id, part_type_id, color_name)
+                   VALUES (?, ?, ?)""",
+                (model_id, display_pt_id, "White")
+            )
+        conn.commit()
+        print(f"  → Linked phone models to display parts")
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main() -> None:
     print("\n>>  VoltEdge Electronics -- seeding demo database")
     print("-------------------------------------------------")
 
-    print("[0/13] Resetting database...")
+    print("[0/14] Resetting database...")
     reset_database()
 
-    print("[1/13] Configuring shop...")
+    print("[1/14] Configuring shop...")
     configure_shop()
 
-    print("[2/13] Seeding locations...")
+    print("[2/14] Seeding locations...")
     location_ids = seed_locations()
 
-    print("[3/13] Seeding extended part types...")
+    print("[3/14] Seeding extended part types...")
     seed_extended_part_types()
     materialize_matrix_items()
 
-    print("[4/13] Seeding suppliers...")
+    print("[4/14] Seeding suppliers...")
     supplier_ids = seed_suppliers()
 
-    print("[5/13] Seeding customers...")
+    print("[5/14] Seeding customers...")
     customer_ids, segment_map = seed_customers()
 
-    print("[6/13] Pricing & stocking all matrix items...")
+    print("[6/14] Pricing & stocking all matrix items...")
     matrix_pool = seed_matrix_stock(supplier_ids)
 
-    print("[7/13] Seeding electronics products...")
+    print("[7/14] Seeding electronics products...")
     electronics_pool = seed_electronics(supplier_ids)
 
-    print("[8/13] Creating sales history...")
+    print("[8/14] Creating sales history...")
     sale_ids = seed_sales(customer_ids, segment_map, matrix_pool, electronics_pool)
 
-    print("[9/13] Creating purchase orders...")
+    print("[9/14] Creating purchase orders...")
     seed_purchase_orders(supplier_ids, matrix_pool, electronics_pool)
 
-    print("[10/13] Processing returns...")
+    print("[10/14] Processing returns...")
     seed_returns(sale_ids, matrix_pool, electronics_pool)
 
-    print("[11/13] Completing inventory audit & price lists...")
+    print("[11/14] Completing inventory audit & price lists...")
     seed_audit()
     seed_price_lists()
 
-    print("[12/13] Creating stock transfers...")
+    print("[12/14] Creating stock transfers...")
     seed_stock_transfers(location_ids)
 
-    print("[13/13] Rebuilding location distribution from final stock...")
+    print("[13/14] Rebuilding location distribution from final stock...")
     rebuild_location_distribution(location_ids)
+
+    print("[14/14] Seeding phone models and units...")
+    seed_phones()
 
     print_summary()
     print("[OK] Seed complete -- launch the app and capture screenshots\n")

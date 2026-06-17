@@ -40,8 +40,9 @@ class ShopConfig:
     cloud_sync_enabled:         str = "0"   # "1" = enabled, "0" = disabled
     sync_interval_minutes:      str = "5"   # sync interval in minutes
     sync_role:                  str = ""   # "primary" | "replica" | ""
-    # Phones module
-    phones_module_enabled:      str = "0"   # "1" = enabled, "0" = disabled
+    # shop-specific modules (e.g. the phone-shop "Phones" IMEI tracker)
+    # already use the Phones tab keep it after upgrading.
+    module_phones_enabled:      str = "1"
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -58,7 +59,7 @@ class ShopConfig:
         "cloud_sync_enabled",
         "sync_interval_minutes",
         "sync_role",
-        "phones_module_enabled",
+        "module_phones_enabled",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -119,10 +120,11 @@ class ShopConfig:
 
     @property
     def is_phones_module_enabled(self) -> bool:
-        try:
-            return getattr(self, 'phones_module_enabled', '0') == "1"
-        except Exception:
-            return False
+        """Whether the shop-specific 'Phones' (IMEI inventory) module is shown.
+        This is a white-label general stock manager — the Phones tab is an
+        optional phone-shop feature that can be disabled for pure inventory users.
+        """
+        return (self.module_phones_enabled or "1") != "0"
 
     @property
     def ui_scale_factor(self) -> float:

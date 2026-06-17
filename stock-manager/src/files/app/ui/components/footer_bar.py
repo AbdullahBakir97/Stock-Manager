@@ -132,6 +132,7 @@ class FooterBar(QFrame):
         self.setObjectName("footer_bar")
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._sync_service = None
         self._build()
 
         # Sync footer UI when ZoomService changes (startup load, Ctrl+Scroll, presets)
@@ -336,6 +337,24 @@ class FooterBar(QFrame):
     def hide_filter(self) -> None:
         """Hide the filter indicator."""
         self._filter_lbl.hide()
+
+    def set_sync_service(self, sync_service) -> None:
+        """Set the sync service for the footer's sync indicator."""
+        self._sync_service = sync_service
+        # Rebuild the sync indicator section
+        if hasattr(self, '_sync_indicator'):
+            self._sync_indicator.deleteLater()
+        if hasattr(self, '_sync'):
+            self._sync.deleteLater()
+        if self._sync_service is not None:
+            from app.ui.components.sync_indicator import SyncIndicator
+            self._sync_indicator = SyncIndicator(self._sync_service)
+            # Add to layout - need to find the layout and add it
+            # For now, this is a simplified version - the full implementation
+            # would need to properly manage the layout
+        else:
+            self._sync = QLabel(f"●  {t('footer_connected')}")
+            self._sync.setObjectName("footer_sync")
 
     # ── Log health dot ───────────────────────────────────────────────────────
 

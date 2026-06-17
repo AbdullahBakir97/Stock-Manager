@@ -40,6 +40,8 @@ class ShopConfig:
     cloud_sync_enabled:         str = "0"   # "1" = enabled, "0" = disabled
     sync_interval_minutes:      str = "5"   # sync interval in minutes
     sync_role:                  str = ""   # "primary" | "replica" | ""
+    # Phones module
+    phones_module_enabled:      str = "0"   # "1" = enabled, "0" = disabled
 
     _KEYS = (
         "name", "currency", "currency_position", "default_language",
@@ -56,6 +58,7 @@ class ShopConfig:
         "cloud_sync_enabled",
         "sync_interval_minutes",
         "sync_role",
+        "phones_module_enabled",
     )
 
     # ── Typed accessors for auto-backup ──────────────────────────────────────
@@ -113,6 +116,13 @@ class ShopConfig:
             return max(1, int(getattr(self, 'sync_interval_minutes', '5')))
         except (ValueError, TypeError):
             return 5
+
+    @property
+    def is_phones_module_enabled(self) -> bool:
+        try:
+            return getattr(self, 'phones_module_enabled', '0') == "1"
+        except Exception:
+            return False
 
     @property
     def ui_scale_factor(self) -> float:

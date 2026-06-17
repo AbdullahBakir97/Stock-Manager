@@ -52,6 +52,7 @@ from app.ui.pages.returns_page import ReturnsPage
 from app.ui.pages.suppliers_page import SuppliersPage
 from app.ui.pages.audit_page import AuditPage
 from app.ui.pages.price_lists_page import PriceListsPage
+from app.ui.pages.phones_page import PhonesPage
 from app.ui.dialogs.admin.customers_panel import CustomersPanel
 from app.ui.components.toast import ToastManager
 from app.ui.components.log_view import LogsPage, log_bus
@@ -172,6 +173,10 @@ class MainWindow(QMainWindow):
             _log = __import__('logging').getLogger(__name__)
             _log.error("Failed to initialize sync service: %s", exc)
             self._sync_service = None
+
+        # Pass sync service to footer for sync indicator
+        if hasattr(self, '_footer'):
+            self._footer.set_sync_service(self._sync_service)
 
         self._upd_ctrl.start_auto_check(ShopConfig.get().is_update_auto_check_enabled)
 

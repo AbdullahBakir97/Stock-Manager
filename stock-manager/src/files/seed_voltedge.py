@@ -1374,28 +1374,6 @@ def seed_phones() -> None:
     conn.commit()
     print(f"  → Inserted {total_units} phone units with IMEIs")
 
-    # Link some inventory items to phone models for parts compatibility
-    # Get display part types
-    display_pt_id = conn.execute("SELECT id FROM part_types WHERE key='displays'").fetchone()
-    if display_pt_id:
-        display_pt_id = display_pt_id[0]
-
-        # Link iPhone models to specific display colors
-        iphone_models = [mid for key, mid in model_ids.items() if "iPhone" in key]
-        for model_id in iphone_models[:3]:  # Link first 3 iPhone models
-            conn.execute(
-                """INSERT INTO model_part_type_colors (model_id, part_type_id, color_name)
-                   VALUES (?, ?, ?)""",
-                (model_id, display_pt_id, "Black")
-            )
-            conn.execute(
-                """INSERT INTO model_part_type_colors (model_id, part_type_id, color_name)
-                   VALUES (?, ?, ?)""",
-                (model_id, display_pt_id, "White")
-            )
-        conn.commit()
-        print(f"  → Linked phone models to display parts")
-
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 

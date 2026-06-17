@@ -430,7 +430,9 @@ class FooterBar(QFrame):
             w.setVisible(visible)
 
     def retranslate(self) -> None:
-        self._sync.setText(f"●  {t('footer_connected')}")
+        if hasattr(self, '_sync') and self._sync is not None:
+            self._sync.setText(f"●  {t('footer_connected')}")
+        # SyncIndicator handles its own retranslation
         # Preset menu uses English labels (numbers + Fit/Reset) — no retranslate needed
 
     # ── UI Scale (one-shot at startup) ────────────────────────────────────

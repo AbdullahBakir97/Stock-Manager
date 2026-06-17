@@ -83,6 +83,7 @@ class AdminDialog(QDialog):
 
     def __init__(self, parent=None, sync_service=None):
         super().__init__(parent)
+        self._sync_service = sync_service
         self.setObjectName("admin_dialog")
         self.setWindowTitle(t("admin_title"))
         self.setModal(True)
@@ -177,7 +178,7 @@ class AdminDialog(QDialog):
         self._scan_panel = ScanSettingsPanel()
         self._backup_panel = BackupPanel()
         self._import_export_panel = ImportExportPanel()
-        self._cloud_sync_panel = CloudSyncPanel(sync_service=sync_service)
+        self._cloud_sync_panel = CloudSyncPanel(sync_service=self._sync_service)
         self._db_tools_panel = DatabaseToolsPanel()
         self._about_panel = AboutPanel()
 

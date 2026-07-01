@@ -708,7 +708,7 @@ The async engine ensures the UI never blocks regardless of database size. If you
 
 ## 📈 Releases
 
-**Current release: v2.6.6** · [Full changelog →](CHANGELOG.md)
+**Current release: v2.6.7** · [Full changelog →](CHANGELOG.md)
 
 Every release is built, signed, and published automatically by CI (`.github/workflows/release.yml`) on each `v*.*.*` tag — stamping the version across `version.py`, the installer files, this README, and `update_manifest.json`. The complete, per-version history lives in **[CHANGELOG.md](CHANGELOG.md)**.
 

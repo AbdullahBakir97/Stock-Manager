@@ -56,8 +56,6 @@ class AuditRepository:
                 discrepancies=row[8],
             )
             audits.append(audit)
-
-        conn.close()
         return audits
 
     def get_by_id(self, audit_id: int) -> Optional[InventoryAudit]:
@@ -93,8 +91,6 @@ class AuditRepository:
         )
 
         row = cur.fetchone()
-        conn.close()
-
         if not row:
             return None
 
@@ -126,8 +122,6 @@ class AuditRepository:
         audit_id = cur.lastrowid
 
         conn.commit()
-        conn.close()
-
         return audit_id
 
     def update_status(
@@ -150,8 +144,6 @@ class AuditRepository:
         )
 
         conn.commit()
-        conn.close()
-
     def delete(self, audit_id: int) -> None:
         """Delete an audit and its lines."""
         conn = get_connection()
@@ -163,8 +155,6 @@ class AuditRepository:
         cur.execute("DELETE FROM inventory_audits WHERE id = ?", (audit_id,))
 
         conn.commit()
-        conn.close()
-
     def get_lines(self, audit_id: int) -> list[AuditLine]:
         """Fetch all lines for an audit, joined with item data."""
         conn = get_connection()
@@ -176,7 +166,14 @@ class AuditRepository:
                 al.id,
                 al.audit_id,
                 al.item_id,
-                ii.name,
+                CASE
+                    WHEN ii.model_id IS NOT NULL
+                    THEN COALESCE(pm.brand, '') || ' ' || COALESCE(pm.name, '')
+                         || ' · ' || COALESCE(pt.name, '')
+                         || CASE WHEN ii.color != '' THEN ' · ' || ii.color ELSE '' END
+                    ELSE COALESCE(NULLIF(TRIM(ii.brand || ' ' || ii.name), ''),
+                                  'Item #' || ii.id)
+                END AS display_name,
                 ii.barcode,
                 al.system_qty,
                 al.counted_qty,
@@ -184,8 +181,10 @@ class AuditRepository:
                 al.note
             FROM audit_lines al
             JOIN inventory_items ii ON al.item_id = ii.id
+            LEFT JOIN phone_models pm ON pm.id = ii.model_id
+            LEFT JOIN part_types pt ON pt.id = ii.part_type_id
             WHERE al.audit_id = ?
-            ORDER BY ii.name ASC
+            ORDER BY display_name ASC
             """,
             (audit_id,),
         )
@@ -204,8 +203,6 @@ class AuditRepository:
                 note=row[8],
             )
             lines.append(line)
-
-        conn.close()
         return lines
 
     def add_line(self, audit_id: int, item_id: int, system_qty: int) -> int:
@@ -223,8 +220,6 @@ class AuditRepository:
         line_id = cur.lastrowid
 
         conn.commit()
-        conn.close()
-
         return line_id
 
     def update_line_count(self, line_id: int, counted_qty: int, note: str = "") -> None:
@@ -236,7 +231,6 @@ class AuditRepository:
         cur.execute("SELECT system_qty FROM audit_lines WHERE id = ?", (line_id,))
         row = cur.fetchone()
         if not row:
-            conn.close()
             return
 
         system_qty = row[0]
@@ -252,8 +246,6 @@ class AuditRepository:
         )
 
         conn.commit()
-        conn.close()
-
     def populate_from_inventory(self, audit_id: int) -> int:
         """Bulk insert all current inventory items as audit lines. Returns count inserted."""
         conn = get_connection()
@@ -282,8 +274,6 @@ class AuditRepository:
             inserted += 1
 
         conn.commit()
-        conn.close()
-
         return inserted
 
     def get_summary(self) -> dict:
@@ -312,8 +302,6 @@ class AuditRepository:
             """
         )
         total_discrepancies = cur.fetchone()[0]
-
-        conn.close()
 
         return {
             "total_audits": row[0] or 0,

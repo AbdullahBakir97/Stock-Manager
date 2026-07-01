@@ -28,16 +28,25 @@ _RING_CAPACITY = 5000  # in-memory records kept for the in-app log viewer
 # The UI layer registers a listener that marshals records onto the Qt thread.
 
 class LogRecordView:
-    """A lightweight, picklable snapshot of a log record for the UI."""
-    __slots__ = ("time", "level", "levelno", "name", "message")
+    """A lightweight, picklable snapshot of a log record for the UI.
+
+    `detail` holds the formatted traceback (when the record carries exc_info),
+    so the in-app viewer can show the real failure — not just the summary line.
+    """
+    __slots__ = ("time", "level", "levelno", "name", "message", "detail")
 
     def __init__(self, time: str, level: str, levelno: int,
-                 name: str, message: str) -> None:
+                 name: str, message: str, detail: str = "") -> None:
         self.time = time
         self.level = level
         self.levelno = levelno
         self.name = name
         self.message = message
+        self.detail = detail
+
+    @property
+    def has_detail(self) -> bool:
+        return bool(self.detail)
 
 
 class RingBufferHandler(logging.Handler):
@@ -56,12 +65,28 @@ class RingBufferHandler(logging.Handler):
 
     def emit(self, record: logging.LogRecord) -> None:
         try:
+            message = record.getMessage()
+            detail = ""
+            # Pull the traceback (if any) so the viewer shows the real failure.
+            if record.exc_info:
+                detail = self._format_exc(record.exc_info)
+            elif record.exc_text:
+                detail = record.exc_text
+            if record.stack_info:
+                detail = (detail + "\n" + record.stack_info).strip()
+            if detail:
+                # Make the collapsed one-liner informative too: append the
+                # exception's own summary line (e.g. "OperationalError: ...").
+                first = detail.strip().splitlines()[-1] if detail.strip() else ""
+                if first and first not in message:
+                    message = f"{message} — {first}"
             view = LogRecordView(
                 time=self.format_time(record),
                 level=record.levelname,
                 levelno=record.levelno,
                 name=record.name,
-                message=record.getMessage(),
+                message=message,
+                detail=detail,
             )
         except Exception:
             return
@@ -78,6 +103,14 @@ class RingBufferHandler(logging.Handler):
     def format_time(record: logging.LogRecord) -> str:
         import time as _t
         return _t.strftime(_DATE_FORMAT, _t.localtime(record.created))
+
+    @staticmethod
+    def _format_exc(exc_info) -> str:
+        import traceback
+        try:
+            return "".join(traceback.format_exception(*exc_info)).rstrip()
+        except Exception:
+            return ""
 
     def snapshot(self) -> list:
         with self._lock:

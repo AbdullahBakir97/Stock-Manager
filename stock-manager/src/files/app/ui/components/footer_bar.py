@@ -127,12 +127,12 @@ class FooterBar(QFrame):
     # Kept for backwards compatibility. Still emitted, but ZOOM is authoritative.
     zoom_changed = pyqtSignal(int)
 
-    def __init__(self, sync_service=None, parent: QWidget | None = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self._sync_service = sync_service
         self.setObjectName("footer_bar")
         self.setFixedHeight(32)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self._sync_service = None
         self._build()
 
         # Sync footer UI when ZoomService changes (startup load, Ctrl+Scroll, presets)
@@ -199,7 +199,7 @@ class FooterBar(QFrame):
         self._zoom_slider.setTickInterval(25)
         self._zoom_slider.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         self._zoom_slider.setFixedSize(110, 18)
-        self._zoom_slider.setToolTip("Drag to zoom  (Ctrl+Scroll)")
+        self._zoom_slider.setToolTip(t("footer_tip_zoom"))
         self._zoom_slider.setTracking(True)
         self._is_dragging = False
         self._zoom_slider.sliderPressed.connect(self._on_slider_pressed)
@@ -229,7 +229,7 @@ class FooterBar(QFrame):
         self._zoom_preset_btn.setFixedSize(56, 22)  # locked — text never pushes layout
         self._zoom_preset_btn.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
         self._zoom_preset_btn.setArrowType(Qt.ArrowType.NoArrow)
-        self._zoom_preset_btn.setToolTip("Zoom presets")
+        self._zoom_preset_btn.setToolTip(t("footer_tip_zoom_presets"))
         self._build_preset_menu()
         zlay.addWidget(self._zoom_preset_btn)
 
@@ -338,6 +338,34 @@ class FooterBar(QFrame):
         """Hide the filter indicator."""
         self._filter_lbl.hide()
 
+    def set_sync_service(self, sync_service) -> None:
+        """Set the sync service for the footer's sync indicator."""
+        self._sync_service = sync_service
+        # Find the layout and replace the sync indicator
+        lay = self.layout()
+        if lay is None:
+            return
+
+        # Remove existing sync indicator/label
+        if hasattr(self, '_sync_indicator') and self._sync_indicator is not None:
+            lay.removeWidget(self._sync_indicator)
+            self._sync_indicator.deleteLater()
+            self._sync_indicator = None
+        if hasattr(self, '_sync') and self._sync is not None:
+            lay.removeWidget(self._sync)
+            self._sync.deleteLater()
+            self._sync = None
+
+        # Add new sync indicator or fallback label
+        if self._sync_service is not None:
+            from app.ui.components.sync_indicator import SyncIndicator
+            self._sync_indicator = SyncIndicator(self._sync_service)
+            lay.addWidget(self._sync_indicator)
+        else:
+            self._sync = QLabel(f"●  {t('footer_connected')}")
+            self._sync.setObjectName("footer_sync")
+            lay.addWidget(self._sync)
+
     # ── Log health dot ───────────────────────────────────────────────────────
 
     def _on_log_counts(self, warnings: int, errors: int) -> None:
@@ -402,8 +430,9 @@ class FooterBar(QFrame):
             w.setVisible(visible)
 
     def retranslate(self) -> None:
-        if hasattr(self, "_sync"):
+        if hasattr(self, '_sync') and self._sync is not None:
             self._sync.setText(f"●  {t('footer_connected')}")
+        # SyncIndicator handles its own retranslation
         # Preset menu uses English labels (numbers + Fit/Reset) — no retranslate needed
 
     # ── UI Scale (one-shot at startup) ────────────────────────────────────

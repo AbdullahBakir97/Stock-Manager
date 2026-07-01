@@ -9,14 +9,6 @@ pil_datas, pil_binaries, pil_hiddenimports     = collect_all('PIL')
 barcode_datas, barcode_binaries, barcode_hiddenimports = collect_all('barcode')
 fpdf_datas, fpdf_binaries, fpdf_hiddenimports  = collect_all('fpdf')
 fitz_datas, fitz_binaries, fitz_hiddenimports  = collect_all('fitz')
-
-# libSQL embedded-replica client (native .pyd). Optional: present only on
-# Pythons with a wheel (cp39-cp313). When absent (e.g. a build on 3.14) the
-# app falls back to the pure-stdlib Turso HTTP client, so don't hard-fail.
-try:
-    libsql_datas, libsql_binaries, libsql_hiddenimports = collect_all('libsql')
-except Exception:
-    libsql_datas, libsql_binaries, libsql_hiddenimports = [], [], []
 # zxing-cpp ships its decoder as a single ``.pyd`` extension module
 # (``zxingcpp.cp3xx-win_amd64.pyd`` — NOT a package directory) so
 # ``collect_all`` doesn't apply. Bundle the .pyd explicitly + register
@@ -51,20 +43,20 @@ block_cipher = None
 a = Analysis(
     ['files/main.py'],
     pathex=['files'],
-    binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries + fitz_binaries + zxing_binaries + libsql_binaries,
+    binaries=collect_dynamic_libs('PyQt6') + pil_binaries + barcode_binaries + fpdf_binaries + fitz_binaries + zxing_binaries,
     datas=[
         ('files/img/icon_cube.ico',  'img'),
         ('files/img/icon_cube.png',  'img'),
         ('files/img/icon_logo.ico', 'img'),
         ('files/img/logo.png',      'img'),
         ('files/img/icons',         'img/icons'),
-    ] + pil_datas + barcode_datas + fpdf_datas + fitz_datas + zxing_datas + libsql_datas,
+    ] + pil_datas + barcode_datas + fpdf_datas + fitz_datas + zxing_datas,
     hiddenimports=[
         # PyQt6
         'PyQt6.QtCore', 'PyQt6.QtGui', 'PyQt6.QtWidgets', 'PyQt6.QtSql',
         # stdlib
         'sqlite3', '_sqlite3',
-    ] + pil_hiddenimports + barcode_hiddenimports + fpdf_hiddenimports + fitz_hiddenimports + zxing_hiddenimports + libsql_hiddenimports + [
+    ] + pil_hiddenimports + barcode_hiddenimports + fpdf_hiddenimports + fitz_hiddenimports + zxing_hiddenimports + [
         # ── app.core ──────────────────────────────────────────────────────────
         'app.core.colors',
         'app.core.config',

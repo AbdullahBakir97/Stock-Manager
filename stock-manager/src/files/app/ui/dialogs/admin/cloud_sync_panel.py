@@ -41,7 +41,8 @@ class CloudSyncPanel(QWidget):
         super().__init__(parent)
         self._svc = sync_service
         self._build_ui()
-        self._load()
+        # Defer _load to avoid blocking during panel creation
+        QTimer.singleShot(0, self._load)
         if self._svc is not None:
             self._svc.sync_started.connect(self._on_sync_started)
             self._svc.sync_completed.connect(self._on_sync_done)
@@ -101,7 +102,7 @@ class CloudSyncPanel(QWidget):
         url_lbl.setFixedWidth(120)
         url_row.addWidget(url_lbl)
         self._url_edit = QLineEdit()
-        self._url_edit.setPlaceholderText("libsql://your-database.turso.io  (or https://...)")
+        self._url_edit.setPlaceholderText(t("cloud_url_ph"))
         url_row.addWidget(self._url_edit)
         cred_lay.addLayout(url_row)
 
@@ -111,7 +112,7 @@ class CloudSyncPanel(QWidget):
         token_row.addWidget(token_lbl)
         self._token_edit = QLineEdit()
         self._token_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._token_edit.setPlaceholderText("eyJ…")
+        self._token_edit.setPlaceholderText(t("cloud_token_ph"))
         token_row.addWidget(self._token_edit)
         cred_lay.addLayout(token_row)
 
@@ -187,7 +188,7 @@ class CloudSyncPanel(QWidget):
         actions_lay.addWidget(init_lbl)
 
         init_row = QHBoxLayout()
-        self._init_primary_btn = QPushButton("⬆  Initialize as Primary (push local data to cloud)")
+        self._init_primary_btn = QPushButton("⬆  Push local data to cloud (merge — never deletes)")
         self._init_primary_btn.setObjectName("action_btn")
         self._init_primary_btn.clicked.connect(self._init_primary)
         init_row.addWidget(self._init_primary_btn)
@@ -309,15 +310,27 @@ class CloudSyncPanel(QWidget):
             return
         self._test_btn.setEnabled(False)
         self._set_test_result("Testing…", error=False)
-        try:
-            from app.core.database import _TursoHTTPConnection
-            conn = _TursoHTTPConnection(url, token)
-            conn.execute("SELECT 1")
-            self._set_test_result("✓  Connection successful", error=False)
-        except Exception as exc:
-            self._set_test_result(f"✕  {exc}", error=True)
-        finally:
+        
+        # Run network test in background to avoid UI freeze
+        from app.ui.workers.worker_pool import POOL
+        def _test_worker():
+            try:
+                from app.core.database import _TursoHTTPConnection
+                conn = _TursoHTTPConnection(url, token)
+                conn.execute("SELECT 1")
+                return (True, None)
+            except Exception as exc:
+                return (False, str(exc))
+        
+        def _on_done(result):
+            success, error = result
+            if success:
+                self._set_test_result("✓  Connection successful", error=False)
+            else:
+                self._set_test_result(f"✕  {error}", error=True)
             self._test_btn.setEnabled(True)
+        
+        POOL.submit("cloud_sync_test", _test_worker, _on_done, _on_done)
 
     def _sync_now(self) -> None:
         if self._svc is None:
@@ -332,21 +345,39 @@ class CloudSyncPanel(QWidget):
         if not ShopConfig.get().is_cloud_sync_enabled:
             QMessageBox.information(self, "Cloud Sync", "Save and enable cloud sync settings first.")
             return
+
+        # Read-only pre-push diff so the user sees exactly what will change.
+        # This is now a MERGE (upsert) — it never deletes cloud rows.
+        diff_summary = ""
+        try:
+            from app.core.database import preview_push_diff
+            diff = preview_push_diff()
+            ins = sum(e["to_insert"] for e in diff.values())
+            upd = sum(e["to_update"] for e in diff.values())
+            keep = sum(e["cloud_only"] for e in diff.values())
+            diff_summary = (
+                f"\n\nThis will MERGE this PC's data into the cloud "
+                f"(safe — it never deletes):\n"
+                f"   •  Insert new rows:            {ins}\n"
+                f"   •  Update existing rows:       {upd}\n"
+                f"   •  Cloud-only rows kept as-is: {keep}\n"
+            )
+        except Exception as exc:
+            diff_summary = f"\n\n(Could not preview changes: {exc})\n"
+
         reply = QMessageBox.question(
-            self, "Initialize as Primary",
-            "This is the ONE-TIME setup for the PC that already holds the "
-            "shop's data.\n\n"
-            "It will UPLOAD all of this PC's data to the cloud database "
-            "(replacing anything already there), and then switch this PC to "
-            "work DIRECTLY on the shared cloud database — so from now on it "
-            "stays in sync with every other PC.\n\n"
-            "Run this on only ONE PC. Continue?",
+            self, "Push local data to cloud (merge)",
+            "This uploads this PC's data to the shared cloud database and then "
+            "switches this PC to work DIRECTLY on the cloud, so it stays in sync "
+            "with every other PC."
+            + diff_summary +
+            "\nRun this on the PC that holds the data you want to push. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
         self._init_primary_btn.setEnabled(False)
-        self._set_test_result("Uploading local data to cloud…", error=False)
+        self._set_test_result("Merging local data into cloud…", error=False)
         try:
             from app.core.database import push_local_to_turso
             counts = push_local_to_turso()
@@ -359,8 +390,8 @@ class CloudSyncPanel(QWidget):
             ShopConfig.invalidate()
             total = sum(counts.values())
             self._set_test_result(
-                f"✓  Uploaded {total} rows — this PC now works on the shared "
-                f"cloud database (synced with all PCs)", error=False)
+                f"✓  Merged {total} rows into the cloud — this PC now works on "
+                f"the shared cloud database (synced with all PCs)", error=False)
             self._refresh_status()
         except Exception as exc:
             self._set_test_result(f"✕  Upload failed: {exc}", error=True)
@@ -479,12 +510,12 @@ class CloudSyncPanel(QWidget):
 
     def _on_sync_done(self, timestamp: str) -> None:
         try:
-            t = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
+            time_str = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
         except Exception:
-            t = timestamp
+            time_str = timestamp
         self._status_lbl.setText(f"● Cloud sync active")
         self._status_lbl.setStyleSheet("color: #27AE60;")
-        self._last_sync_lbl.setText(f"Last sync: {t}")
+        self._last_sync_lbl.setText(f"Last sync: {time_str}")
         self._sync_now_btn.setEnabled(True)
         self._init_primary_btn.setEnabled(True)
         self._init_replica_btn.setEnabled(True)
@@ -508,10 +539,10 @@ class CloudSyncPanel(QWidget):
             self._status_lbl.setText("○ Cloud sync disabled")
             self._status_lbl.setStyleSheet("color: #888888;")
         if self._svc and self._svc.last_sync_time:
-            t = self._svc.last_sync_time.strftime("%H:%M:%S")
-            self._last_sync_lbl.setText(f"Last sync: {t}")
+            time_str = self._svc.last_sync_time.strftime("%H:%M:%S")
+            self._last_sync_lbl.setText(f"Last sync: {time_str}")
         else:
-            self._last_sync_lbl.setText("Last sync: Never")
+            self._last_sync_lbl.setText(t("sync_last_sync_never"))
 
     def _refresh_errors(self) -> None:
         self._error_list.clear()

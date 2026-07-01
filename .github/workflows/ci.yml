@@ -56,7 +56,16 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python tests/test_report_smoke.py
 
-      # Gate 3 — libSQL embedded-replica round-trip against a THROWAWAY Turso
+      # Gate 3 — the cloud push must be non-destructive (UPSERT, never DROP), so
+      # a push from a PC holding less data can't wipe cloud-only rows. Guards the
+      # "phones disappeared after sync" incident.
+      - name: Sync push is non-destructive (upsert)
+        working-directory: stock-manager/src/files
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tests/test_sync_upsert.py
+
+      # Gate 4 — libSQL embedded-replica round-trip against a THROWAWAY Turso
       # database (write -> sync -> read-back, dict row access, executemany).
       # This is the only place the cloud-sync data layer can actually be tested
       # (no Python-3.14 wheel on dev). Skips cleanly if the secrets aren't set.

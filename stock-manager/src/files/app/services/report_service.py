@@ -45,8 +45,6 @@ _UMAP = {
     "\u20ac": "EUR", "\u2013": "-", "\u2014": "--",
     "\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
     "\u2022": "*", "\u2026": "...", "\u00b7": ".",
-    "\u2192": "->", "\u2190": "<-", "\u2194": "<->",   # arrows (used in subtitles)
-    "\u2713": "OK", "\u2717": "x",                       # check / cross marks
 }
 
 
@@ -799,6 +797,14 @@ class ReportService:
             self._empty_msg(pdf, "No category data for the selected range.")
         return self._save(pdf, output_path, "category_performance_report")
 
+    # ════════════════════════════════════════════════════════════════════════
+    # DESIGN COMPONENTS
+    # ════════════════════════════════════════════════════════════════════════
+
+    def _safe(self, s) -> str:
+        """Latin-1 sanitise — available to subclasses / inline render code."""
+        return _latin1(s)
+
     def generate_phones_inventory_report(self,
                                          output_path: str | None = None) -> str:
         """Phone-unit inventory — every IMEI-tracked device grouped by brand,
@@ -901,21 +907,91 @@ class ReportService:
     # DESIGN COMPONENTS
     # ════════════════════════════════════════════════════════════════════════
 
-    def _safe(self, s) -> str:
-        """Latin-1 sanitise — available to subclasses / inline render code."""
-        return _latin1(s)
+    def _phones_table(self, pdf: _ReportPDF, units: list) -> None:
+        cols = [
+            ("#",       8,  "C"),
+            ("Model",   34, "L"),
+            ("IMEI",    34, "L"),
+            ("Storage", 16, "C"),
+            ("Cond",    16, "C"),
+            ("Batt",    12, "C"),
+            ("Buy",     16, "R"),
+            ("Sell",    14, "R"),
+            ("Status",  36, "C"),
+        ]
+        # Sum = 186 ✓
+        self._draw_table_header(pdf, cols)
+        for idx, u in enumerate(units):
+            buy = (self._cfg.format_currency(f"{u.buy_price:,.2f}")
+                   if u.buy_price else "-")
+            sell = (self._cfg.format_currency(f"{u.sell_price:,.2f}")
+                    if u.sell_price else "-")
+            status_txt = {
+                "in_stock": "IN STOCK", "sold": "SOLD", "reserved": "RESERVED",
+            }.get(u.status, u.status.replace("_", " ").upper())
+            cells = [
+                (str(idx + 1), 8, "C"),
+                ((u.model_name or "-")[:22], 34, "L"),
+                ((u.imei or "-")[:20], 34, "L"),
+                (u.storage or "-", 16, "C"),
+                (u.condition_label[:8], 16, "C"),
+                (u.battery_label, 12, "C"),
+                (buy, 16, "R"),
+                (sell, 14, "R"),
+            ]
+            y_before = pdf.get_y()
+            self._row(pdf, cells, idx)
+            # Coloured status badge
+            pdf.set_xy(_MARGIN_L + sum(c[1] for c in cols[:-1]), y_before)
+            if u.status == "in_stock":
+                pdf.set_text_color(*_GREEN_TXT); pdf.set_font("Helvetica", "B", 7.5)
+            elif u.status == "sold":
+                pdf.set_text_color(*_RED_TXT); pdf.set_font("Helvetica", "B", 7.5)
+            else:
+                pdf.set_text_color(180, 120, 0); pdf.set_font("Helvetica", "B", 7.5)
+            bg = _WHITE if idx % 2 == 0 else _GRAY_50
+            pdf.set_fill_color(*bg)
+            pdf.cell(36, 6.5, status_txt, border="B", fill=True, align="C")
+            pdf.set_xy(_MARGIN_L, y_before + 6.5)
+            self._page_break_check(pdf, cols)
+
+    # ── Phones — sold history ──────────────────────────────────────────────
+    def _phones_sold_table(self, pdf: _ReportPDF, txs: list) -> None:
+        cols = [
+            ("#",          8,  "C"),
+            ("Sold On",    28, "L"),
+            ("Brand",      22, "L"),
+            ("Model",      36, "L"),
+            ("IMEI",       38, "L"),
+            ("Sale Price", 24, "R"),
+            ("Note",       30, "L"),
+        ]
+        # Sum = 186 ✓
+        self._draw_table_header(pdf, cols)
+        for idx, tx in enumerate(txs):
+            sold_on = (tx.timestamp or "")[:16].replace("T", " ")
+            price = (self._cfg.format_currency(f"{tx.sell_price:,.2f}")
+                     if tx.sell_price else "-")
+            cells = [
+                (str(idx + 1), 8, "C"),
+                (sold_on, 28, "L"),
+                ((tx.model_brand or "-")[:13], 22, "L"),
+                ((tx.model_name or "-")[:22], 36, "L"),
+                ((tx.imei or "-")[:24], 38, "L"),
+                (price, 24, "R"),
+                ((tx.note or "")[:20], 30, "L"),
+            ]
+            self._row(pdf, cells, idx)
+            self._page_break_check(pdf, cols)
+
+    # ── Audit ─────────────────────────────────────────────────────────────
 
     def _new_pdf(self, title: str, subtitle: str = "") -> _ReportPDF:
         pdf = _ReportPDF(orientation="P", unit="mm", format="A4")
         pdf.title_text = title
         pdf.subtitle_text = subtitle
         pdf.shop_cfg = self._cfg
-        # Auto page-break is DISABLED on purpose: the table renderers do their
-        # own proactive page breaks (so they can redraw column/group headers and
-        # keep a row + its coloured status badge together). Leaving fpdf's auto
-        # break on caused it to fire mid-row, stranding the badge on a separate
-        # page and producing blank/near-empty pages between full ones.
-        pdf.set_auto_page_break(auto=False)
+        pdf.set_auto_page_break(auto=True, margin=_MARGIN_B + 4)
         pdf.set_left_margin(_MARGIN_L)
         pdf.set_right_margin(_MARGIN_R)
         pdf.set_top_margin(_MARGIN_T)
@@ -945,9 +1021,6 @@ class ReportService:
 
     def _section_title(self, pdf: _ReportPDF, text: str) -> None:
         pdf.ln(1)
-        # Keep the title with the header + first row that follow it.
-        if pdf.get_y() + 20 > _CONTENT_BOTTOM:
-            pdf.add_page()
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(*_DARK)
         pdf.cell(0, 7, text, ln=True)
@@ -993,8 +1066,6 @@ class ReportService:
 
     def _subtotal_row(self, pdf: _ReportPDF, label: str, meta: str) -> None:
         """Thin line showing a subtotal right below a grouped table."""
-        if pdf.get_y() + 8 > _CONTENT_BOTTOM:
-            pdf.add_page()
         y = pdf.get_y()
         pdf.set_draw_color(*_GRAY_400)
         pdf.line(_MARGIN_L, y, _MARGIN_L + _PW, y)
@@ -1010,17 +1081,14 @@ class ReportService:
         pdf.ln(6.5)
 
     def _page_break_check_raw(self, pdf: _ReportPDF) -> None:
-        """Proactive page-break before a group header, leaving room for the
-        header bar plus the table header and at least one row that follow it
-        (so a group header never lands alone at the bottom of a page)."""
-        if pdf.get_y() + 22 > _CONTENT_BOTTOM:
+        """Page-break when near the bottom, without redrawing a table header
+        (used before group headers which are self-contained)."""
+        if pdf.get_y() > _CONTENT_BOTTOM - 12:
             pdf.add_page()
 
     def _grand_total_bar(self, pdf: _ReportPDF, kvs: list[tuple[str, str]]) -> None:
         """Bold emerald bar at the bottom of the valuation report."""
         pdf.ln(2)
-        if pdf.get_y() + 15 > _CONTENT_BOTTOM:
-            pdf.add_page()
         y = pdf.get_y()
         pdf.set_fill_color(*_PRIMARY)
         pdf.rect(_MARGIN_L, y, _PW, 11, "F")
@@ -1047,10 +1115,6 @@ class ReportService:
 
     def _draw_table_header(self, pdf: _ReportPDF,
                            cols: list[tuple[str, float, str]]) -> None:
-        # Never draw a column header so close to the bottom that no row would
-        # fit under it (auto page-break is off, so we guard explicitly).
-        if pdf.get_y() + 7 + 7 > _CONTENT_BOTTOM:
-            pdf.add_page()
         pdf.set_font("Helvetica", "B", 7.5)
         pdf.set_fill_color(*_DARK)
         pdf.set_text_color(*_WHITE)
@@ -1077,11 +1141,7 @@ class ReportService:
 
     def _page_break_check(self, pdf: _ReportPDF,
                           cols: list[tuple[str, float, str]]) -> None:
-        """Proactive: called after each row, it guarantees the NEXT row has
-        room; if not, start a new page and redraw the column header. With auto
-        page-break disabled this is what keeps every row (and its badge) intact
-        on a single page."""
-        if pdf.get_y() + 7 > _CONTENT_BOTTOM:
+        if pdf.get_y() > _CONTENT_BOTTOM - 8:
             pdf.add_page()
             self._draw_table_header(pdf, cols)
 
@@ -1210,7 +1270,7 @@ class ReportService:
                     bg = _WHITE if (running_idx - 1) % 2 == 0 else _GRAY_50
                     pdf.set_fill_color(*bg)
                     pdf.cell(18, 6.5, status, border="B", fill=True, align="C")
-                    pdf.set_xy(_MARGIN_L, y_before + 6.5)
+                    pdf.ln(0)
                     self._page_break_check(pdf, cols)
 
                 self._subtotal_row(
@@ -1308,7 +1368,7 @@ class ReportService:
             bg = _WHITE if idx % 2 == 0 else _GRAY_50
             pdf.set_fill_color(*bg)
             pdf.cell(38, 6.5, urgency, border="B", fill=True, align="C")
-            pdf.set_xy(_MARGIN_L, y_before + 6.5)
+            pdf.ln(0)
             self._page_break_check(pdf, cols)
 
     # ── Transactions ───────────────────────────────────────────────────────
@@ -1363,84 +1423,6 @@ class ReportService:
             pdf.set_text_color(*_GRAY_400); pdf.set_font("Helvetica", "", 6.5)
             pdf.cell(20, 6.5, f"  {note}", border="B", fill=True, align="L")
             pdf.ln(6.5)
-            self._page_break_check(pdf, cols)
-
-    # ── Phones — inventory ─────────────────────────────────────────────────
-    def _phones_table(self, pdf: _ReportPDF, units: list) -> None:
-        cols = [
-            ("#",       8,  "C"),
-            ("Model",   34, "L"),
-            ("IMEI",    34, "L"),
-            ("Storage", 16, "C"),
-            ("Cond",    16, "C"),
-            ("Batt",    12, "C"),
-            ("Buy",     16, "R"),
-            ("Sell",    14, "R"),
-            ("Status",  36, "C"),
-        ]
-        # Sum = 186 ✓
-        self._draw_table_header(pdf, cols)
-        for idx, u in enumerate(units):
-            buy = (self._cfg.format_currency(f"{u.buy_price:,.2f}")
-                   if u.buy_price else "-")
-            sell = (self._cfg.format_currency(f"{u.sell_price:,.2f}")
-                    if u.sell_price else "-")
-            status_txt = {
-                "in_stock": "IN STOCK", "sold": "SOLD", "reserved": "RESERVED",
-            }.get(u.status, u.status.replace("_", " ").upper())
-            cells = [
-                (str(idx + 1), 8, "C"),
-                ((u.model_name or "-")[:22], 34, "L"),
-                ((u.imei or "-")[:20], 34, "L"),
-                (u.storage or "-", 16, "C"),
-                (u.condition_label[:8], 16, "C"),
-                (u.battery_label, 12, "C"),
-                (buy, 16, "R"),
-                (sell, 14, "R"),
-            ]
-            y_before = pdf.get_y()
-            self._row(pdf, cells, idx)
-            # Coloured status badge
-            pdf.set_xy(_MARGIN_L + sum(c[1] for c in cols[:-1]), y_before)
-            if u.status == "in_stock":
-                pdf.set_text_color(*_GREEN_TXT); pdf.set_font("Helvetica", "B", 7.5)
-            elif u.status == "sold":
-                pdf.set_text_color(*_RED_TXT); pdf.set_font("Helvetica", "B", 7.5)
-            else:
-                pdf.set_text_color(180, 120, 0); pdf.set_font("Helvetica", "B", 7.5)
-            bg = _WHITE if idx % 2 == 0 else _GRAY_50
-            pdf.set_fill_color(*bg)
-            pdf.cell(36, 6.5, status_txt, border="B", fill=True, align="C")
-            pdf.set_xy(_MARGIN_L, y_before + 6.5)
-            self._page_break_check(pdf, cols)
-
-    # ── Phones — sold history ──────────────────────────────────────────────
-    def _phones_sold_table(self, pdf: _ReportPDF, txs: list) -> None:
-        cols = [
-            ("#",          8,  "C"),
-            ("Sold On",    28, "L"),
-            ("Brand",      22, "L"),
-            ("Model",      36, "L"),
-            ("IMEI",       38, "L"),
-            ("Sale Price", 24, "R"),
-            ("Note",       30, "L"),
-        ]
-        # Sum = 186 ✓
-        self._draw_table_header(pdf, cols)
-        for idx, tx in enumerate(txs):
-            sold_on = (tx.timestamp or "")[:16].replace("T", " ")
-            price = (self._cfg.format_currency(f"{tx.sell_price:,.2f}")
-                     if tx.sell_price else "-")
-            cells = [
-                (str(idx + 1), 8, "C"),
-                (sold_on, 28, "L"),
-                ((tx.model_brand or "-")[:13], 22, "L"),
-                ((tx.model_name or "-")[:22], 36, "L"),
-                ((tx.imei or "-")[:24], 38, "L"),
-                (price, 24, "R"),
-                ((tx.note or "")[:20], 30, "L"),
-            ]
-            self._row(pdf, cells, idx)
             self._page_break_check(pdf, cols)
 
     # ── Audit ─────────────────────────────────────────────────────────────
@@ -1721,7 +1703,7 @@ class ReportService:
             bg = _WHITE if idx % 2 == 0 else _GRAY_50
             pdf.set_fill_color(*bg)
             pdf.cell(16, 6.5, status, border="B", fill=True, align="C")
-            pdf.set_xy(_MARGIN_L, y_before + 6.5)
+            pdf.ln(0)
             self._page_break_check(pdf, cols)
 
     # ── Category performance ───────────────────────────────────────────────

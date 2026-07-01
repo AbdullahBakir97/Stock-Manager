@@ -63,8 +63,8 @@ _NAV_GROUPS = [
         "items": [
             {"key": "backup",        "label_key": "admin_tab_backup",        "icon": "💾"},
             {"key": "import_export", "label_key": "admin_tab_import_export", "icon": "📊"},
+            {"key": "cloud_sync",    "label_key": "admin_tab_cloud_sync",    "icon": "☁️"},
             {"key": "db_tools",      "label_key": "admin_tab_db_tools",      "icon": "🔧"},
-            {"key": "cloud_sync",    "label_key": "admin_tab_cloud_sync",    "icon": "☁"},
             {"key": "about",         "label_key": "admin_tab_about",         "icon": "ℹ️"},
         ],
     },
@@ -91,6 +91,22 @@ class AdminDialog(QDialog):
         THEME.apply(self)
         self._nav_buttons: dict[str, QPushButton] = {}
         self._active_key: str = "shop"
+        self._panels: dict[str, QWidget] = {}
+        self._panel_factories: dict[str, callable] = {
+            "shop": lambda: ShopSettingsPanel(),
+            "categories": lambda: CategoriesPanel(),
+            "part_types": lambda: PartTypesPanel(),
+            "models": lambda: ModelsPanel(),
+            "customers": lambda: CustomersPanel(),
+            "suppliers": lambda: SuppliersPanel(),
+            "locations": lambda: LocationsPanel(),
+            "scan": lambda: ScanSettingsPanel(),
+            "backup": lambda: BackupPanel(),
+            "import_export": lambda: ImportExportPanel(),
+            "cloud_sync": lambda: CloudSyncPanel(sync_service=self._sync_service),
+            "db_tools": lambda: DatabaseToolsPanel(),
+            "about": lambda: AboutPanel(),
+        }
         self._build_ui()
         self._connect_signals()
         self._select_nav("shop")
@@ -166,42 +182,6 @@ class AdminDialog(QDialog):
         self._stack = QStackedWidget()
         self._stack.setObjectName("admin_content_stack")
 
-        # Create panels
-        self._panels: dict[str, QWidget] = {}
-        self._shop_panel = ShopSettingsPanel()
-        self._cat_panel = CategoriesPanel()
-        self._pt_panel = PartTypesPanel()
-        self._mdl_panel = ModelsPanel()
-        self._cust_panel = CustomersPanel()
-        self._sup_panel = SuppliersPanel()
-        self._loc_panel = LocationsPanel()
-        self._scan_panel = ScanSettingsPanel()
-        self._backup_panel = BackupPanel()
-        self._import_export_panel = ImportExportPanel()
-        self._db_tools_panel = DatabaseToolsPanel()
-        self._cloud_sync_panel = CloudSyncPanel(sync_service=self._sync_service)
-        self._about_panel = AboutPanel()
-
-        panel_map = {
-            "shop": self._shop_panel,
-            "categories": self._cat_panel,
-            "part_types": self._pt_panel,
-            "models": self._mdl_panel,
-            "customers": self._cust_panel,
-            "suppliers": self._sup_panel,
-            "locations": self._loc_panel,
-            "scan": self._scan_panel,
-            "backup": self._backup_panel,
-            "import_export": self._import_export_panel,
-            "db_tools": self._db_tools_panel,
-            "cloud_sync": self._cloud_sync_panel,
-            "about": self._about_panel,
-        }
-
-        for key, panel in panel_map.items():
-            self._stack.addWidget(panel)
-            self._panels[key] = panel
-
         root.addWidget(self._stack, 1)
 
     # ── Navigation ──────────────────────────────────────────────────────────
@@ -216,6 +196,16 @@ class AdminDialog(QDialog):
                 btn.setObjectName("admin_nav_item")
             btn.setStyle(btn.style())  # Force QSS re-evaluation
 
+        # Lazy-load panel if not yet created
+        if key not in self._panels:
+            factory = self._panel_factories.get(key)
+            if factory:
+                panel = factory()
+                self._panels[key] = panel
+                self._stack.addWidget(panel)
+                # Connect signals for the newly created panel
+                self._connect_panel_signals(key, panel)
+
         # Switch stacked widget
         panel = self._panels.get(key)
         if panel:
@@ -227,27 +217,34 @@ class AdminDialog(QDialog):
 
     def _reload_panel(self, key: str) -> None:
         """Reload data for the selected panel."""
-        if key == "part_types":
-            self._pt_panel.reload()
-        elif key == "models":
-            self._mdl_panel.reload()
-        elif key == "customers":
-            self._cust_panel.reload()
-        elif key == "suppliers":
-            self._sup_panel.reload()
-        elif key == "locations":
-            self._loc_panel.reload()
+        panel = self._panels.get(key)
+        if panel and hasattr(panel, 'reload'):
+            panel.reload()
 
     # ── Signals ─────────────────────────────────────────────────────────────
 
     def _connect_signals(self) -> None:
-        self._shop_panel.settings_saved.connect(self.settings_changed)
-        self._cat_panel.categories_changed.connect(self._on_cat_changed)
-        self._about_panel.preview_banner_requested.connect(self._on_preview_banner)
+        # Connect signals for panels that are already loaded (shop panel is loaded on init)
+        shop_panel = self._panels.get("shop")
+        if shop_panel:
+            self._connect_panel_signals("shop", shop_panel)
+
+    def _connect_panel_signals(self, key: str, panel: QWidget) -> None:
+        """Connect signals for a specific panel."""
+        if key == "shop" and hasattr(panel, 'settings_saved'):
+            panel.settings_saved.connect(self.settings_changed)
+        elif key == "categories" and hasattr(panel, 'categories_changed'):
+            panel.categories_changed.connect(self._on_cat_changed)
+        elif key == "about" and hasattr(panel, 'preview_banner_requested'):
+            panel.preview_banner_requested.connect(self._on_preview_banner)
 
     def _on_cat_changed(self) -> None:
-        self._pt_panel.reload()
-        self._mdl_panel.reload()
+        pt_panel = self._panels.get("part_types")
+        if pt_panel and hasattr(pt_panel, 'reload'):
+            pt_panel.reload()
+        mdl_panel = self._panels.get("models")
+        if mdl_panel and hasattr(mdl_panel, 'reload'):
+            mdl_panel.reload()
         self.settings_changed.emit()
 
     def _on_preview_banner(self, manifest) -> None:
@@ -256,7 +253,7 @@ class AdminDialog(QDialog):
         self.accept()   # close the modal dialog so the banner can be seen
 
 
-def open_admin(parent=None) -> bool:
+def open_admin(parent=None, sync_service=None) -> bool:
     """
     PIN-gate check then open admin dialog.
     Returns True if dialog was opened (PIN OK or no PIN set).
@@ -274,6 +271,6 @@ def open_admin(parent=None) -> bool:
             QMessageBox.warning(parent, t("pin_title"), t("pin_wrong"))
             return False
 
-    dlg = AdminDialog(parent)
+    dlg = AdminDialog(parent, sync_service=sync_service)
     dlg.exec()
     return True

@@ -138,7 +138,7 @@ class Sidebar(QFrame):
         self._help_btn = QPushButton(f"  ❓   {t('nav_help')}")
         self._help_btn.setObjectName("sidebar_btn")
         self._help_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._help_btn.setToolTip("Open help guide (F1)")
+        self._help_btn.setToolTip(t("sidebar_tip_help"))
         self._help_btn.clicked.connect(lambda: self.nav_clicked.emit("nav_help"))
         sb_lay.addWidget(self._help_btn)
 
@@ -213,7 +213,21 @@ class Sidebar(QFrame):
             btn.style().unpolish(btn); btn.style().polish(btn)
 
     def retranslate(self) -> None:
-        nav_items = _nav_items()
+        nav_items = [
+            ("nav_inventory",       "📦"),
+            ("nav_transactions",    "📋"),
+            ("nav_quick_scan",      "⚡"),
+            ("nav_sales",           "💰"),
+            ("nav_customers",       "👥"),
+            ("nav_purchase_orders", "🛒"),
+            ("nav_returns",         "↩"),
+            ("nav_suppliers",       "🏭"),
+            ("nav_audit",           "📝"),
+            ("nav_price_lists",     "💲"),
+            ("nav_barcode_gen",     "🏷"),
+            ("nav_reports",         "📊"),
+            ("nav_analytics",       "📈"),
+        ]
         for i, (key, icon) in enumerate(nav_items):
             if i < len(self._nav_btns):
                 self._nav_btns[i].setText(f"  {icon}   {t(key)}")

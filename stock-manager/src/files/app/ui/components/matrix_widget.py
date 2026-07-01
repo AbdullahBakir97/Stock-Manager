@@ -665,7 +665,7 @@ class MatrixWidget(QTableWidget):
         stk.setBackground(bg)
         stk.setToolTip(t("disp_tip_stock"))
         if has_colors:
-            stk.setToolTip("Total across all colors")
+            stk.setToolTip(t("disp_tip_total_colors"))
         self.setItem(r, b + _SUB_STOCK, stk)
 
         # Order
@@ -1248,8 +1248,7 @@ class MatrixWidget(QTableWidget):
         if not all_colors:
             QMessageBox.information(
                 self, dtype_lbl,
-                "No colors defined for this part type.\n"
-                "Add colors in Admin → Part Types first.",
+                t("msg_no_colors_defined"),
             )
             return
 
@@ -1352,7 +1351,7 @@ class MatrixWidget(QTableWidget):
         no_clr_btn = QPushButton("No Colors")
         no_clr_btn.setObjectName("btn_ghost")
         no_clr_btn.setFixedHeight(32)
-        no_clr_btn.setToolTip("Remove all colors — only the base product (no color variants)")
+        no_clr_btn.setToolTip(t("disp_tip_no_colors"))
         def _no_colors():
             import sqlite3 as _sqlite3
             from app.core.logger import get_logger as _get_logger
@@ -1405,7 +1404,7 @@ class MatrixWidget(QTableWidget):
         reset_btn = QPushButton("Use Default")
         reset_btn.setObjectName("btn_ghost")
         reset_btn.setFixedHeight(32)
-        reset_btn.setToolTip("Remove override — use global part type colors")
+        reset_btn.setToolTip(t("disp_tip_reset_colors"))
         def _reset():
             all_pt_ids = [pt.id for pt in self._cat.part_types] if self._cat else [part_type_id]
             for ptid in all_pt_ids:
@@ -1508,7 +1507,7 @@ class MatrixWidget(QTableWidget):
             if dlg.exec() == QDialog.DialogCode.Accepted:
                 self._refresh_cb()
         except Exception as e:
-            QMessageBox.critical(self, "Error", str(e))
+            QMessageBox.critical(self, t("msg_error"), str(e))
 
     # ── Double-click handler ───────────────────────────────────────────────────
 
@@ -1746,7 +1745,7 @@ class MatrixWidget(QTableWidget):
             if new_cost is None:
                 it.setText("—")
                 it.setForeground(QColor(tk.t4))
-                it.setToolTip("Double-click to set cost price")
+                it.setToolTip(t("disp_tip_set_cost"))
             else:
                 it.setText(_fmt_money(new_cost))
                 it.setForeground(QColor(tk.blue))

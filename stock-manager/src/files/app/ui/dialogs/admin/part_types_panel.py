@@ -91,10 +91,10 @@ class _PartTypeFormDialog(QDialog):
         form.setSpacing(12)
         self._key_edit = QLineEdit(pt.key if pt else "")
         self._key_edit.setMinimumHeight(36)
-        self._key_edit.setPlaceholderText("e.g. DISPLAY, BATTERY")
+        self._key_edit.setPlaceholderText(t("pt_key_ph"))
         self._name_edit = QLineEdit(pt.name if pt else "")
         self._name_edit.setMinimumHeight(36)
-        self._name_edit.setPlaceholderText("e.g. Display, Battery")
+        self._name_edit.setPlaceholderText(t("pt_name_ph"))
         self._color_btn = ColorPickerWidget(pt.accent_color if pt else "#4A9EFF")
 
         # Default price — populated onto every item of this part type
@@ -629,7 +629,7 @@ class PartTypesPanel(QWidget):
             self._clr_hdr.setText(
                 t("clr_title") if t("clr_title") != "clr_title" else "COLORS"
             )
-            self._clr_hint.setText("Select a part type to manage colors")
+            self._clr_hint.setText(t("pt_select_manage_colors"))
             self._clr_hint.show()
             return
 
@@ -854,8 +854,8 @@ class PartTypesPanel(QWidget):
         self._mc_model_names.clear()
 
         if not pt or not self._cat:
-            self._mc_hdr.setText("MODELS & COLORS")
-            self._mc_hint.setText("Select a part type to manage per-model colors")
+            self._mc_hdr.setText(t("pt_models_colors"))
+            self._mc_hint.setText(t("pt_select_manage_model_colors"))
             self._mc_hint.show()
             self._mc_building = False
             return
@@ -1271,7 +1271,7 @@ class PartTypesPanel(QWidget):
         no_clr_btn = QPushButton("No Colors")
         no_clr_btn.setObjectName("btn_ghost")
         no_clr_btn.setFixedHeight(32)
-        no_clr_btn.setToolTip("Remove all colors — only the base product")
+        no_clr_btn.setToolTip(t("pt_tip_no_colors"))
         def _no_colors():
             from app.core.database import get_connection
             all_pt_ids = [p.id for p in self._cat.part_types] if self._cat else [pt.id]

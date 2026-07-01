@@ -1,6 +1,6 @@
 ; ============================================================
 ;  Stock Manager Pro — Inno Setup 7 Installer Script
-;  Version : 2.6.5
+;  Version : 2.6.6
 ;  Requires: Inno Setup 7  (https://jrsoftware.org/isdl.php)
 ;
 ;  HOW TO BUILD:
@@ -9,14 +9,14 @@
 ;         pyinstaller StockManagerPro.spec --noconfirm --clean
 ;    2. Compile installer:
 ;         iscc installer\StockManagerPro.iss
-;    Output → installer\Output\StockManagerPro-2.6.5-setup.exe
+;    Output → installer\Output\StockManagerPro-2.6.6-setup.exe
 ;
 ;  Or just run:  installer\build_installer.bat
 ; ============================================================
 
 #define AppName      "Stock Manager Pro"
 #ifndef AppVersion
-  #define AppVersion "2.6.5"
+  #define AppVersion "2.6.6"
 #endif
 #define AppPublisher "StockPro Software"
 #define AppURL       "https://github.com/AbdullahBakir97/Stock-Manager"

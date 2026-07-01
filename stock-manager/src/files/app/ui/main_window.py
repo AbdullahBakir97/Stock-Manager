@@ -31,7 +31,6 @@ from app.ui.controllers.startup_controller import StartupController
 
 from app.repositories.category_repo import CategoryRepository
 from app.repositories.item_repo import ItemRepository
-from app.repositories.phone_repo import PhoneRepository
 from app.services.stock_service import StockService
 from app.services.backup_scheduler import BackupScheduler
 from app.services.sync_service import SyncService
@@ -60,10 +59,9 @@ from app.ui.components.log_view import LogsPage, log_bus
 from app.ui.workers.worker_pool import POOL
 
 # ── Module-level singletons ─────────────────────────────────────────────────
-_cat_repo   = CategoryRepository()
-_item_repo  = ItemRepository()
-_stock_svc  = StockService()
-_phone_repo = PhoneRepository()
+_cat_repo  = CategoryRepository()
+_item_repo = ItemRepository()
+_stock_svc = StockService()
 
 
 class MainWindow(QMainWindow):
@@ -95,7 +93,6 @@ class MainWindow(QMainWindow):
 
         _sp(15, t("startup_db"))
         init_db()
-        self._sync_service = SyncService(parent=self)
         # Defer health checks to background — they're informational, not blocking
         self._health = None
         QTimer.singleShot(2000, self._deferred_health_check)
@@ -167,9 +164,19 @@ class MainWindow(QMainWindow):
         self._backup_scheduler = BackupScheduler(parent=self)
         self._backup_scheduler.start()
 
-        if ShopConfig.get().is_cloud_sync_enabled:
-            self._sync_service.start()
-            QTimer.singleShot(3000, self._sync_service.sync_now)
+        try:
+            self._sync_service = SyncService(parent=self)
+            if ShopConfig.get().is_cloud_sync_enabled:
+                self._sync_service.start()
+                QTimer.singleShot(3000, self._sync_service.sync_now)
+        except Exception as exc:
+            _log = __import__('logging').getLogger(__name__)
+            _log.error("Failed to initialize sync service: %s", exc)
+            self._sync_service = None
+
+        # Pass sync service to footer for sync indicator
+        if hasattr(self, '_footer'):
+            self._footer.set_sync_service(self._sync_service)
 
         self._upd_ctrl.start_auto_check(ShopConfig.get().is_update_auto_check_enabled)
 
@@ -370,7 +377,7 @@ class MainWindow(QMainWindow):
         body_w.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         outer.addWidget(body_w, 1)
 
-        self._footer = FooterBar(sync_service=self._sync_service)
+        self._footer = FooterBar()
         outer.addWidget(self._footer, 0)
 
         # ── Apply UI Scale (whole-app size preset) ONCE at startup ─────────
@@ -556,7 +563,7 @@ class MainWindow(QMainWindow):
             if pin != cfg_pre.admin_pin:
                 QMessageBox.warning(self, t("pin_title"), t("pin_wrong")); return
 
-        dlg = AdminDialog(self, sync_service=self._sync_service)
+        dlg = AdminDialog(self, sync_service=getattr(self, '_sync_service', None))
         dlg.preview_banner_requested.connect(self._upd_ctrl.show_banner)
         # Track the live admin dialog so the zoom dispatcher can reach
         # any QTableWidget inside admin panels
@@ -572,14 +579,6 @@ class MainWindow(QMainWindow):
 
         ShopConfig.invalidate()
         cfg = ShopConfig.get()
-        # Reconfigure cloud sync in case credentials/interval changed
-        if cfg.is_cloud_sync_enabled:
-            self._sync_service.reconfigure()
-            self._sync_service.start()
-        else:
-            self._sync_service.stop()
-        if hasattr(self._footer, "_sync_indicator"):
-            self._footer._sync_indicator.refresh()
         if cfg.theme in ("pro_dark", "pro_light", "dark", "light"):
             THEME.set_theme(cfg.theme)
             self._header.theme_toggle._update_text()
@@ -649,7 +648,7 @@ class MainWindow(QMainWindow):
                       self._suppliers_page, self._audit_page,
                       self._price_lists_page, self._analytics_page,
                       self._sales_page, self._customers_page,
-                      self._barcode_gen_page, self._phones_page):
+                      self._barcode_gen_page):
             if _lazy is not None:
                 try:
                     _lazy.retranslate()
@@ -823,13 +822,6 @@ class MainWindow(QMainWindow):
         # to feed items into an open Quick Scan session simply navigate
         # there manually first; the scan-action popup never gets in
         # the way of product lookups elsewhere.
-        # Strip Code 128 code-set prefix that some scanners prepend (e.g. leading
-        # lowercase 'a' before a digit-only IMEI payload).  Command barcodes and
-        # alphanumeric part codes are unaffected because their meaningful content
-        # starts with non-lowercase-abc characters.
-        if bc and bc[0] in "abc" and len(bc) > 1 and bc[1:].replace("-", "").replace("_", "").isalnum():
-            bc = bc[1:]
-
         if scan_cfg.is_command(bc):
             self._header.search.clear()
             self._nav_ctrl.go("nav_quick_scan")
@@ -847,72 +839,23 @@ class MainWindow(QMainWindow):
         item = _item_repo.get_by_barcode(bc)
         if item:
             self._header.search.clear()
+            # Show the scan-action popup with item info + Stock In / Out /
+            # Adjust / Edit buttons. The user wanted to act on a scanned
+            # item directly without leaving the current page — the popup
+            # routes each button to the same ctx_stock_op flow that the
+            # inventory detail bar and the matrix-tab right-click menu
+            # use, so behaviour stays consistent across entry points.
             self._show_status(
                 t("status_scanned", brand=item.display_name, type=""), 5000,
             )
             self._open_scan_action_dialog(item)
-            return
-
-        # Check phone unit table (IMEI or PHN-code) — only when the
-        # Phones module is enabled for this shop (white-label setting).
-        phone_unit = _phone_repo.get_by_scan(bc) if ShopConfig.get().is_phones_module_enabled else None
-        if phone_unit:
-            self._header.search.clear()
-            self._show_status(
-                f"📱 {phone_unit.model_brand} {phone_unit.model_name} — {phone_unit.storage_label}",
-                5000,
-            )
-            self._open_phone_scan_dialog(phone_unit)
-            return
-
-        self._show_status(t("status_unknown_bc", bc=bc), 4000)
-        if QMessageBox.question(
-            self, t("msg_unknown_bc_title"), t("msg_unknown_bc_body", bc=bc),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-        ) == QMessageBox.StandardButton.Yes:
-            self._add_product(preset_barcode=bc)
-
-    def _open_phone_scan_dialog(self, phone) -> None:
-        """Open the scan-action popup for a scanned phone unit."""
-        from app.ui.dialogs.phone_scan_action_dialog import PhoneScanActionDialog
-        from app.services.undo_manager import UNDO, Command
-        dlg = PhoneScanActionDialog(phone, parent=self)
-        def _status_change(new_status: str) -> None:
-            old_status = phone.status
-            def _apply(status: str) -> None:
-                _phone_repo.update_status(phone.id, status)
-                phone.status = status
-                if self._phones_page is not None:
-                    self._phones_page.refresh()
-
-            _apply(new_status)
-            status_key = {
-                "in_stock": "ph_status_in_stock",
-                "sold":     "ph_status_sold",
-                "reserved": "ph_status_reserved",
-            }.get(new_status)
-            status_label = t(status_key) if status_key else new_status.replace("_", " ").title()
-            UNDO.push(Command(
-                label=t("ph_undo_status", name=phone.display_name, status=status_label),
-                undo_fn=lambda: _apply(old_status),
-                redo_fn=lambda: _apply(new_status),
-            ))
-
-        dlg.request_mark_sold.connect(lambda: _status_change("sold"))
-        dlg.request_mark_reserved.connect(lambda: _status_change("reserved"))
-        dlg.request_back_stock.connect(lambda: _status_change("in_stock"))
-        dlg.request_edit.connect(lambda: self._edit_phone_unit(phone))
-        dlg.request_view.connect(lambda: self._nav_ctrl.go("nav_phones"))
-        dlg.exec()
-
-    def _edit_phone_unit(self, phone) -> None:
-        """Open the edit dialog for a phone unit (called from scan popup)."""
-        from app.ui.dialogs.phone_dialogs import AddEditPhoneDialog
-        dlg = AddEditPhoneDialog(parent=self, phone=phone)
-        dlg.exec()
-        # Refresh phones page if it's been loaded
-        if self._phones_page is not None:
-            self._phones_page.refresh()
+        else:
+            self._show_status(t("status_unknown_bc", bc=bc), 4000)
+            if QMessageBox.question(
+                self, t("msg_unknown_bc_title"), t("msg_unknown_bc_body", bc=bc),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            ) == QMessageBox.StandardButton.Yes:
+                self._add_product(preset_barcode=bc)
 
     def _open_scan_action_dialog(self, item: InventoryItem) -> None:
         """Open the scan-action popup for ``item`` and wire its signals.
@@ -1411,8 +1354,6 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         try: self._timer.stop(); self._global_bc_timer.stop()
-        except Exception: pass
-        try: self._sync_service.stop()
         except Exception: pass
         # Gracefully drain the worker pool so background tasks don't
         # keep the process alive or deliver signals to dead widgets.

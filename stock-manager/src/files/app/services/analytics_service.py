@@ -176,10 +176,7 @@ class AnalyticsService:
     def inventory_block(self) -> dict:
         """Stock health donut + by-brand bars + units-by-category + pivot."""
         summary = self._items.get_summary()
-        # Donut population = actively-managed items (min_stock set), so the
-        # three slices (healthy / low / out) sum consistently and aren't
-        # dominated by zero-stock matrix placeholder rows.
-        total = int(summary.get("managed_count") or summary.get("total_products") or 0)
+        total = int(summary.get("total_products") or 0)
         low = int(summary.get("low_stock_count") or 0)
         out = int(summary.get("out_of_stock_count") or 0)
         healthy = max(0, total - low)

@@ -97,43 +97,30 @@ jobs:
           with open(path, encoding="utf-8") as f:
               content = f.read()
 
-          # Idempotent: if a "## [VERSION]" section already exists (the author
-          # wrote the changelog entry by hand before tagging), leave it as-is so
-          # we never create a duplicate heading.
-          if re.search(rf"^## \[{re.escape(version)}\]", content, re.M):
-              print(f"CHANGELOG already has a [{version}] section — leaving as-is")
-          else:
-              # Otherwise stamp the running [Unreleased] block into [VERSION] and
-              # re-seed a fresh, empty [Unreleased] at the top.
-              unreleased_block = (
-                  "## [Unreleased]\n\n"
-                  "> Add your next changes here before tagging a release.\n\n---\n\n"
+          # Replace ## [Unreleased] with versioned heading + new empty Unreleased block
+          unreleased_block = (
+              "## [Unreleased]\n\n"
+              "> Add your next changes here before tagging a release.\n\n---\n\n"
+          )
+          versioned_heading = f"## [{version}] - {today}\n"
+
+          if "## [Unreleased]" in content:
+              # Keep an empty [Unreleased] at the top, stamp the old one
+              content = content.replace(
+                  "## [Unreleased]",
+                  f"{unreleased_block}{versioned_heading}",
+                  1,
               )
-              versioned_heading = f"## [{version}] - {today}\n"
+              # Remove the placeholder text that was under [Unreleased]
+              content = re.sub(
+                  r"> Add your next changes here before tagging a release\.\n\n---\n\n"
+                  + re.escape(versioned_heading),
+                  versioned_heading,
+                  content,
+              )
 
-              if "## [Unreleased]" in content:
-                  content = content.replace(
-                      "## [Unreleased]",
-                      f"{unreleased_block}{versioned_heading}",
-                      1,
-                  )
-                  # Remove the placeholder when [Unreleased] was empty so we don't
-                  # leave "> Add your next changes…" directly above the new section.
-                  content = re.sub(
-                      r"> Add your next changes here before tagging a release\.\n\n---\n\n"
-                      + re.escape(versioned_heading),
-                      versioned_heading,
-                      content,
-                  )
-              else:
-                  # No [Unreleased] marker at all — prepend a fresh section.
-                  content = content.replace(
-                      "---\n", f"---\n\n{versioned_heading}", 1,
-                  )
-
-              with open(path, "w", encoding="utf-8") as f:
-                  f.write(content)
-              print(f"Stamped CHANGELOG [Unreleased] -> [{version}]")
+          with open(path, "w", encoding="utf-8") as f:
+              f.write(content)
 
       # ── 6b. Stamp version into source files ──────────────────────────────────
       - name: Stamp version into source files
@@ -161,23 +148,6 @@ jobs:
               f.write(content)
           print(f"Stamped {vpy} -> {version}")
 
-          # 1b. installer/version.py — duplicate APP_VERSION constant kept beside
-          #     the installer scripts; stamp it too so it never drifts.
-          vpy2 = "stock-manager/src/installer/version.py"
-          try:
-              with open(vpy2, "r", encoding="utf-8") as f:
-                  c2 = f.read()
-              c2 = re.sub(
-                  r'APP_VERSION\s*=\s*".*?"',
-                  f'APP_VERSION = "{version}"',
-                  c2,
-              )
-              with open(vpy2, "w", encoding="utf-8") as f:
-                  f.write(c2)
-              print(f"Stamped {vpy2} -> {version}")
-          except FileNotFoundError:
-              print(f"WARN: {vpy2} not found — skipped")
-
           # 2. file_version_info.txt — Windows PE resource
           fvi = "stock-manager/src/installer/file_version_info.txt"
           with open(fvi, "r", encoding="utf-8") as f:
@@ -199,9 +169,7 @@ jobs:
               f.write(content)
           print(f"Stamped {fvi} -> {tup}")
 
-          # 3. StockManagerPro.iss — installer source version (#define) AND the
-          #    human-readable header/output comments, so the whole file is
-          #    coherent (no stale "Version : 2.3.0" left behind).
+          # 3. StockManagerPro.iss — installer source version
           iss = "stock-manager/src/installer/StockManagerPro.iss"
           with open(iss, "r", encoding="utf-8") as f:
               content = f.read()
@@ -210,39 +178,9 @@ jobs:
               f'#define AppVersion "{version}"',
               content,
           )
-          # Header comment ";  Version : X.Y.Z"
-          content = re.sub(
-              r'(;\s*Version\s*:\s*)\d+\.\d+\.\d+',
-              rf'\g<1>{version}',
-              content,
-          )
-          # Literal output filename in the build-instructions comment
-          # (the real OutputBaseFilename uses {#AppVersion} and is untouched).
-          content = re.sub(
-              r'StockManagerPro-\d+\.\d+\.\d+-setup',
-              f'StockManagerPro-{version}-setup',
-              content,
-          )
           with open(iss, "w", encoding="utf-8") as f:
               f.write(content)
           print(f"Stamped {iss} -> {version}")
-
-          # 5. StockManagerPro.spec — header comment version (cosmetic, keeps
-          #    the build manifest coherent with the release).
-          spec = "stock-manager/src/StockManagerPro.spec"
-          try:
-              with open(spec, "r", encoding="utf-8") as f:
-                  sc = f.read()
-              sc = re.sub(
-                  r'(Stock Manager Pro v)\d+(?:\.\d+)*',
-                  rf'\g<1>{version}',
-                  sc,
-              )
-              with open(spec, "w", encoding="utf-8") as f:
-                  f.write(sc)
-              print(f"Stamped {spec} -> {version}")
-          except FileNotFoundError:
-              print(f"WARN: {spec} not found — skipped")
 
           # 4. README.md — version badge + SQLite schema badge
           readme = "README.md"
@@ -252,12 +190,6 @@ jobs:
           content = re.sub(
               r"Version-[\d.]+-10B981",
               f"Version-{version}-10B981",
-              content,
-          )
-          # 4a-ii. "Current release: vX.Y.Z" line in the Releases section
-          content = re.sub(
-              r"Current release: v\d+\.\d+\.\d+",
-              f"Current release: v{version}",
               content,
           )
           # 4b. Blue SQLite schema badge — extract _SCHEMA_VERSION from
@@ -358,9 +290,7 @@ jobs:
             CHANGELOG.md
             README.md
             stock-manager/update_manifest.json
-            stock-manager/src/StockManagerPro.spec
             stock-manager/src/files/app/core/version.py
-            stock-manager/src/installer/version.py
             stock-manager/src/installer/file_version_info.txt
             stock-manager/src/installer/StockManagerPro.iss
           )
@@ -396,7 +326,6 @@ jobs:
 
       # ── 11b. Create PR and auto-merge release → main ─────────────────────────
       - name: Create and merge release PR
-        id: pr
         shell: bash
         env:
           VERSION: ${{ steps.version.outputs.VERSION }}
@@ -426,52 +355,14 @@ jobs:
 
           echo "PR created: $PR_URL"
 
-          # Capture the PR number for the back-merge step (it survives the
-          # branch deletion that --delete-branch performs on merge).
-          PR_NUMBER=$(gh pr view "$RELEASE_BRANCH" --json number -q .number)
-          echo "pr_number=${PR_NUMBER}" >> "$GITHUB_OUTPUT"
-
           # Auto-merge the PR (merge commit for clean history)
           gh pr merge "$RELEASE_BRANCH" \
             --merge \
             --auto \
-            --subject "chore: release v${VERSION} (#${PR_NUMBER})" \
+            --subject "chore: release v${VERSION} (#$(gh pr view "$RELEASE_BRANCH" --json number -q .number))" \
             --delete-branch
 
-          echo "PR #${PR_NUMBER} queued for auto-merge"
-
-      # ── 11c. Back-merge main → dev (keep dev a superset of main) ──────────────
-      #  The release PR adds the stamp + merge commits to main. Without bringing
-      #  them back, the NEXT release branch (cut from dev) diverges from main and
-      #  its PR fails to auto-merge — exactly the failure that blocked v2.5.8.
-      #  Waiting for the merge to land, then fast-following dev, keeps the two
-      #  branches permanently in sync so releases never conflict again.
-      - name: Sync release back into dev
-        shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Wait (up to ~5 min) for the auto-merge to actually land on main.
-          PR_NUMBER="${{ steps.pr.outputs.pr_number }}"
-          for i in $(seq 1 30); do
-            STATE=$(gh pr view "$PR_NUMBER" --json state -q .state 2>/dev/null || echo "")
-            if [ "$STATE" = "MERGED" ]; then echo "Release PR #${PR_NUMBER} merged."; break; fi
-            echo "Waiting for release PR #${PR_NUMBER} to merge (state=${STATE:-unknown})…"
-            sleep 10
-          done
-
-          git fetch origin main dev
-          git checkout -B dev origin/dev
-          if git merge --no-edit origin/main; then
-            git push origin dev
-            echo "dev fast-followed main — branches back in sync"
-          else
-            echo "::warning::Back-merge into dev conflicted — run 'git merge origin/main' on dev manually before the next release"
-            git merge --abort || true
-          fi
+          echo "PR auto-merged and release branch deleted"
 
       # ── 12. Upload installer artifact ─────────────────────────────────────────
       - name: Upload installer artifact

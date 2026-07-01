@@ -41,7 +41,8 @@ class CloudSyncPanel(QWidget):
         super().__init__(parent)
         self._svc = sync_service
         self._build_ui()
-        self._load()
+        # Defer _load to avoid blocking during panel creation
+        QTimer.singleShot(0, self._load)
         if self._svc is not None:
             self._svc.sync_started.connect(self._on_sync_started)
             self._svc.sync_completed.connect(self._on_sync_done)
@@ -101,7 +102,7 @@ class CloudSyncPanel(QWidget):
         url_lbl.setFixedWidth(120)
         url_row.addWidget(url_lbl)
         self._url_edit = QLineEdit()
-        self._url_edit.setPlaceholderText("libsql://your-database.turso.io  (or https://...)")
+        self._url_edit.setPlaceholderText(t("cloud_url_ph"))
         url_row.addWidget(self._url_edit)
         cred_lay.addLayout(url_row)
 
@@ -111,7 +112,7 @@ class CloudSyncPanel(QWidget):
         token_row.addWidget(token_lbl)
         self._token_edit = QLineEdit()
         self._token_edit.setEchoMode(QLineEdit.EchoMode.Password)
-        self._token_edit.setPlaceholderText("eyJ…")
+        self._token_edit.setPlaceholderText(t("cloud_token_ph"))
         token_row.addWidget(self._token_edit)
         cred_lay.addLayout(token_row)
 
@@ -309,15 +310,27 @@ class CloudSyncPanel(QWidget):
             return
         self._test_btn.setEnabled(False)
         self._set_test_result("Testing…", error=False)
-        try:
-            from app.core.database import _TursoHTTPConnection
-            conn = _TursoHTTPConnection(url, token)
-            conn.execute("SELECT 1")
-            self._set_test_result("✓  Connection successful", error=False)
-        except Exception as exc:
-            self._set_test_result(f"✕  {exc}", error=True)
-        finally:
+        
+        # Run network test in background to avoid UI freeze
+        from app.ui.workers.worker_pool import POOL
+        def _test_worker():
+            try:
+                from app.core.database import _TursoHTTPConnection
+                conn = _TursoHTTPConnection(url, token)
+                conn.execute("SELECT 1")
+                return (True, None)
+            except Exception as exc:
+                return (False, str(exc))
+        
+        def _on_done(result):
+            success, error = result
+            if success:
+                self._set_test_result("✓  Connection successful", error=False)
+            else:
+                self._set_test_result(f"✕  {error}", error=True)
             self._test_btn.setEnabled(True)
+        
+        POOL.submit("cloud_sync_test", _test_worker, _on_done, _on_done)
 
     def _sync_now(self) -> None:
         if self._svc is None:
@@ -497,12 +510,12 @@ class CloudSyncPanel(QWidget):
 
     def _on_sync_done(self, timestamp: str) -> None:
         try:
-            t = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
+            time_str = datetime.fromisoformat(timestamp).strftime("%H:%M:%S")
         except Exception:
-            t = timestamp
+            time_str = timestamp
         self._status_lbl.setText(f"● Cloud sync active")
         self._status_lbl.setStyleSheet("color: #27AE60;")
-        self._last_sync_lbl.setText(f"Last sync: {t}")
+        self._last_sync_lbl.setText(f"Last sync: {time_str}")
         self._sync_now_btn.setEnabled(True)
         self._init_primary_btn.setEnabled(True)
         self._init_replica_btn.setEnabled(True)
@@ -526,10 +539,10 @@ class CloudSyncPanel(QWidget):
             self._status_lbl.setText("○ Cloud sync disabled")
             self._status_lbl.setStyleSheet("color: #888888;")
         if self._svc and self._svc.last_sync_time:
-            t = self._svc.last_sync_time.strftime("%H:%M:%S")
-            self._last_sync_lbl.setText(f"Last sync: {t}")
+            time_str = self._svc.last_sync_time.strftime("%H:%M:%S")
+            self._last_sync_lbl.setText(f"Last sync: {time_str}")
         else:
-            self._last_sync_lbl.setText("Last sync: Never")
+            self._last_sync_lbl.setText(t("sync_last_sync_never"))
 
     def _refresh_errors(self) -> None:
         self._error_list.clear()

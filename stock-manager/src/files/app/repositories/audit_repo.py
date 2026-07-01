@@ -166,7 +166,14 @@ class AuditRepository:
                 al.id,
                 al.audit_id,
                 al.item_id,
-                ii.name,
+                CASE
+                    WHEN ii.model_id IS NOT NULL
+                    THEN COALESCE(pm.brand, '') || ' ' || COALESCE(pm.name, '')
+                         || ' · ' || COALESCE(pt.name, '')
+                         || CASE WHEN ii.color != '' THEN ' · ' || ii.color ELSE '' END
+                    ELSE COALESCE(NULLIF(TRIM(ii.brand || ' ' || ii.name), ''),
+                                  'Item #' || ii.id)
+                END AS display_name,
                 ii.barcode,
                 al.system_qty,
                 al.counted_qty,
@@ -174,8 +181,10 @@ class AuditRepository:
                 al.note
             FROM audit_lines al
             JOIN inventory_items ii ON al.item_id = ii.id
+            LEFT JOIN phone_models pm ON pm.id = ii.model_id
+            LEFT JOIN part_types pt ON pt.id = ii.part_type_id
             WHERE al.audit_id = ?
-            ORDER BY ii.name ASC
+            ORDER BY display_name ASC
             """,
             (audit_id,),
         )

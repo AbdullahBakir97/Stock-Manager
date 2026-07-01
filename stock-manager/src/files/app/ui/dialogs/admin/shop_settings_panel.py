@@ -146,7 +146,7 @@ class ShopSettingsPanel(QWidget):
         )
         self._currency = QLineEdit()
         self._currency.setMaxLength(4)
-        self._currency.setPlaceholderText("€")
+        self._currency.setPlaceholderText(t("currency_ph"))
         regional_card.form.addRow(t("shop_lbl_currency"), self._currency)
 
         self._cur_pos = QComboBox()
@@ -225,18 +225,6 @@ class ShopSettingsPanel(QWidget):
         regional_card.add_widget(self._preview_frame)
         outer.addWidget(regional_card)
 
-        # ── Card: Modules ──
-        # Stock Manager is white-label; shop-specific modules are opt-in
-        # per install so a generic shop doesn't see features it doesn't need.
-        modules_card = _FormCard(
-            t("shop_card_modules"),
-            t("shop_card_modules_desc"),
-        )
-        self._module_phones = QCheckBox()
-        self._module_phones.setToolTip(t("shop_module_phones_tip"))
-        modules_card.form.addRow(t("shop_module_phones_label"), self._module_phones)
-        outer.addWidget(modules_card)
-
         # ── Card: Security ──
         sec_card = _FormCard(
             t("shop_card_security") if t("shop_card_security") != "shop_card_security"
@@ -246,7 +234,7 @@ class ShopSettingsPanel(QWidget):
         )
         self._pin = QLineEdit()
         self._pin.setEchoMode(QLineEdit.EchoMode.Password)
-        self._pin.setPlaceholderText("····")
+        self._pin.setPlaceholderText(t("pin_ph"))
         sec_card.form.addRow(t("shop_lbl_pin"), self._pin)
         outer.addWidget(sec_card)
 
@@ -331,8 +319,6 @@ class ShopSettingsPanel(QWidget):
         # Show sell totals
         self._show_sell_totals.setChecked(cfg.is_show_sell_totals)
         self._show_color_totals.setChecked(cfg.is_show_color_totals)
-        self._module_phones.setChecked(cfg.is_phones_module_enabled)
-        self._original_module_phones = cfg.is_phones_module_enabled
         self._pin.setText(cfg.admin_pin)
         self._contact.setText(cfg.contact_info)
         # Auto-backup
@@ -392,7 +378,6 @@ class ShopSettingsPanel(QWidget):
         cfg.ui_scale = self._ui_scale.currentData()
         cfg.show_sell_totals = "1" if self._show_sell_totals.isChecked() else "0"
         cfg.show_color_totals = "1" if self._show_color_totals.isChecked() else "0"
-        cfg.module_phones_enabled = "1" if self._module_phones.isChecked() else "0"
         cfg.admin_pin = self._pin.text()
         cfg.contact_info = self._contact.text().strip()
         # Auto-backup
@@ -405,7 +390,6 @@ class ShopSettingsPanel(QWidget):
             self._ui_scale.currentData()
             != getattr(self, "_original_ui_scale", "normal")
         )
-        modules_changed = self._module_phones.isChecked() != getattr(self, "_original_module_phones", True)
         cfg.save()
         ShopConfig.invalidate()
         if ui_scale_changed:
@@ -415,13 +399,6 @@ class ShopSettingsPanel(QWidget):
                 "The new UI Scale will take effect after restarting the application.",
             )
             self._original_ui_scale = self._ui_scale.currentData()
-        if modules_changed:
-            from PyQt6.QtWidgets import QMessageBox
-            QMessageBox.information(
-                self, t("shop_modules_changed_title"),
-                t("shop_modules_changed_body"),
-            )
-            self._original_module_phones = self._module_phones.isChecked()
         self._feedback.setText(
             t("shop_saved") if t("shop_saved") != "shop_saved" else "✓ Settings saved"
         )

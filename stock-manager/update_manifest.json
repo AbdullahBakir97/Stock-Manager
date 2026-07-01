@@ -1,7 +1,7 @@
 {
-  "version": "2.6.5",
-  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.5/StockManagerPro-2.6.5-setup.exe",
-  "release_notes": "**What**: in cloud (replica) mode the app now reads and writes a **local SQLite replica file** (instant, no per-query network round-trip) and `sync()`s it with the Turso primary, instead of sending every query over HTTP. This is the architecture for a travelling-owner + shop-PC setup: every PC keeps a local copy that stays in step with the one shared cloud database.; **How**: a new `_LibsqlReplicaConnection` (single connection, lock-held per transaction) presents the same `_DictRow` interface as the existing connections, so repositories are unchanged. `get_connection()` prefers it in replica mode; the periodic Sync Now / background tick performs a real `sync()`; on startup the replica pulls the latest from the primary.; **Graceful fallback**: the native `libsql` package only ships wheels for cp39\u2013cp313, so where it isn't available (e.g. Python 3.14) the app automatically falls back to the pure-stdlib Turso HTTP client \u2014 nothing breaks, you just don't get the local cache there.",
-  "release_date": "2026-06-15",
-  "checksum_sha256": "5f7feed8a0e8b19381d7e4e01d8c5b46ac8d17c98c6386f9f7f277d373444e0a"
+  "version": "2.6.6",
+  "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.6/StockManagerPro-2.6.6-setup.exe",
+  "release_notes": "v2.6.6 \u2014 see changelog for details",
+  "release_date": "2026-06-16",
+  "checksum_sha256": "21751cb0b04e63bfdaa27b190c8dde31d180a9374668f671d6c5815370f52829"
 }

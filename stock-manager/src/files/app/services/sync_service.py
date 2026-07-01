@@ -49,7 +49,8 @@ class SyncService(QObject):
     def is_configured(self) -> bool:
         try:
             from app.core.config import ShopConfig
-            return ShopConfig.get().is_cloud_sync_enabled
+            cfg = ShopConfig.get()
+            return cfg.is_cloud_sync_enabled and bool(getattr(cfg, 'turso_url', '')) and bool(getattr(cfg, 'turso_auth_token', ''))
         except Exception:
             return False
 

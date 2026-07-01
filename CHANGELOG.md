@@ -23,6 +23,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Changed — Faster DB access (no connection churn)
 - Three repositories (`audit`, `price_list`, `supplier`) closed the shared per-thread SQLite connection after every call, forcing a reconnect + PRAGMA re-apply on the next query. They now reuse the cached connection like the rest of the app.
 
+---
+
+## [2.6.6] - 2026-06-16
+
 ### Added — Professional in-app logging & diagnostics
 - **What**: a dedicated **Logs** screen (sidebar tab + a pop-out window you can keep open on a second monitor) that shows everything the app does in real time — colour-coded by level, with filters for level, source, and free-text search, a verbose (DEBUG) toggle for troubleshooting, pause/resume live tail, and one-click **Copy**, **Export**, **Open log file**, and **Open folder**.
 - **How**: logging now feeds an in-memory ring buffer (last 5,000 records) alongside the existing rotating log file, so any message logged anywhere in the app appears in the viewer instantly without touching disk. The buffer is framework-free and thread-safe; the UI marshals records onto the main thread via a queued Qt signal.

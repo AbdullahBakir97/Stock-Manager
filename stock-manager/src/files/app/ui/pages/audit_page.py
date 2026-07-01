@@ -55,7 +55,7 @@ class NewAuditDialog(DialogBase):
         label_name = QLabel(t("aud_dlg_name"))
         label_name.setStyleSheet(f"color: {THEME.tokens.t1}; font-weight: bold;")
         self.name_input = QLineEdit()
-        self.name_input.setPlaceholderText("Monthly Count - April 2026")
+        self.name_input.setPlaceholderText(t("audit_name_ph"))
         layout.addWidget(label_name)
         layout.addWidget(self.name_input)
 
@@ -64,7 +64,7 @@ class NewAuditDialog(DialogBase):
         label_notes.setStyleSheet(f"color: {THEME.tokens.t1}; font-weight: bold;")
         self.notes_input = QTextEdit()
         self.notes_input.setMaximumHeight(80)
-        self.notes_input.setPlaceholderText("Location, reason, etc.")
+        self.notes_input.setPlaceholderText(t("audit_notes_ph"))
         layout.addWidget(label_notes)
         layout.addWidget(self.notes_input)
 

@@ -13,6 +13,8 @@ from PyQt6.QtWidgets import QWidget, QHBoxLayout, QLabel, QSizePolicy
 from PyQt6.QtCore import Qt, pyqtSlot
 from PyQt6.QtGui import QMouseEvent
 
+from app.core.i18n import t
+
 
 _ICONS = {
     "disabled": "○",

@@ -264,9 +264,23 @@ class ItemRepository(BaseRepository):
                 (image_path, item_id),
             )
 
-    def delete(self, item_id: int) -> None:
+    def delete(self, item_id: int) -> bool:
+        """Delete a product. Returns False (without deleting) when the item is
+        still referenced by history (sales, stock movements, audits, price
+        lists…) and therefore can't be removed — the caller should tell the
+        user. Returns True when the row was deleted.
+
+        SQLite ignores foreign keys by default but the cloud (Turso) always
+        enforces them, so a referenced row raises IntegrityError instead of
+        silently orphaning history — we translate that into a clean False.
+        """
+        import sqlite3
         with self._conn() as conn:
-            conn.execute("DELETE FROM inventory_items WHERE id=?", (item_id,))
+            try:
+                conn.execute("DELETE FROM inventory_items WHERE id=?", (item_id,))
+            except sqlite3.IntegrityError:
+                return False
+        return True
 
     def update_price(self, item_id: int, new_price: float) -> None:
         """Update the sell_price for an inventory item."""

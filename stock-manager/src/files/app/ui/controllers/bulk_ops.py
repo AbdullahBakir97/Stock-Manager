@@ -98,7 +98,8 @@ def bulk_delete(win: MainWindow, items: list) -> None:
     errors = 0
     for item in items:
         try:
-            _item_repo.delete(item.id)
+            if not _item_repo.delete(item.id):
+                errors += 1  # blocked: still referenced by history
         except Exception:
             errors += 1
     win._cp = None

@@ -25,6 +25,7 @@ from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QComboBox,
     QLineEdit, QTableWidget, QTableWidgetItem, QHeaderView, QAbstractItemView,
     QCheckBox, QFrame, QSizePolicy, QApplication, QFileDialog,
+    QDialog, QPlainTextEdit, QDialogButtonBox,
 )
 from PyQt6.QtCore import Qt, QObject, pyqtSignal, QTimer
 from PyQt6.QtGui import QColor, QFont
@@ -90,6 +91,45 @@ def log_bus() -> LogBus:
     if _BUS is None:
         _BUS = LogBus()
     return _BUS
+
+
+# ── Detail dialog ─────────────────────────────────────────────────────────────
+
+class _LogDetailDialog(QDialog):
+    """Shows a single log record's full message + traceback (monospaced, copyable)."""
+
+    def __init__(self, view, parent=None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(t("log_detail_title"))
+        self.resize(760, 460)
+        THEME.apply(self)
+        tk = THEME.tokens
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(14, 14, 14, 14)
+        lay.setSpacing(8)
+
+        header = QLabel(f"{view.time}   ·   {view.level}   ·   {view.name}")
+        color = {"WARNING": tk.orange, "ERROR": tk.red,
+                 "CRITICAL": tk.red}.get(view.level, tk.t2)
+        header.setStyleSheet(f"color:{color}; font-weight:600; background:transparent;")
+        lay.addWidget(header)
+
+        body = view.message if not view.detail else f"{view.message}\n\n{view.detail}"
+        self._text = QPlainTextEdit()
+        self._text.setReadOnly(True)
+        self._text.setPlainText(body)
+        self._text.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        mono = QFont("Consolas"); mono.setStyleHint(QFont.StyleHint.Monospace)
+        mono.setPointSize(9)
+        self._text.setFont(mono)
+        lay.addWidget(self._text, 1)
+
+        btns = QDialogButtonBox()
+        copy_btn = btns.addButton(t("log_copy"), QDialogButtonBox.ButtonRole.ActionRole)
+        copy_btn.clicked.connect(lambda: QApplication.clipboard().setText(body))
+        close_btn = btns.addButton(QDialogButtonBox.StandardButton.Close)
+        close_btn.clicked.connect(self.accept)
+        lay.addWidget(btns)
 
 
 # ── Viewer ──────────────────────────────────────────────────────────────────────
@@ -211,6 +251,8 @@ class LogViewer(QWidget):
         hh.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         hh.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self._table.verticalHeader().setDefaultSectionSize(20)
+        self._table.cellDoubleClicked.connect(self._on_cell_double_clicked)
+        self._table.setToolTip(t("log_row_tip"))
         root.addWidget(self._table, 1)
 
         # Bottom actions
@@ -285,16 +327,24 @@ class LogViewer(QWidget):
             "DEBUG": tk.t4, "INFO": tk.t2, "WARNING": tk.orange,
             "ERROR": tk.red, "CRITICAL": tk.red,
         }.get(r.level, tk.t2)
-        cells = [r.time, r.level, r.name, r.message]
+        has_detail = getattr(r, "has_detail", False)
+        # Prefix a ▸ affordance on rows that carry a traceback/detail.
+        msg = ("▸ " + r.message) if has_detail else r.message
+        cells = [r.time, r.level, r.name, msg]
         for c, txt in enumerate(cells):
             it = QTableWidgetItem(txt)
             it.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable)
+            if c == 0:
+                # Stash the record on the row so double-click can open detail.
+                it.setData(Qt.ItemDataRole.UserRole, r)
             if c == 1:  # level column always coloured
                 it.setForeground(QColor(color))
                 f = QFont(); f.setBold(r.levelno >= logging.WARNING)
                 it.setFont(f)
             elif r.levelno >= logging.WARNING:
                 it.setForeground(QColor(color))
+            if c == 3 and has_detail:
+                it.setToolTip(t("log_row_tip"))
             self._table.setItem(i, c, it)
 
     def _on_record(self, view) -> None:
@@ -317,6 +367,15 @@ class LogViewer(QWidget):
             t("log_count", shown=self._table.rowCount(), total=len(self._records)))
         if at_bottom:
             self._scroll_to_bottom()
+
+    def _on_cell_double_clicked(self, row: int, _col: int) -> None:
+        """Open the detail dialog for the double-clicked log row."""
+        item = self._table.item(row, 0)
+        if item is None:
+            return
+        view = item.data(Qt.ItemDataRole.UserRole)
+        if view is not None:
+            _LogDetailDialog(view, self).exec()
 
     # ── helpers ──
     def _is_at_bottom(self) -> bool:
@@ -357,6 +416,8 @@ class LogViewer(QWidget):
             with open(path, "w", encoding="utf-8") as f:
                 for r in self._records:
                     f.write(f"[{r.time}] [{r.level}] [{r.name}] {r.message}\n")
+                    if getattr(r, "detail", ""):
+                        f.write(r.detail.rstrip() + "\n")
         except Exception:
             pass
 

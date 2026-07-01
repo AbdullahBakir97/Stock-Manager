@@ -1137,9 +1137,10 @@ class PartTypesPanel(QWidget):
                     "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
                     (model_id, pt.id, "__EXCLUDED__"),
                 )
-                conn.execute(
-                    "DELETE FROM inventory_items "
-                    "WHERE model_id=? AND part_type_id=? "
+                from app.core.database import delete_inventory_where_safe
+                delete_inventory_where_safe(
+                    conn,
+                    "model_id=? AND part_type_id=? "
                     "  AND stock=0 AND min_stock=0 "
                     "  AND (inventur IS NULL OR inventur=0)",
                     (model_id, pt.id),
@@ -1287,9 +1288,10 @@ class PartTypesPanel(QWidget):
                         "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
                         (model_id, ptid, "__NONE__"),
                     )
-                    conn.execute(
-                        "DELETE FROM inventory_items "
-                        "WHERE model_id=? AND part_type_id=? AND color != '' "
+                    from app.core.database import delete_inventory_where_safe
+                    delete_inventory_where_safe(
+                        conn,
+                        "model_id=? AND part_type_id=? AND color != '' "
                         "AND stock=0 AND min_stock=0 "
                         "AND (inventur IS NULL OR inventur=0)",
                         (model_id, ptid),
@@ -1350,11 +1352,12 @@ class PartTypesPanel(QWidget):
                         "WHERE model_id=? AND part_type_id=? AND color != ''",
                         (model_id, ptid),
                     ).fetchall()
+                    from app.core.database import delete_inventory_where_safe
                     for row in rows:
                         if row["color"] not in chosen_set:
-                            conn.execute(
-                                "DELETE FROM inventory_items WHERE id=? "
-                                "AND stock=0 AND min_stock=0 "
+                            delete_inventory_where_safe(
+                                conn,
+                                "id=? AND stock=0 AND min_stock=0 "
                                 "AND (inventur IS NULL OR inventur=0)",
                                 (row["id"],),
                             )

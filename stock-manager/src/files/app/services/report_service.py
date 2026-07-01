@@ -475,6 +475,10 @@ class ReportService:
                                      if pt.default_price is not None else None)
 
         def _price(it) -> float:
+            # Stock value at cost basis: cost_price first, then sell_price,
+            # then the part-type default — consistent with the dashboard.
+            if getattr(it, "cost_price", None) is not None:
+                return float(it.cost_price)
             if it.sell_price is not None:
                 return float(it.sell_price)
             d = pt_default.get(getattr(it, "part_type_id", None) or 0)
@@ -744,7 +748,10 @@ class ReportService:
             entry = per_cat[cid]
             entry["skus"] += 1
             entry["stock_units"] += (it.stock or 0)
-            price = it.sell_price
+            # Stock value at cost basis: cost_price first, then sell_price.
+            price = getattr(it, "cost_price", None)
+            if price is None:
+                price = it.sell_price
             if price is None:
                 # fallback part type default
                 ptid = it.part_type_id
@@ -797,6 +804,187 @@ class ReportService:
     def _safe(self, s) -> str:
         """Latin-1 sanitise — available to subclasses / inline render code."""
         return _latin1(s)
+
+    def generate_phones_inventory_report(self,
+                                         output_path: str | None = None) -> str:
+        """Phone-unit inventory — every IMEI-tracked device grouped by brand,
+        with stock value at cost (buy_price) and full KPI header."""
+        from app.repositories.phone_repo import PhoneRepository
+        phone_repo = PhoneRepository()
+
+        pdf = self._new_pdf("Phone Inventory",
+                            "Individual phone units tracked by IMEI")
+        pdf.add_page()
+
+        units = phone_repo.get_all()           # all statuses, brand/model sorted
+        summary = phone_repo.get_summary()
+        avg_batt = summary.get("avg_battery")
+        self._kpi_cards(pdf, [
+            ("Total Units", str(summary.get("total", 0))),
+            ("In Stock",    str(summary.get("in_stock", 0))),
+            ("Sold",        str(summary.get("sold", 0))),
+            ("Stock Value (cost)",
+             self._cfg.format_currency(f"{summary.get('total_value', 0):,.2f}")),
+            ("Avg Battery", f"{avg_batt:.0f}%" if avg_batt is not None else "-"),
+        ])
+
+        if not units:
+            self._empty_msg(pdf, "No phone units in inventory.")
+            return self._save(pdf, output_path, "phones_inventory_report")
+
+        # Group by brand
+        by_brand: dict[str, list] = {}
+        for u in units:
+            by_brand.setdefault(u.model_brand or "(no brand)", []).append(u)
+
+        gt_units = 0
+        gt_value = 0.0
+        for brand in sorted(by_brand):
+            rows = by_brand[brand]
+            b_stock = sum(1 for u in rows if u.status == "in_stock")
+            b_value = sum(float(u.buy_price or u.sell_price or 0)
+                          for u in rows if u.status == "in_stock")
+            self._group_header(
+                pdf, brand.upper(),
+                meta=(f"{len(rows)} units  ·  {b_stock} in stock  ·  "
+                      f"{self._cfg.format_currency(f'{b_value:,.2f}')}"),
+                level=1,
+            )
+            self._phones_table(pdf, rows)
+            gt_units += len(rows)
+            gt_value += b_value
+
+        self._grand_total_bar(pdf, [
+            ("Units", str(gt_units)),
+            ("In Stock", str(summary.get("in_stock", 0))),
+            ("Stock Value (cost)",
+             self._cfg.format_currency(f"{gt_value:,.2f}")),
+        ])
+        return self._save(pdf, output_path, "phones_inventory_report")
+
+    def generate_phones_sold_report(self,
+                                    date_from: str | None = None,
+                                    date_to: str | None = None,
+                                    output_path: str | None = None) -> str:
+        """History of phone units marked SOLD within the date range."""
+        from app.repositories.phone_repo import PhoneRepository
+        phone_repo = PhoneRepository()
+
+        if not date_to:
+            date_to = datetime.now().strftime("%Y-%m-%d")
+        if not date_from:
+            date_from = (datetime.now() - timedelta(days=30)).strftime("%Y-%m-%d")
+
+        pdf = self._new_pdf("Phones Sold",
+                            f"Sold phone units  ·  {date_from}  to  {date_to}")
+        pdf.add_page()
+
+        txs = phone_repo.get_sold_history(date_from=date_from, date_to=date_to,
+                                          limit=5000)
+        total_value = sum(float(tx.sell_price or 0) for tx in txs)
+        avg_price = (total_value / len(txs)) if txs else 0.0
+        self._kpi_cards(pdf, [
+            ("Phones Sold", str(len(txs))),
+            ("Total Revenue",
+             self._cfg.format_currency(f"{total_value:,.2f}")),
+            ("Avg Sale Price",
+             self._cfg.format_currency(f"{avg_price:,.2f}")),
+        ])
+
+        if txs:
+            self._section_title(pdf, f"Sold Units ({len(txs)})")
+            self._phones_sold_table(pdf, txs)
+            self._grand_total_bar(pdf, [
+                ("Phones Sold", str(len(txs))),
+                ("Total Revenue",
+                 self._cfg.format_currency(f"{total_value:,.2f}")),
+            ])
+        else:
+            self._empty_msg(pdf, "No phones sold in the selected range.")
+        return self._save(pdf, output_path, "phones_sold_report")
+
+    # ════════════════════════════════════════════════════════════════════════
+    # DESIGN COMPONENTS
+    # ════════════════════════════════════════════════════════════════════════
+
+    def _phones_table(self, pdf: _ReportPDF, units: list) -> None:
+        cols = [
+            ("#",       8,  "C"),
+            ("Model",   34, "L"),
+            ("IMEI",    34, "L"),
+            ("Storage", 16, "C"),
+            ("Cond",    16, "C"),
+            ("Batt",    12, "C"),
+            ("Buy",     16, "R"),
+            ("Sell",    14, "R"),
+            ("Status",  36, "C"),
+        ]
+        # Sum = 186 ✓
+        self._draw_table_header(pdf, cols)
+        for idx, u in enumerate(units):
+            buy = (self._cfg.format_currency(f"{u.buy_price:,.2f}")
+                   if u.buy_price else "-")
+            sell = (self._cfg.format_currency(f"{u.sell_price:,.2f}")
+                    if u.sell_price else "-")
+            status_txt = {
+                "in_stock": "IN STOCK", "sold": "SOLD", "reserved": "RESERVED",
+            }.get(u.status, u.status.replace("_", " ").upper())
+            cells = [
+                (str(idx + 1), 8, "C"),
+                ((u.model_name or "-")[:22], 34, "L"),
+                ((u.imei or "-")[:20], 34, "L"),
+                (u.storage or "-", 16, "C"),
+                (u.condition_label[:8], 16, "C"),
+                (u.battery_label, 12, "C"),
+                (buy, 16, "R"),
+                (sell, 14, "R"),
+            ]
+            y_before = pdf.get_y()
+            self._row(pdf, cells, idx)
+            # Coloured status badge
+            pdf.set_xy(_MARGIN_L + sum(c[1] for c in cols[:-1]), y_before)
+            if u.status == "in_stock":
+                pdf.set_text_color(*_GREEN_TXT); pdf.set_font("Helvetica", "B", 7.5)
+            elif u.status == "sold":
+                pdf.set_text_color(*_RED_TXT); pdf.set_font("Helvetica", "B", 7.5)
+            else:
+                pdf.set_text_color(180, 120, 0); pdf.set_font("Helvetica", "B", 7.5)
+            bg = _WHITE if idx % 2 == 0 else _GRAY_50
+            pdf.set_fill_color(*bg)
+            pdf.cell(36, 6.5, status_txt, border="B", fill=True, align="C")
+            pdf.set_xy(_MARGIN_L, y_before + 6.5)
+            self._page_break_check(pdf, cols)
+
+    # ── Phones — sold history ──────────────────────────────────────────────
+    def _phones_sold_table(self, pdf: _ReportPDF, txs: list) -> None:
+        cols = [
+            ("#",          8,  "C"),
+            ("Sold On",    28, "L"),
+            ("Brand",      22, "L"),
+            ("Model",      36, "L"),
+            ("IMEI",       38, "L"),
+            ("Sale Price", 24, "R"),
+            ("Note",       30, "L"),
+        ]
+        # Sum = 186 ✓
+        self._draw_table_header(pdf, cols)
+        for idx, tx in enumerate(txs):
+            sold_on = (tx.timestamp or "")[:16].replace("T", " ")
+            price = (self._cfg.format_currency(f"{tx.sell_price:,.2f}")
+                     if tx.sell_price else "-")
+            cells = [
+                (str(idx + 1), 8, "C"),
+                (sold_on, 28, "L"),
+                ((tx.model_brand or "-")[:13], 22, "L"),
+                ((tx.model_name or "-")[:22], 36, "L"),
+                ((tx.imei or "-")[:24], 38, "L"),
+                (price, 24, "R"),
+                ((tx.note or "")[:20], 30, "L"),
+            ]
+            self._row(pdf, cells, idx)
+            self._page_break_check(pdf, cols)
+
+    # ── Audit ─────────────────────────────────────────────────────────────
 
     def _new_pdf(self, title: str, subtitle: str = "") -> _ReportPDF:
         pdf = _ReportPDF(orientation="P", unit="mm", format="A4")

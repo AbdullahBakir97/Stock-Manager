@@ -188,7 +188,7 @@ class CloudSyncPanel(QWidget):
         actions_lay.addWidget(init_lbl)
 
         init_row = QHBoxLayout()
-        self._init_primary_btn = QPushButton("⬆  Initialize as Primary (push local data to cloud)")
+        self._init_primary_btn = QPushButton("⬆  Push local data to cloud (merge — never deletes)")
         self._init_primary_btn.setObjectName("action_btn")
         self._init_primary_btn.clicked.connect(self._init_primary)
         init_row.addWidget(self._init_primary_btn)
@@ -345,21 +345,39 @@ class CloudSyncPanel(QWidget):
         if not ShopConfig.get().is_cloud_sync_enabled:
             QMessageBox.information(self, "Cloud Sync", "Save and enable cloud sync settings first.")
             return
+
+        # Read-only pre-push diff so the user sees exactly what will change.
+        # This is now a MERGE (upsert) — it never deletes cloud rows.
+        diff_summary = ""
+        try:
+            from app.core.database import preview_push_diff
+            diff = preview_push_diff()
+            ins = sum(e["to_insert"] for e in diff.values())
+            upd = sum(e["to_update"] for e in diff.values())
+            keep = sum(e["cloud_only"] for e in diff.values())
+            diff_summary = (
+                f"\n\nThis will MERGE this PC's data into the cloud "
+                f"(safe — it never deletes):\n"
+                f"   •  Insert new rows:            {ins}\n"
+                f"   •  Update existing rows:       {upd}\n"
+                f"   •  Cloud-only rows kept as-is: {keep}\n"
+            )
+        except Exception as exc:
+            diff_summary = f"\n\n(Could not preview changes: {exc})\n"
+
         reply = QMessageBox.question(
-            self, "Initialize as Primary",
-            "This is the ONE-TIME setup for the PC that already holds the "
-            "shop's data.\n\n"
-            "It will UPLOAD all of this PC's data to the cloud database "
-            "(replacing anything already there), and then switch this PC to "
-            "work DIRECTLY on the shared cloud database — so from now on it "
-            "stays in sync with every other PC.\n\n"
-            "Run this on only ONE PC. Continue?",
+            self, "Push local data to cloud (merge)",
+            "This uploads this PC's data to the shared cloud database and then "
+            "switches this PC to work DIRECTLY on the cloud, so it stays in sync "
+            "with every other PC."
+            + diff_summary +
+            "\nRun this on the PC that holds the data you want to push. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if reply != QMessageBox.StandardButton.Yes:
             return
         self._init_primary_btn.setEnabled(False)
-        self._set_test_result("Uploading local data to cloud…", error=False)
+        self._set_test_result("Merging local data into cloud…", error=False)
         try:
             from app.core.database import push_local_to_turso
             counts = push_local_to_turso()
@@ -372,8 +390,8 @@ class CloudSyncPanel(QWidget):
             ShopConfig.invalidate()
             total = sum(counts.values())
             self._set_test_result(
-                f"✓  Uploaded {total} rows — this PC now works on the shared "
-                f"cloud database (synced with all PCs)", error=False)
+                f"✓  Merged {total} rows into the cloud — this PC now works on "
+                f"the shared cloud database (synced with all PCs)", error=False)
             self._refresh_status()
         except Exception as exc:
             self._set_test_result(f"✕  Upload failed: {exc}", error=True)

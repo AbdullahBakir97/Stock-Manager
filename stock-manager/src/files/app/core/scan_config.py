@@ -82,13 +82,19 @@ class ScanConfig:
         renderer changes. Same logic as the inventory barcode lookup —
         see ``normalize_barcode`` in app/services/barcode_gen_service.py.
         Inlined as a staticmethod to avoid a circular import.
+        
+        Also removes spaces that some scanners output between the prefix
+        and the barcode payload.
         """
         if not text or len(text) < 2:
             return text or ""
+        # Remove all spaces first (handles spaces between prefix and barcode)
+        text = text.replace(" ", "")
+        # Strip leading lowercase scanner-mark prefix
         if text[0].islower() and text[0].isascii() and text[0].isalpha():
             nxt = text[1]
             if nxt.isupper() or nxt.isdigit():
-                return text[1:]
+                text = text[1:]
         return text
 
     def is_command(self, barcode: str) -> bool:

@@ -28,8 +28,6 @@ class PriceListRepository:
             """
         )
         rows = cursor.fetchall()
-        conn.close()
-
         result = []
         for row in rows:
             result.append(
@@ -65,8 +63,6 @@ class PriceListRepository:
             (list_id,),
         )
         row = cursor.fetchone()
-        conn.close()
-
         if not row:
             return None
 
@@ -92,7 +88,6 @@ class PriceListRepository:
         )
         conn.commit()
         list_id = cursor.lastrowid
-        conn.close()
         return list_id
 
     def update(
@@ -110,8 +105,6 @@ class PriceListRepository:
             (name, description, 1 if is_active else 0, list_id),
         )
         conn.commit()
-        conn.close()
-
     def delete(self, list_id: int) -> None:
         """Delete a price list and its items."""
         conn = get_connection()
@@ -119,8 +112,6 @@ class PriceListRepository:
         cursor.execute("DELETE FROM price_list_items WHERE price_list_id = ?", (list_id,))
         cursor.execute("DELETE FROM price_lists WHERE id = ?", (list_id,))
         conn.commit()
-        conn.close()
-
     def get_items(self, list_id: int) -> list[PriceListItem]:
         """Get all items in a price list with cost and margin."""
         conn = get_connection()
@@ -154,8 +145,6 @@ class PriceListRepository:
             (list_id,),
         )
         rows = cursor.fetchall()
-        conn.close()
-
         result = []
         for row in rows:
             cost_price = row[7] or 0.0
@@ -193,7 +182,6 @@ class PriceListRepository:
         )
         conn.commit()
         item_id_result = cursor.lastrowid
-        conn.close()
         return item_id_result
 
     def update_item_price(self, pli_id: int, price: float) -> None:
@@ -209,16 +197,12 @@ class PriceListRepository:
             (price, pli_id),
         )
         conn.commit()
-        conn.close()
-
     def remove_item(self, pli_id: int) -> None:
         """Remove an item from a price list."""
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM price_list_items WHERE id = ?", (pli_id,))
         conn.commit()
-        conn.close()
-
     def bulk_add_all_items(self, list_id: int) -> int:
         """Add all inventory items to a price list with their current sell price."""
         conn = get_connection()
@@ -239,7 +223,6 @@ class PriceListRepository:
         )
         conn.commit()
         count = cursor.rowcount
-        conn.close()
         return count
 
     def get_margin_analysis(self) -> list[MarginAnalysis]:
@@ -270,8 +253,6 @@ class PriceListRepository:
             """
         )
         rows = cursor.fetchall()
-        conn.close()
-
         result = []
         for row in rows:
             item_id = row[0]
@@ -339,8 +320,6 @@ class PriceListRepository:
             """
         )
         avg_margin = cursor.fetchone()[0] or 0.0
-
-        conn.close()
 
         return {
             "total_lists": total_lists,

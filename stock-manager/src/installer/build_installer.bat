@@ -5,10 +5,13 @@ REM  Run from the REPO ROOT:  installer\build_installer.bat
 REM ================================================================
 setlocal enabledelayedexpansion
 
-set APP_VERSION=2.3.2
 set SRC_DIR=%~dp0..\src
 set ISS_FILE=%~dp0StockManagerPro.iss
 set OUTPUT_DIR=%~dp0Output
+
+REM ── Read version from the single source of truth (version.py) ──
+for /f "delims=" %%v in ('python -c "import re;print(re.search(r'APP_VERSION\s*=\s*\"([^\"]+)\"',open(r'%SRC_DIR%\files\app\core\version.py',encoding='utf-8').read()).group(1))"') do set APP_VERSION=%%v
+if "%APP_VERSION%"=="" ( echo  ERROR: could not read APP_VERSION from version.py & exit /b 1 )
 
 echo.
 echo ============================================================
@@ -57,8 +60,12 @@ if %ISCC%=="" (
     )
 )
 
+REM ── Regenerate wizard images stamped with the current version ──
+python "%~dp0make_wizard_banner.py" %APP_VERSION%
+if errorlevel 1 ( echo  ERROR: wizard image generation failed. & exit /b 1 )
+
 if not exist "%OUTPUT_DIR%" mkdir "%OUTPUT_DIR%"
-%ISCC% "%ISS_FILE%"
+%ISCC% /DAppVersion=%APP_VERSION% "%ISS_FILE%"
 if errorlevel 1 ( echo  ERROR: Inno Setup compile failed. & exit /b 1 )
 
 echo.

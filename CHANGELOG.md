@@ -7,6 +7,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [2.6.7] - 2026-07-01
+
+
+## [2.6.7] - 2026-07-01
+
+
 ### Changed — Cloud push is now non-destructive (safe merge)
 - **What**: "Push local data to cloud" (formerly "Initialize as Primary") now **merges** — it UPSERTs every row by primary key and **never drops cloud tables**. Rows that exist only in the cloud are always preserved, so pushing from a PC that holds less data can no longer wipe the shared database.
 - **Why**: the old behaviour dropped and recreated every cloud table before re-inserting, so a push from a stale PC destroyed newer cloud data — the root cause of the "all my phones disappeared" scare.

@@ -406,6 +406,40 @@ def _apply_pragmas(conn) -> None:
     conn.execute("PRAGMA mmap_size = 134217728")
 
 
+def delete_inventory_where_safe(conn, where_sql: str, params) -> int:
+    """FK-safe delete of inventory_items matching a WHERE clause.
+
+    An inventory_items row may be referenced by history (transactions, sales,
+    audits, price lists…). SQLite ignores foreign keys by default but the cloud
+    (Turso) always enforces them, so a plain DELETE crashes with "FOREIGN KEY
+    constraint failed" the moment a matched row is still referenced.
+
+    This tries the fast single-statement bulk delete first; if that hits an FK
+    violation it re-selects the matching ids and deletes them one-by-one,
+    silently keeping the rows that are still referenced. Returns the number of
+    rows actually deleted. `where_sql` must NOT include the "WHERE" keyword and
+    is used verbatim for both the DELETE and the fallback SELECT, so its params
+    must match in both positions.
+    """
+    try:
+        conn.execute(f"DELETE FROM inventory_items WHERE {where_sql}", params)
+        return -1  # bulk path succeeded; exact count not tracked (fast path)
+    except sqlite3.IntegrityError:
+        pass
+    rows = conn.execute(
+        f"SELECT id FROM inventory_items WHERE {where_sql}", params
+    ).fetchall()
+    deleted = 0
+    for r in rows:
+        iid = r[0] if isinstance(r, tuple) else r["id"]
+        try:
+            conn.execute("DELETE FROM inventory_items WHERE id=?", (iid,))
+            deleted += 1
+        except sqlite3.IntegrityError:
+            _log.debug("Kept inventory_item %s — referenced by history", iid)
+    return deleted
+
+
 def _get_sqlite_connection() -> sqlite3.Connection:
     """Return a thread-local cached plain sqlite3 connection."""
     conn = getattr(_sqlite_local, "conn", None)
@@ -549,11 +583,14 @@ def push_local_to_turso(progress_cb=None) -> dict:
     database so every other PC can start reading/writing the same dataset
     over the HTTP API.
 
-    Existing rows in each Turso table are deleted first (the cloud DB is
-    assumed to be freshly created / empty). Returns a dict of
-    {table: row_count} for the tables that were pushed.
+    Non-destructive: the cloud schema is ensured (CREATE TABLE IF NOT EXISTS)
+    and every row is UPSERTed by primary key (ON CONFLICT DO UPDATE). Rows that
+    exist only in the cloud are left untouched, so pushing from a PC that holds
+    less data can never wipe the cloud. Use preview_push_diff() to show the user
+    exactly what a push will insert/update beforehand. Returns {table: rows_pushed}.
 
-    Raises RuntimeError if local database is empty to prevent data loss.
+    Raises RuntimeError if local database is empty to prevent accidental no-op
+    confusion (and as a legacy guard).
     """
     local = _get_sqlite_connection()
     remote = _get_turso_connection()
@@ -577,20 +614,19 @@ def push_local_to_turso(progress_cb=None) -> dict:
 
     counts: dict[str, int] = {}
 
-    # Drop all tables first so the cloud schema is recreated fresh from the
-    # CURRENT _DDL (no stale/missing columns from an earlier push). Drop in
-    # REVERSE dependency order — children before parents — so the drops succeed
-    # even when foreign keys are enforced.
-    for table in reversed(_SYNCED_TABLES):
-        try:
-            remote.execute(f"DROP TABLE IF EXISTS {table}")
-        except Exception as e:
-            _log.warning(f"Failed to drop table {table}: {e}")
-
-    # Recreate schema with all tables
+    # Ensure the cloud schema EXISTS without dropping anything — every _DDL
+    # statement is CREATE TABLE IF NOT EXISTS, so this is safe on a populated
+    # cloud DB — then reconcile any missing columns. This replaces the old
+    # DROP + recreate, so a push can never wipe rows that live only in the cloud.
     _executescript(remote, _DDL)
+    try:
+        _ensure_columns(remote)
+    except Exception as e:
+        _log.warning(f"_ensure_columns on remote failed (continuing): {e}")
 
-    # Insert in forward order (parents before children) to satisfy FK constraints
+    # UPSERT each table in forward FK order (parents before children) so the
+    # insert half satisfies foreign keys; ON CONFLICT DO UPDATE refreshes rows
+    # that already exist. Rows present only in the cloud are left untouched.
     for table in _SYNCED_TABLES:
         # Skip tables that don't exist locally (e.g. older DBs pre-migration).
         exists = local.execute(
@@ -606,18 +642,103 @@ def push_local_to_turso(progress_cb=None) -> dict:
             progress_cb(table, len(rows))
 
         if rows:
-            placeholders = ",".join("?" * len(cols))
+            pk_cols = _table_pk_columns(local, table)
+            sql = _build_upsert_sql(table, cols, pk_cols)
             seq = [tuple(r[c] for c in cols) for r in rows]
             try:
-                remote.executemany(
-                    f"INSERT INTO {table} ({','.join(cols)}) VALUES ({placeholders})", seq
-                )
+                remote.executemany(sql, seq)
             except Exception as e:
-                _log.error(f"Failed to insert into {table}: {e}")
-                raise RuntimeError(f"Failed to insert data into {table}: {e}")
+                _log.error(f"Failed to upsert into {table}: {e}")
+                raise RuntimeError(f"Failed to sync data into {table}: {e}")
         counts[table] = len(rows)
 
     return counts
+
+
+def _build_upsert_sql(table: str, cols: list[str], pk_cols: list[str]) -> str:
+    """Build a non-destructive UPSERT statement for a bulk `executemany`.
+
+    With a primary key: INSERT ... ON CONFLICT(pk) DO UPDATE SET (non-pk cols),
+    or DO NOTHING when every column is part of the key. Keyless tables fall back
+    to INSERT OR IGNORE. Never deletes — matching rows are updated in place and
+    cloud-only rows are untouched.
+    """
+    colcsv = ",".join(cols)
+    placeholders = ",".join("?" * len(cols))
+    if not pk_cols:
+        return f"INSERT OR IGNORE INTO {table} ({colcsv}) VALUES ({placeholders})"
+    conflict = ",".join(pk_cols)
+    non_pk = [c for c in cols if c not in pk_cols]
+    if non_pk:
+        setclause = ",".join(f"{c}=excluded.{c}" for c in non_pk)
+        return (f"INSERT INTO {table} ({colcsv}) VALUES ({placeholders}) "
+                f"ON CONFLICT({conflict}) DO UPDATE SET {setclause}")
+    return (f"INSERT INTO {table} ({colcsv}) VALUES ({placeholders}) "
+            f"ON CONFLICT({conflict}) DO NOTHING")
+
+
+def _table_pk_columns(conn, table: str) -> list[str]:
+    """Return primary-key column names for *table*, in key order, via PRAGMA.
+
+    PRAGMA table_info columns: cid, name, type, notnull, dflt_value, pk — where
+    `pk` is the 1-based position within the primary key (0 = not part of it).
+    Works over sqlite3.Row and the _DictRow cloud wrapper.
+    """
+    try:
+        info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    except Exception:
+        return []
+    pk: list[tuple[int, str]] = []
+    for r in info:
+        name = r[1] if isinstance(r, tuple) else r["name"]
+        pos = r[5] if isinstance(r, tuple) else r["pk"]
+        if pos and int(pos) > 0:
+            pk.append((int(pos), name))
+    pk.sort()
+    return [name for _, name in pk]
+
+
+def preview_push_diff() -> dict:
+    """Read-only comparison of local vs cloud for each synced table.
+
+    Returns ``{table: {"local", "remote", "to_insert", "to_update",
+    "cloud_only"}}`` using primary-key sets (falls back to plain counts for
+    keyless tables). Performs NO writes — used to show a confirmation before
+    ``push_local_to_turso()`` so the user sees exactly what a push will do.
+    """
+    local = _get_sqlite_connection()
+    remote = _get_turso_connection()
+    out: dict[str, dict] = {}
+    for table in _SYNCED_TABLES:
+        exists = local.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+        ).fetchone()
+        if not exists:
+            continue
+        local_n = local.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        try:
+            remote_n = remote.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+        except Exception:
+            remote_n = 0
+        entry = {"local": local_n, "remote": remote_n,
+                 "to_insert": local_n, "to_update": 0, "cloud_only": remote_n}
+        pk_cols = _table_pk_columns(local, table)
+        if pk_cols:
+            pkcsv = ",".join(pk_cols)
+            try:
+                lkeys = {tuple(r[c] for c in pk_cols)
+                         for r in local.execute(f"SELECT {pkcsv} FROM {table}").fetchall()}
+                rkeys = {tuple(r[c] for c in pk_cols)
+                         for r in remote.execute(f"SELECT {pkcsv} FROM {table}").fetchall()}
+                entry.update(
+                    to_insert=len(lkeys - rkeys),
+                    to_update=len(lkeys & rkeys),
+                    cloud_only=len(rkeys - lkeys),
+                )
+            except Exception as e:
+                _log.warning(f"push diff for {table} fell back to counts: {e}")
+        out[table] = entry
+    return out
 
 
 def close_all_connections() -> None:
@@ -2147,9 +2268,11 @@ def load_demo_data() -> None:
                 disallowed_pt_ids = [pt_key_to_id[k] for k in pt_key_to_id if k not in allowed_keys]
                 if disallowed_pt_ids:
                     placeholders = ",".join("?" * len(disallowed_pt_ids))
-                    # Only delete if stock is 0 (don't lose actual data)
-                    conn.execute(
-                        f"DELETE FROM inventory_items WHERE model_id=? AND part_type_id IN ({placeholders}) "
+                    # Only delete if stock is 0 (don't lose actual data);
+                    # FK-safe so a history-referenced row can't crash startup.
+                    delete_inventory_where_safe(
+                        conn,
+                        f"model_id=? AND part_type_id IN ({placeholders}) "
                         f"AND (stock IS NULL OR stock = 0) AND (min_stock IS NULL OR min_stock = 0)",
                         [model["id"]] + disallowed_pt_ids,
                     )
@@ -2362,8 +2485,9 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
                         # Demo-data exclusion AND user hasn't touched this —
                         # delete zero-stock rows to keep the matrix clean
                         if pt_id:
-                            conn.execute(
-                                "DELETE FROM inventory_items WHERE model_id=? AND part_type_id=? "
+                            delete_inventory_where_safe(
+                                conn,
+                                "model_id=? AND part_type_id=? "
                                 "AND (stock IS NULL OR stock=0) AND (min_stock IS NULL OR min_stock=0)",
                                 (mid, pt_id),
                             )
@@ -2392,9 +2516,8 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
         for i in range(0, len(_batch_delete_ids), 500):
             chunk = _batch_delete_ids[i:i + 500]
             placeholders = ",".join("?" * len(chunk))
-            conn.execute(
-                f"DELETE FROM inventory_items WHERE id IN ({placeholders})",
-                chunk,
+            delete_inventory_where_safe(
+                conn, f"id IN ({placeholders})", chunk
             )
 
     # Clean up stale inventory items: remove display items for brands that
@@ -2421,13 +2544,13 @@ def _ensure_all_entries(conn: sqlite3.Connection) -> None:
                 if model_pt_colors.get((mid, pt_id)):
                     continue
                 _cleanup_pairs.append((mid, pt_id))
-        if _cleanup_pairs:
-            conn.executemany(
-                "DELETE FROM inventory_items "
-                "WHERE model_id=? AND part_type_id=? "
+        for _mid, _ptid in _cleanup_pairs:
+            delete_inventory_where_safe(
+                conn,
+                "model_id=? AND part_type_id=? "
                 "AND stock=0 AND min_stock=0 "
                 "AND (inventur IS NULL OR inventur=0)",
-                _cleanup_pairs,
+                (_mid, _ptid),
             )
 
     # Cache the fingerprint we just satisfied so the next call can take

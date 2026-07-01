@@ -806,6 +806,8 @@ class MainWindow(QMainWindow):
     def _barcode(self, bc: str) -> None:
         from app.core.scan_config import ScanConfig
         scan_cfg = ScanConfig.get()
+        # Remove spaces that some scanners output between prefix and barcode
+        bc = bc.replace(" ", "")
         # Route to Quick Scan ONLY for command barcodes (ADD / DEL / OK).
         # Pre-v2.5.6 the condition also fired when ``_quick_scan_tab._session.mode``
         # was truthy — the intent was "an active Quick Scan session

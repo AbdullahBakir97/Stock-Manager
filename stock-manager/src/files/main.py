@@ -22,15 +22,40 @@ def _handle_exception(exc_type, exc_value, exc_traceback):
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
-    _log.critical("Unhandled exception", exc_info=(exc_type, exc_value, exc_traceback))
+    # Meaningful summary line (e.g. "Unhandled OperationalError: no such column")
+    # so the collapsed log row is useful; exc_info carries the full traceback,
+    # which the in-app viewer now surfaces in its detail pane.
+    summary = f"Unhandled {exc_type.__name__}: {exc_value}"
+    _log.critical(summary, exc_info=(exc_type, exc_value, exc_traceback))
+
+
+def _handle_thread_exception(args):
+    """Log uncaught exceptions raised on non-main (worker) threads."""
+    if issubclass(args.exc_type, SystemExit):
+        return
+    thread_name = getattr(args.thread, "name", "?")
+    _log.error(
+        f"Uncaught exception in thread {thread_name}: "
+        f"{args.exc_type.__name__}: {args.exc_value}",
+        exc_info=(args.exc_type, args.exc_value, args.exc_traceback),
+    )
 
 
 def _qt_message_handler(msg_type, context, msg):
-    """Suppress harmless Qt warnings (QFont pointSize=-1)."""
+    """Route Qt's own warnings/criticals into the app log (so they show up in
+    the in-app Logs viewer), while suppressing one cosmetic quirk."""
     if "QFont::setPointSize" in msg:
         return  # suppress — cosmetic Qt quirk with pixel-based CSS fonts
-    # Let everything else through to stderr
-    sys.stderr.write(f"{msg}\n")
+    try:
+        from PyQt6.QtCore import QtMsgType
+        if msg_type in (QtMsgType.QtCriticalMsg, QtMsgType.QtFatalMsg):
+            _log.error("Qt: %s", msg)
+        elif msg_type == QtMsgType.QtWarningMsg:
+            _log.warning("Qt: %s", msg)
+        else:
+            _log.debug("Qt: %s", msg)
+    except Exception:
+        sys.stderr.write(f"{msg}\n")
 
 
 def main():
@@ -41,6 +66,8 @@ def main():
     _log.info(f"Database path: {DB_PATH}")
 
     sys.excepthook = _handle_exception
+    import threading
+    threading.excepthook = _handle_thread_exception
 
     from PyQt6.QtCore import qInstallMessageHandler
     qInstallMessageHandler(_qt_message_handler)

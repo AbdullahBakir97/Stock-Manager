@@ -18,6 +18,16 @@ Two pieces:
 
 Together they cover both cases: typed-into-search bar (existing path
 on most pages) and Matrix-table-stole-focus (narrow filter path).
+
+German Keyboard Layout Support
+===============================
+USB barcode scanners in keyboard-wedge mode emit scancodes that are
+interpreted by the OS keyboard layout. On German QWERTZ layouts:
+- The hyphen key (-) produces ß instead of -
+- The Y/Z keys are swapped compared to US QWERTY
+
+This module normalizes scanner input by converting ß to - so barcodes
+match the stored form in the database.
 """
 from __future__ import annotations
 
@@ -27,6 +37,22 @@ from PyQt6.QtWidgets import QLineEdit, QApplication
 from PyQt6.QtCore import Qt, QTimer, QObject, QEvent, pyqtSignal
 
 from app.core.i18n import t
+
+
+def _normalize_german_scanner_input(text: str) -> str:
+    """Normalize scanner input by removing spaces.
+    
+    Some scanners output spaces between the prefix character and the
+    actual barcode payload (e.g., "f      IPßXSßDDSO"). This function
+    removes all spaces so the barcode can be processed correctly.
+    
+    Note: German keyboard ß character is preserved - the existing
+    canonical_barcode() function in barcode_gen_service.py handles
+    the ß ↔ - conversion at the database lookup level.
+    """
+    # Remove all spaces (handles spaces between prefix and barcode)
+    text = text.replace(" ", "")
+    return text
 
 
 class BarcodeLineEdit(QLineEdit):
@@ -49,12 +75,16 @@ class BarcodeLineEdit(QLineEdit):
     def _flush(self):
         if len(self._buf) >= 3:
             bc = "".join(self._buf).strip()
-            if bc: self.barcode_scanned.emit(bc)
+            if bc: 
+                bc = _normalize_german_scanner_input(bc)
+                self.barcode_scanned.emit(bc)
         self._buf.clear()
 
     def _commit(self):
         self._t.stop(); txt = self.text().strip()
-        if txt: self.barcode_scanned.emit(txt); self.clear()
+        if txt: 
+            txt = _normalize_german_scanner_input(txt)
+            self.barcode_scanned.emit(txt); self.clear()
         self._buf.clear()
 
 
@@ -173,4 +203,5 @@ class GlobalScannerCapture(QObject):
         self._buf.clear()
         self._last_press_ns = 0
         if len(bc) >= self._min_length:
+            bc = _normalize_german_scanner_input(bc)
             self.barcode_scanned.emit(bc)

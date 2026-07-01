@@ -178,7 +178,11 @@ def delete_product(win: MainWindow) -> None:
     if ans != QMessageBox.StandardButton.Yes:
         return
     try:
-        _item_repo.delete(item.id)
+        if not _item_repo.delete(item.id):
+            # Referenced by history (sales / stock movements) — can't delete.
+            QMessageBox.information(
+                win, t("ctx_delete"), t("msg_delete_blocked"))
+            return
         win._cp = None
         win._inv_page.detail.set_product(None)
         win._refresh_all()

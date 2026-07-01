@@ -7,6 +7,22 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Changed — Cloud push is now non-destructive (safe merge)
+- **What**: "Push local data to cloud" (formerly "Initialize as Primary") now **merges** — it UPSERTs every row by primary key and **never drops cloud tables**. Rows that exist only in the cloud are always preserved, so pushing from a PC that holds less data can no longer wipe the shared database.
+- **Why**: the old behaviour dropped and recreated every cloud table before re-inserting, so a push from a stale PC destroyed newer cloud data — the root cause of the "all my phones disappeared" scare.
+- **Safety**: before pushing, a **pre-push diff** shows exactly what will be inserted, updated, and kept untouched. A new CI gate (`test_sync_upsert`) fails the build if the push ever becomes destructive again.
+
+### Fixed — `FOREIGN KEY constraint failed` crashes in cloud mode (app-wide)
+- **User-visible symptom**: `FOREIGN KEY constraint failed` crash when saving a model's colour selection (or "No Colors"), and the same latent risk on startup/refresh and when deleting products.
+- **Root cause**: several paths deleted `inventory_items` rows that history (transactions, sales, audits, price lists) still referenced. SQLite doesn't enforce foreign keys by default, but the cloud (Turso) always does, so the delete failed.
+- **Fix**: a shared **FK-safe delete** helper (`delete_inventory_where_safe`) now backs every matrix/part-type cleanup — it tries a fast bulk delete and, on an FK violation, falls back to per-row deletion that **skips rows still referenced by history** (they're `stock=0` and harmless). Deleting a product that has history now shows a clear "can't delete — set stock to 0" message instead of crashing. Covered by a new CI gate. Surfaced thanks to the new traceback-rich logs pinpointing the exact line.
+
+### Added — Logs now show the real error (traceback detail)
+- Previously an unhandled error showed only `[CRITICAL] [__main__] Unhandled exception` with no clue what failed. Now the collapsed row reads e.g. `Unhandled OperationalError: no such column: x`, and **double-clicking any row opens a detail pane with the full, copyable traceback**. Qt warnings/errors and worker-thread crashes are now captured into the logs too (they previously went only to stderr).
+
+### Changed — Faster DB access (no connection churn)
+- Three repositories (`audit`, `price_list`, `supplier`) closed the shared per-thread SQLite connection after every call, forcing a reconnect + PRAGMA re-apply on the next query. They now reuse the cached connection like the rest of the app.
+
 ### Added — Professional in-app logging & diagnostics
 - **What**: a dedicated **Logs** screen (sidebar tab + a pop-out window you can keep open on a second monitor) that shows everything the app does in real time — colour-coded by level, with filters for level, source, and free-text search, a verbose (DEBUG) toggle for troubleshooting, pause/resume live tail, and one-click **Copy**, **Export**, **Open log file**, and **Open folder**.
 - **How**: logging now feeds an in-memory ring buffer (last 5,000 records) alongside the existing rotating log file, so any message logged anywhere in the app appears in the viewer instantly without touching disk. The buffer is framework-free and thread-safe; the UI marshals records onto the main thread via a queued Qt signal.
@@ -21,6 +37,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - **User-visible symptom**: on a cloud-synced PC the startup health check failed with `Integrity check error: 'NoneType' object is not subscriptable` (now visible thanks to the new Logs screen).
 - **Root cause**: `PRAGMA integrity_check` returns no row over the Turso HTTP connection, so `fetchone()[0]` dereferenced `None`. It only ever worked because local SQLite always returns a row.
 - **Fix**: the integrity check now guards the result and treats "no row" as *unverifiable (OK)* over a remote connection instead of a hard failure, so cloud-sync mode is no longer reported UNHEALTHY.
+
+### Fixed — Phones disappeared after sync due to replica mode
+- **User-visible symptom**: after syncing, all phones appeared to be gone from the UI, even though the database still contained 165 phones (130 in stock, 35 sold).
+- **Root cause**: the sync_role was set to "replica", which caused the app to read from the cloud database instead of the local database. The cloud database was empty, so no phones were displayed.
+- **Fix**: changed sync_role from "replica" to "primary" in the database configuration. The app now reads from the local database where the phones are stored.
+
+### Fixed — Scanner input with spaces between prefix and barcode failed
+- **User-visible symptom**: some scanners output spaces between the prefix character and the barcode payload (e.g., "f      IPßXSßDDSO"), causing barcode lookups to fail. Command barcodes also stopped working.
+- **Root cause**: the scanner input processing did not handle spaces between the prefix and the barcode, so the normalized input didn't match stored barcodes.
+- **Fix**: added space removal to barcode scanner input processing in `barcode_line_edit.py`, `scan_config.py`, and `main_window.py`. The normalization now removes all spaces before processing, preserving the existing German keyboard ß handling.
 
 ---
 

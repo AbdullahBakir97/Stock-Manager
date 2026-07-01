@@ -1354,6 +1354,9 @@ class MatrixWidget(QTableWidget):
         no_clr_btn.setFixedHeight(32)
         no_clr_btn.setToolTip("Remove all colors — only the base product (no color variants)")
         def _no_colors():
+            import sqlite3 as _sqlite3
+            from app.core.logger import get_logger as _get_logger
+            _mlog = _get_logger(__name__)
             from app.core.database import get_connection
             all_pt_ids = [pt.id for pt in self._cat.part_types] if self._cat else [part_type_id]
             with get_connection() as conn:
@@ -1369,14 +1372,25 @@ class MatrixWidget(QTableWidget):
                         "(model_id, part_type_id, color_name) VALUES (?, ?, ?)",
                         (model_id, ptid, "__NONE__"),
                     )
-                    # Delete all colored inventory items (zero stock only)
-                    conn.execute(
-                        "DELETE FROM inventory_items "
+                    # Delete all colored inventory items (zero stock only).
+                    # Row-by-row so history-referenced rows are skipped instead
+                    # of failing the whole statement on an FK constraint (cloud
+                    # enforces FKs; a bulk DELETE would abort atomically).
+                    _empty = conn.execute(
+                        "SELECT id, color FROM inventory_items "
                         "WHERE model_id=? AND part_type_id=? AND color != '' "
                         "AND stock=0 AND min_stock=0 "
                         "AND (inventur IS NULL OR inventur=0)",
                         (model_id, ptid),
-                    )
+                    ).fetchall()
+                    for _r in _empty:
+                        try:
+                            conn.execute(
+                                "DELETE FROM inventory_items WHERE id=?", (_r["id"],))
+                        except _sqlite3.IntegrityError:
+                            _mlog.debug(
+                                "Kept inventory_item %s (%s) — referenced by "
+                                "history, cannot delete", _r["id"], _r["color"])
                     # Ensure colorless parent row exists
                     conn.execute(
                         "INSERT OR IGNORE INTO inventory_items "
@@ -1413,6 +1427,9 @@ class MatrixWidget(QTableWidget):
         confirm.setObjectName("btn_primary")
         confirm.setFixedHeight(32)
         def _save():
+            import sqlite3 as _sqlite3
+            from app.core.logger import get_logger as _get_logger
+            _mlog = _get_logger(__name__)
             chosen = [c for c, v in selected.items() if v]
             from app.core.database import get_connection
             chosen_set = set(chosen)
@@ -1443,12 +1460,23 @@ class MatrixWidget(QTableWidget):
                     ).fetchall()
                     for row in rows:
                         if row["color"] not in chosen_set:
-                            conn.execute(
-                                "DELETE FROM inventory_items WHERE id=? "
-                                "AND stock=0 AND min_stock=0 "
-                                "AND (inventur IS NULL OR inventur=0)",
-                                (row["id"],),
-                            )
+                            # Only prune EMPTY rows for unselected colours. A row
+                            # can still be referenced by history (transactions,
+                            # sales, audits…); FK constraints are enforced on the
+                            # cloud (and locally via PRAGMA foreign_keys=ON), so a
+                            # referenced row can't be deleted. Skip it — it's
+                            # stock=0 and harmless; deleting would orphan history.
+                            try:
+                                conn.execute(
+                                    "DELETE FROM inventory_items WHERE id=? "
+                                    "AND stock=0 AND min_stock=0 "
+                                    "AND (inventur IS NULL OR inventur=0)",
+                                    (row["id"],),
+                                )
+                            except _sqlite3.IntegrityError:
+                                _mlog.debug(
+                                    "Kept inventory_item %s (%s) — referenced by "
+                                    "history, cannot delete", row["id"], row["color"])
                     # 3. Insert rows for newly selected colors
                     for name in chosen:
                         conn.execute(

@@ -116,7 +116,6 @@ class SupplierRepository(BaseRepository):
                 COALESCE(AVG(CASE WHEN rating > 0 THEN rating ELSE NULL END), 0) AS avg_rating
             FROM suppliers
         """).fetchone()
-        conn.close()
         return dict(row) if row else {
             "total": 0, "active": 0, "inactive": 0, "avg_rating": 0
         }

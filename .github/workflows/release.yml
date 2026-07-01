@@ -355,14 +355,26 @@ jobs:
 
           echo "PR created: $PR_URL"
 
-          # Auto-merge the PR (merge commit for clean history)
-          gh pr merge "$RELEASE_BRANCH" \
-            --merge \
-            --auto \
-            --subject "chore: release v${VERSION} (#$(gh pr view "$RELEASE_BRANCH" --json number -q .number))" \
-            --delete-branch
+          # Merge the release PR (merge commit for clean history).
+          # Prefer auto-merge, which waits for required status checks — but
+          # that requires a branch-protection rule on the base branch and the
+          # repo-level "Allow auto-merge" setting. When either is missing,
+          # GitHub rejects --auto ("Protected branch rules not configured for
+          # this branch"), so fall back to an immediate direct merge.
+          PR_NUMBER=$(gh pr view "$RELEASE_BRANCH" --json number -q .number)
+          if ! gh pr merge "$RELEASE_BRANCH" \
+                --merge \
+                --auto \
+                --subject "chore: release v${VERSION} (#${PR_NUMBER})" \
+                --delete-branch; then
+            echo "Auto-merge unavailable — merging directly."
+            gh pr merge "$RELEASE_BRANCH" \
+              --merge \
+              --subject "chore: release v${VERSION} (#${PR_NUMBER})" \
+              --delete-branch
+          fi
 
-          echo "PR auto-merged and release branch deleted"
+          echo "PR merged and release branch deleted"
 
       # ── 12. Upload installer artifact ─────────────────────────────────────────
       - name: Upload installer artifact

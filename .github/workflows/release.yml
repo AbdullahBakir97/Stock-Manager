@@ -192,6 +192,12 @@ jobs:
               f"Version-{version}-10B981",
               content,
           )
+          # 4a-ii. "Current release: vX.Y.Z" line near the footer.
+          content = re.sub(
+              r"\*\*Current release: v[\d.]+\*\*",
+              f"**Current release: v{version}**",
+              content,
+          )
           # 4b. Blue SQLite schema badge — extract _SCHEMA_VERSION from
           #     database.py (single source of truth) and stamp the badge
           #     so README always shows the current schema generation.
@@ -223,6 +229,15 @@ jobs:
       - name: Install Inno Setup
         shell: powershell
         run: choco install innosetup -y --no-progress
+
+      # ── 8b. Stamp the wizard images with this version ────────────────────────
+      #  wizard_banner.bmp / wizard_icon.bmp are rendered from the app icon so
+      #  the installer sidebar always shows the correct version (a static BMP
+      #  can't be text-substituted by Inno like {#AppVersion}).
+      - name: Generate installer wizard images
+        working-directory: stock-manager/src/installer
+        shell: bash
+        run: python make_wizard_banner.py "${{ steps.version.outputs.VERSION }}"
 
       - name: Compile installer
         working-directory: stock-manager/src

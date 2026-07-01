@@ -1,7 +1,7 @@
 {
   "version": "2.6.7",
   "download_url": "https://github.com/AbdullahBakir97/Stock-Manager/releases/download/v2.6.7/StockManagerPro-2.6.7-setup.exe",
-  "release_notes": "v2.6.7 \u2014 see changelog for details",
+  "release_notes": "**What**: \"Push local data to cloud\" (formerly \"Initialize as Primary\") now **merges** \u2014 it UPSERTs every row by primary key and **never drops cloud tables**. Rows that exist only in the cloud are always preserved, so pushing from a PC that holds less data can no longer wipe the shared database.; **Why**: the old behaviour dropped and recreated every cloud table before re-inserting, so a push from a stale PC destroyed newer cloud data \u2014 the root cause of the \"all my phones disappeared\" scare.; **Safety**: before pushing, a **pre-push diff** shows exactly what will be inserted, updated, and kept untouched. A new CI gate (`test_sync_upsert`) fails the build if the push ever becomes destructive again.",
   "release_date": "2026-07-01",
-  "checksum_sha256": "4f9915bc1d19ae3a773b14758b4590375b0aeff1dbed6d1e6ff4d995b7a22418"
+  "checksum_sha256": "f09bdf87a695c102b765dae9239d572ca996772d48050781abdb82fd79143b48"
 }
